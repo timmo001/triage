@@ -80,12 +80,11 @@ const program = Effect.gen(function* () {
 
   const setUpNpm = Effect.fn("setUpNpm")(function* (
     manifest: typeof Manifest.Type,
+    owned: ReadonlySet<string>,
   ) {
-    const registry = yield* http.get(
-      `https://registry.npmjs.org/${manifest.name.replace("/", "%2f")}`,
-    );
-
-    if (registry.status === 404) {
+    if (owned.has(manifest.name)) {
+      yield* Effect.log(`npm: ${manifest.name} already exists`);
+    } else {
       yield* Effect.log(
         `npm: publishing ${manifest.name}@${placeholderVersion} as a placeholder`,
       );
@@ -107,9 +106,6 @@ const program = Effect.gen(function* () {
           yield* run("npm", ["publish", "--access", "public"], directory);
         }),
       );
-    } else {
-      yield* HttpClientResponse.filterStatusOk(registry);
-      yield* Effect.log(`npm: ${manifest.name} already exists`);
     }
 
     const trust = yield* spawner.string(
@@ -182,6 +178,27 @@ const program = Effect.gen(function* () {
 
   yield* run("npm", ["whoami"]);
 
+  // npm lists a new package here straight away, while the public registry can
+  // take minutes to serve it.
+  const owned = yield* spawner
+    .string(
+      ChildProcess.make("npm", [
+        "access",
+        "list",
+        "packages",
+        `@${repository.owner}`,
+        "--json",
+      ]),
+    )
+    .pipe(
+      Effect.flatMap(
+        Schema.decodeUnknownEffect(
+          Schema.fromJsonString(Schema.Record(Schema.String, Schema.String)),
+        ),
+      ),
+      Effect.map((packages) => new Set(Object.keys(packages))),
+    );
+
   const directories = yield* fs.readDirectory("packages");
   yield* Effect.forEach(
     directories.toSorted(),
@@ -195,7 +212,7 @@ const program = Effect.gen(function* () {
             ),
           );
 
-        yield* setUpNpm(manifest);
+        yield* setUpNpm(manifest, owned);
         yield* setUpJsr(manifest);
       }),
     { discard: true },
