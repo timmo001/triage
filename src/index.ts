@@ -11,13 +11,43 @@ import { Store } from "./store/Store.js";
 import { Uploader } from "./upload/Uploader.js";
 
 const collectorLayer = Collector.layer.pipe(
-  Layer.provide(Layer.mergeAll(Journal.layer, Redactor.layer, Store.layer)),
+  Layer.provide(Layer.mergeAll(Journal.layer, Redactor.layer)),
+  Layer.provideMerge(Store.layer),
 );
 
 const json = Flag.Boolean("json").pipe(
   Flag.withDescription("Print JSON"),
   Flag.withDefault(false),
 );
+
+interface CollectInput {
+  readonly follow: boolean;
+  readonly json: boolean;
+}
+
+const runCollect = Effect.fn(function* (
+  input: CollectInput,
+  afterBatch: Effect.Effect<void>,
+) {
+  const collector = yield* Collector;
+
+  const result = yield* collector.collect({
+    follow: input.follow,
+    onBatch: (totals) =>
+      Effect.andThen(
+        input.follow
+          ? Effect.logInfo("Collected", totals.added, "new events")
+          : Effect.void,
+        afterBatch,
+      ),
+  });
+
+  yield* Console.log(
+    input.json
+      ? JSON.stringify(result)
+      : `Read ${result.entries} journal entries, ${result.added} new events`,
+  );
+});
 
 const collect = Command.make(
   "collect",
@@ -27,24 +57,41 @@ const collect = Command.make(
       Flag.withDescription("Keep collecting new entries as they're written"),
       Flag.withDefault(false),
     ),
+    upload: Flag.Boolean("upload").pipe(
+      Flag.withAlias("u"),
+      Flag.withDescription(
+        "Send new events to $TRIAGE_SERVER after each batch, keeping them to retry when it can't be reached",
+      ),
+      Flag.withDefault(false),
+    ),
     json,
   },
   Effect.fn(function* (input) {
-    const collector = yield* Collector;
+    if (!input.upload) {
+      return yield* runCollect(input, Effect.void);
+    }
 
-    const result = yield* collector.collect({
-      follow: input.follow,
-      ...(input.follow && {
-        onBatch: (totals) =>
-          Effect.logInfo("Collected", totals.added, "new events"),
-      }),
-    });
+    return yield* Effect.gen(function* () {
+      const uploader = yield* Uploader;
 
-    yield* Console.log(
-      input.json
-        ? JSON.stringify(result)
-        : `Read ${result.entries} journal entries, ${result.added} new events`,
-    );
+      const upload = uploader.upload.pipe(
+        Effect.tap((result) =>
+          result.sent > 0
+            ? Effect.logInfo("Uploaded", result.sent, "events")
+            : Effect.void,
+        ),
+        Effect.catch((error) =>
+          Effect.logWarning(
+            `Upload failed, retrying after the next batch: ${error.message}`,
+          ),
+        ),
+        Effect.asVoid,
+      );
+
+      yield* upload;
+
+      yield* runCollect(input, upload);
+    }).pipe(Effect.provide(Uploader.layer));
   }),
 ).pipe(
   Command.withDescription(
