@@ -8,36 +8,60 @@ import {
   Schema,
 } from "effect";
 import { Base64Url, Hex } from "effect/encoding";
-import { Store, StoreError } from "../store/Store.js";
+import { Store, StoreError, Token, TokenScope } from "../store/Store.js";
 
 /**
- * A host's enrolled name. It's what the server knows the host by, in place of
- * its real hostname, so choose something that doesn't identify the machine.
+ * A token's name. For a host it's what the server knows the host by, in place
+ * of its real hostname, so choose something that doesn't identify the machine.
  */
-export const HostName = Schema.String.check(
+export const TokenName = Schema.String.check(
   Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,62}$/),
 );
 
-export class HostExists extends Schema.TaggedError<HostExists>()("HostExists", {
-  name: Schema.String,
-}) {}
+export class TokenExists extends Schema.TaggedError<TokenExists>()(
+  "TokenExists",
+  { scope: TokenScope, owner: Schema.String },
+) {
+  override get message() {
+    return `There's already a ${this.scope} called ${this.owner}`;
+  }
+}
 
-/** Enrols hosts and checks the tokens they send. */
-export class Hosts extends Context.Service<
-  Hosts,
+export class TokenNotFound extends Schema.TaggedError<TokenNotFound>()(
+  "TokenNotFound",
+  { scope: TokenScope, owner: Schema.String },
+) {
+  override get message() {
+    return `There's no ${this.scope} called ${this.owner}`;
+  }
+}
+
+/**
+ * Issues and checks the server's tokens. Host tokens can only upload events;
+ * admin tokens can only read issues.
+ */
+export class Tokens extends Context.Service<
+  Tokens,
   {
-    /** Enrol a host, returning the token it authenticates with. */
-    enrol(
+    /** Issue a token, which is only ever returned here. */
+    issue(
+      scope: TokenScope,
       name: string,
-    ): Effect.Effect<Redacted.Redacted, HostExists | StoreError>;
-    /** The host a token belongs to, if any. */
+    ): Effect.Effect<Redacted.Redacted, TokenExists | StoreError>;
+    /** The name a token belongs to in a scope, if any. */
     authenticate(
+      scope: TokenScope,
       token: Redacted.Redacted,
     ): Effect.Effect<Option.Option<string>, StoreError>;
+    list(scope: TokenScope): Effect.Effect<ReadonlyArray<Token>, StoreError>;
+    revoke(
+      scope: TokenScope,
+      name: string,
+    ): Effect.Effect<void, TokenNotFound | StoreError>;
   }
->()("triage/server/Hosts") {
+>()("triage/server/Tokens") {
   static readonly layer = Layer.effect(
-    Hosts,
+    Tokens,
     Effect.gen(function* () {
       const store = yield* Store;
       const crypto = yield* Crypto.Crypto;
@@ -47,25 +71,45 @@ export class Hosts extends Context.Service<
           .digest("SHA-256", new TextEncoder().encode(Redacted.value(token)))
           .pipe(Effect.map(Hex.encode), Effect.orDie);
 
-      const enrol = Effect.fn("Hosts.enrol")(function* (name: string) {
+      const issue = Effect.fn("Tokens.issue")(function* (
+        scope: TokenScope,
+        name: string,
+      ) {
         const bytes = yield* crypto.randomBytes(32).pipe(Effect.orDie);
         const token = Redacted.make(Base64Url.encode(bytes));
-        const added = yield* store.addHost(name, yield* hash(token));
+        const added = yield* store.addToken(scope, name, yield* hash(token));
 
         if (!added) {
-          return yield* new HostExists({ name });
+          return yield* new TokenExists({ scope, owner: name });
         }
 
         return token;
       });
 
-      const authenticate = Effect.fn("Hosts.authenticate")(function* (
+      const authenticate = Effect.fn("Tokens.authenticate")(function* (
+        scope: TokenScope,
         token: Redacted.Redacted,
       ) {
-        return yield* store.hostByToken(yield* hash(token));
+        return yield* store.tokenName(scope, yield* hash(token));
       });
 
-      return Hosts.of({ enrol, authenticate });
+      const revoke = Effect.fn("Tokens.revoke")(function* (
+        scope: TokenScope,
+        name: string,
+      ) {
+        const removed = yield* store.removeToken(scope, name);
+
+        if (!removed) {
+          return yield* new TokenNotFound({ scope, owner: name });
+        }
+      });
+
+      return Tokens.of({
+        issue,
+        authenticate,
+        list: (scope) => store.tokens(scope),
+        revoke,
+      });
     }),
   );
 }
