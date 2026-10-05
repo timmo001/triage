@@ -2,7 +2,7 @@
 # proxy for HTTPS, and set TRIAGE_TRUST_PROXY=true when the proxy is the only
 # way in. Data lives in /data, so mount a volume there. See compose.yaml.
 
-FROM oven/bun:1.4.2 AS build
+FROM oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS build
 
 WORKDIR /src
 
