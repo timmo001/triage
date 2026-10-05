@@ -32,6 +32,10 @@ export const template = (message: string): string =>
 
 const basename = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
+/** A templated unit with an instance of only numbers, such as a process or user ID, groups as one. */
+export const unitTemplate = (unit: string) =>
+  unit.replace(/@[\d_-]+(?=\.[a-z]+$)/, "@<n>");
+
 /**
  * The grouping key for an event. Events with the same fingerprint belong to
  * the same issue, on any host.
@@ -50,7 +54,7 @@ export const fingerprint = (event: Event): string =>
     UnitFailure: (failure) =>
       [
         "unit",
-        failure.unit ?? failure.identifier ?? "?",
+        unitTemplate(failure.unit ?? failure.identifier ?? "?"),
         failure.result ?? "",
       ].join("|"),
     OutOfMemory: (oom) => ["oom", oom.process ?? oom.unit ?? "?"].join("|"),

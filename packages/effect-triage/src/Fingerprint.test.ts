@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Event } from "./Event.js";
-import { fingerprint, issueId, template } from "./Fingerprint.js";
+import { fingerprint, issueId, template, unitTemplate } from "./Fingerprint.js";
 
 describe("template", () => {
   test("replaces the parts that change between occurrences", () => {
@@ -43,6 +43,13 @@ describe("fingerprint", () => {
     expect(fingerprint(crash)).toBe(
       "crash|ghostty|SIGSEGV|ghostty|g_main_context_dispatch|main",
     );
+  });
+
+  test("groups numbered instances of a templated unit", () => {
+    expect(unitTemplate("polkit-agent-helper@0-1-29900_10836-0.service")).toBe(
+      "polkit-agent-helper@<n>.service",
+    );
+    expect(unitTemplate("getty@tty1.service")).toBe("getty@tty1.service");
   });
 
   test("issue IDs are stable", () => {

@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { Event } from "./Event.js";
-import { fingerprint, issueId, template } from "./Fingerprint.js";
+import { fingerprint, issueId, template, unitTemplate } from "./Fingerprint.js";
 
 /** The kind of event an issue groups, matching the event's tag. */
 export const Kind = Schema.Literals([
@@ -37,7 +37,7 @@ export const title = (event: Event): string =>
     Crash: (crash) =>
       `${basename(crash.executable)} crashed with ${crash.signal}`,
     UnitFailure: (failure) =>
-      `${failure.unit ?? failure.identifier ?? "A unit"} failed${failure.result === undefined ? "" : ` (${failure.result})`}`,
+      `${unitTemplate(failure.unit ?? failure.identifier ?? "A unit")} failed${failure.result === undefined ? "" : ` (${failure.result})`}`,
     OutOfMemory: (oom) =>
       `${oom.process ?? oom.unit ?? "A process"} was killed for memory`,
     LogError: (log) =>
