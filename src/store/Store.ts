@@ -66,6 +66,16 @@ export interface StoredDecision {
   readonly answers: string;
 }
 
+/** A language model's suggestion for fixing an issue. */
+export interface StoredSuggestion {
+  readonly issueId: string;
+  readonly model: string;
+  /** How many events the issue had when the model wrote it. */
+  readonly issueCount: number;
+  /** The suggestion, in Markdown. */
+  readonly text: string;
+}
+
 /** A model's decision on an issue next to the hand label for it. */
 export const LabelledDecision = Schema.Struct({
   model: Schema.String,
@@ -205,6 +215,20 @@ const migrations = SqliteMigrator.fromRecord({
       )
     `;
   }),
+  "0006_suggestions": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`
+      CREATE TABLE suggestions (
+        issue_id TEXT NOT NULL REFERENCES issues (id),
+        model TEXT NOT NULL,
+        suggested_at INTEGER NOT NULL,
+        issue_count INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        PRIMARY KEY (issue_id, model)
+      )
+    `;
+  }),
 });
 
 /**
@@ -280,6 +304,10 @@ export class Store extends Context.Service<
       ReadonlyArray<LabelledDecision>,
       StoreError
     >;
+    /** Store a model's suggestion, replacing any earlier one for the issue. */
+    saveSuggestion(
+      suggestion: StoredSuggestion,
+    ): Effect.Effect<void, StoreError>;
   }
 >()("triage/store/Store") {
   static readonly make = Effect.gen(function* () {
@@ -590,6 +618,25 @@ export class Store extends Context.Service<
       Effect.withSpan("Store.labelledDecisions"),
     );
 
+    const saveSuggestion = Effect.fn("Store.saveSuggestion")(
+      function* (suggestion: StoredSuggestion) {
+        yield* sql`
+          INSERT INTO suggestions ${sql.insert({
+            issue_id: suggestion.issueId,
+            model: suggestion.model,
+            suggested_at: yield* Clock.currentTimeMillis,
+            issue_count: suggestion.issueCount,
+            text: suggestion.text,
+          })}
+          ON CONFLICT (issue_id, model) DO UPDATE SET
+            suggested_at = excluded.suggested_at,
+            issue_count = excluded.issue_count,
+            text = excluded.text
+        `;
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
     return Store.of({
       cursor,
       record,
@@ -606,6 +653,7 @@ export class Store extends Context.Service<
       saveDecision,
       label,
       labelledDecisions,
+      saveSuggestion,
     });
   });
 
