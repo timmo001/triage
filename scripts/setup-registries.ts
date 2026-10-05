@@ -131,6 +131,7 @@ const program = Effect.gen(function* () {
       workflow,
       "--repo",
       `${repository.owner}/${repository.name}`,
+      "--allow-publish",
       "--yes",
     ]);
   });
