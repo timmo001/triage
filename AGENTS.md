@@ -16,6 +16,7 @@
 - Pin dependencies to exact versions (`bun add -E`).
 - Run project tasks through mise. Scripts complex enough to need logic are written in Effect and exposed as mise tasks.
 - Obfuscate everything sensitive before it leaves the machine, to any API: the triage server, decision models, LLMs or anything else. Redaction happens at capture in `src/redact.ts` and `src/journal/toEvent.ts`, so stored events never hold credentials, emails, home paths, user or host names, MAC or IP addresses, UUIDs and other machine IDs, serials or Wi-Fi names. Code that sends data anywhere sends only stored, redacted events, never raw journal fields, and new fields or sources must go through the `Redactor`.
+- When a fix or diagnosis genuinely needs a redacted detail, collect it later on the source machine, at the point it's needed, rather than storing or sending it. The rule can be loosened only when everything stays internal: the same device, or a server and models on the same network. Anything going outside still gets the full redaction.
 
 ## Validation
 
