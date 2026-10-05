@@ -7,7 +7,51 @@ import { Event, Issue } from "@timmo001/effect-triage";
 import { Context, Effect, Layer, Option, Schema, type Types } from "effect";
 import { Decision, DecisionModel } from "effect/ai";
 import { FetchHttpClient } from "effect/http";
-import { Store } from "../store/Store.js";
+import { type LabelledDecision, Store } from "../store/Store.js";
+
+/** How sure a model must be before its answer counts as a clear yes or no. */
+const clear = 0.8;
+
+/** How a model's decisions compare with hand labels. */
+export interface Agreement {
+  readonly model: string;
+  /** Labelled issues the model decided on. */
+  readonly labelled: number;
+  /** Decisions sure enough to act on either way. */
+  readonly clear: number;
+  /** Clear decisions that match the label. */
+  readonly correct: number;
+}
+
+/** Summarise each model's decisions against the hand labels. */
+export const agreement = (
+  rows: ReadonlyArray<LabelledDecision>,
+): ReadonlyArray<Agreement> => {
+  const byModel = new Map<string, Types.Mutable<Agreement>>();
+
+  for (const row of rows) {
+    const summary = byModel.get(row.model) ?? {
+      model: row.model,
+      labelled: 0,
+      clear: 0,
+      correct: 0,
+    };
+
+    summary.labelled += 1;
+
+    if (row.worth >= clear || row.worth <= 1 - clear) {
+      summary.clear += 1;
+
+      if (row.worth >= clear === row.label) {
+        summary.correct += 1;
+      }
+    }
+
+    byModel.set(row.model, summary);
+  }
+
+  return [...byModel.values()];
+};
 
 /** The longest message sent to the model, so a state fits in about 1k tokens. */
 const maxMessage = 300;

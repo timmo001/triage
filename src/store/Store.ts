@@ -17,6 +17,15 @@ export class StoreError extends Schema.TaggedError<StoreError>()("StoreError", {
   cause: Schema.Defect(),
 }) {}
 
+export class IssueNotFound extends Schema.TaggedError<IssueNotFound>()(
+  "IssueNotFound",
+  { issueId: Schema.String },
+) {
+  override get message() {
+    return `There's no issue ${this.issueId}`;
+  }
+}
+
 export interface ListOptions {
   /** The most issues to return, most recently seen first. */
   readonly limit: number;
@@ -56,6 +65,19 @@ export interface StoredDecision {
   /** Every answer with its probabilities, as JSON. */
   readonly answers: string;
 }
+
+/** A model's decision on an issue next to the hand label for it. */
+export const LabelledDecision = Schema.Struct({
+  model: Schema.String,
+  /** The probability the model gave that the issue is worth fixing. */
+  worth: Schema.Finite,
+  /** Whether the issue was labelled worth fixing. */
+  label: Schema.BooleanFromBit,
+});
+
+export interface LabelledDecision extends Schema.Schema.Type<
+  typeof LabelledDecision
+> {}
 
 const EventJson = Schema.fromJsonString(Event.Event);
 
@@ -172,6 +194,17 @@ const migrations = SqliteMigrator.fromRecord({
       )
     `;
   }),
+  "0005_labels": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`
+      CREATE TABLE labels (
+        issue_id TEXT PRIMARY KEY REFERENCES issues (id),
+        worth INTEGER NOT NULL,
+        labelled_at INTEGER NOT NULL
+      )
+    `;
+  }),
 });
 
 /**
@@ -237,6 +270,16 @@ export class Store extends Context.Service<
     ): Effect.Effect<ReadonlyArray<Issue.Issue>, StoreError>;
     /** Store a model's decision, replacing any earlier one for the issue. */
     saveDecision(decision: StoredDecision): Effect.Effect<void, StoreError>;
+    /** Label an issue by hand, replacing any earlier label. */
+    label(
+      issueId: string,
+      worth: boolean,
+    ): Effect.Effect<void, IssueNotFound | StoreError>;
+    /** Every decision on a labelled issue. */
+    labelledDecisions: Effect.Effect<
+      ReadonlyArray<LabelledDecision>,
+      StoreError
+    >;
   }
 >()("triage/store/Store") {
   static readonly make = Effect.gen(function* () {
@@ -515,6 +558,38 @@ export class Store extends Context.Service<
       Effect.mapError((cause) => new StoreError({ cause })),
     );
 
+    const label = Effect.fn("Store.label")(function* (
+      issueId: string,
+      worth: boolean,
+    ) {
+      const rows = yield* sql`
+          INSERT INTO labels (issue_id, worth, labelled_at)
+          SELECT id, ${worth ? 1 : 0}, ${yield* Clock.currentTimeMillis}
+          FROM issues WHERE id = ${issueId} AND count > 0
+          ON CONFLICT (issue_id) DO UPDATE SET
+            worth = excluded.worth,
+            labelled_at = excluded.labelled_at
+          RETURNING issue_id
+        `.pipe(Effect.mapError((cause) => new StoreError({ cause })));
+
+      if (rows.length === 0) {
+        return yield* new IssueNotFound({ issueId });
+      }
+    });
+
+    const labelledDecisions = SqlSchema.findAll({
+      Request: Schema.Void,
+      Result: LabelledDecision,
+      execute: () => sql`
+        SELECT decisions.model, decisions.worth, labels.worth AS label
+        FROM decisions JOIN labels USING (issue_id)
+        ORDER BY decisions.model
+      `,
+    })(undefined).pipe(
+      Effect.mapError((cause) => new StoreError({ cause })),
+      Effect.withSpan("Store.labelledDecisions"),
+    );
+
     return Store.of({
       cursor,
       record,
@@ -529,6 +604,8 @@ export class Store extends Context.Service<
       uploaded,
       undecided,
       saveDecision,
+      label,
+      labelledDecisions,
     });
   });
 

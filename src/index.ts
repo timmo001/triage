@@ -8,7 +8,7 @@ import { Redactor } from "./redact.js";
 import * as Server from "./server/Server.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
 import { Store, type TokenScope } from "./store/Store.js";
-import { Provider, Triager } from "./triage/Triager.js";
+import { agreement, Provider, Triager } from "./triage/Triager.js";
 import { Uploader } from "./upload/Uploader.js";
 
 const collectorLayer = Collector.layer.pipe(
@@ -216,6 +216,57 @@ const decide = Command.make(
   Command.provide(Store.layerServer),
 );
 
+const label = Command.make(
+  "label",
+  {
+    issue: Argument.String("issue").pipe(
+      Argument.withDescription("The issue's ID"),
+    ),
+    verdict: Argument.Literals("verdict", ["worth", "noise"]).pipe(
+      Argument.withDescription(
+        "worth: a real fault worth fixing; noise: expected, harmless or caused by the user",
+      ),
+    ),
+  },
+  Effect.fn(function* (input) {
+    const store = yield* Store;
+
+    yield* store.label(input.issue, input.verdict === "worth");
+    yield* Console.log(`Labelled ${input.issue} as ${input.verdict}`);
+  }),
+).pipe(
+  Command.withDescription(
+    "Label one of the server's issues by hand, to measure decision models against",
+  ),
+  Command.provide(Store.layerServer),
+);
+
+const agreementCommand = Command.make(
+  "agreement",
+  { json },
+  Effect.fn(function* (input) {
+    const store = yield* Store;
+    const summaries = agreement(yield* store.labelledDecisions);
+
+    if (input.json) {
+      yield* Console.log(JSON.stringify(summaries));
+
+      return;
+    }
+
+    for (const summary of summaries) {
+      yield* Console.log(
+        `${summary.model.padEnd(24)}  ${summary.labelled} labelled  ${summary.clear} clear  ${summary.correct} correct`,
+      );
+    }
+  }),
+).pipe(
+  Command.withDescription(
+    "Compare each decision model with the hand labels: how often it's sure enough to act on, and how often it's right when it is",
+  ),
+  Command.provide(Store.layerServer),
+);
+
 const serve = Command.make(
   "serve",
   {
@@ -342,6 +393,8 @@ const triage = Command.make("triage").pipe(
     hosts,
     admins,
     decide,
+    label,
+    agreementCommand,
   ]),
 );
 
