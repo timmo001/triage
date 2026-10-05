@@ -1,7 +1,7 @@
 import { BunHttpServer } from "@effect/platform-bun";
 import { Api } from "@timmo001/effect-triage";
 import { Effect, Layer, Option } from "effect";
-import { HttpRouter } from "effect/http";
+import { HttpMiddleware, HttpRouter } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { Store } from "../store/Store.js";
 import { Hosts } from "./Hosts.js";
@@ -90,7 +90,11 @@ const IssuesHandlers = HttpApiBuilder.group(
 );
 
 const SystemHandlers = HttpApiBuilder.group(Api.Api, "system", (handlers) =>
-  Effect.succeed(handlers.handleAll({ health: () => Effect.void })),
+  Effect.succeed(
+    handlers.handleAll({
+      health: () => HttpMiddleware.withLoggerDisabled(Effect.void),
+    }),
+  ),
 );
 
 /** The triage API's routes, needing a `Store` and `Hosts`. */

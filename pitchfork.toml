@@ -1,0 +1,9 @@
+# Keeps a local triage server running in the background, outside the invoking
+# shell or agent. Manage it with the serve:* mise tasks.
+
+# Uses its own port and database so it never touches a real server's
+[daemons.server]
+run = 'TRIAGE_SERVER_DB="${XDG_STATE_HOME:-$HOME/.local/state}/triage/dev-server.db" exec bun run --watch src/index.ts serve --port 7172'
+ready_http = "http://127.0.0.1:7172/api/health"
+health_http = "http://127.0.0.1:7172/api/health"
+retry = true

@@ -3,6 +3,7 @@ min_version = "2025.1.0"
 [tools]
 node = "26.10.0"
 bun = "1.4.2"
+pitchfork = "2.29.0"
 
 [tasks.install]
 description = "Install dependencies"
@@ -64,3 +65,29 @@ run = "bun run format:check"
 [tasks.check]
 description = "Lint, type-check, and verify formatting"
 depends = ["lint", "typecheck", "format:check"]
+
+[tasks."serve:server"]
+description = "Start a local server in watch mode in the background through Pitchfork"
+depends = ["install"]
+run = "pitchfork start server"
+
+[tasks."serve:server:status"]
+description = "Show the background local server status"
+run = "pitchfork status server"
+
+[tasks."serve:server:logs"]
+description = "Follow the background local server logs"
+run = "pitchfork logs -t server"
+
+[tasks."serve:server:restart"]
+description = "Restart the background local server"
+run = "pitchfork restart server"
+
+[tasks."serve:server:stop"]
+description = "Stop the background local server"
+run = "pitchfork stop server"
+
+[tasks."serve:server:enrol"]
+description = "Enrol a host with the background local server, printing its token"
+usage = 'arg "<name>" help="The host name, such as desktop"'
+run = 'TRIAGE_SERVER_DB="${XDG_STATE_HOME:-$HOME/.local/state}/triage/dev-server.db" bun run src/index.ts hosts add "${usage_name?}"'
