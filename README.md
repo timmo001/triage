@@ -17,6 +17,14 @@ For HTTPS through Caddy, with certificates for your domain set up automatically:
 TRIAGE_DOMAIN=triage.example.com docker compose -f compose.yaml -f compose.caddy.yaml up -d
 ```
 
+Or through a Cloudflare Tunnel, which needs no open ports at all. Create a tunnel in the Cloudflare dashboard, add a public hostname pointing at `http://triage:7171`, and use its token:
+
+```sh
+TUNNEL_TOKEN=eyJ... docker compose -f compose.yaml -f compose.cloudflared.yaml up -d
+```
+
+The server always listens on `7171` inside the container, so proxies and tunnels can rely on it. Change the published port with `TRIAGE_PORT`.
+
 `hosts add` prints the host's token once. On that host, set `TRIAGE_SERVER` to the server's URL and `TRIAGE_TOKEN` to the token, then run `triage collect --follow --upload`.
 
 Host tokens can only send events. To read issues from the API, add an admin with `triage admins add <name>` and use its token. `hosts list` and `admins list` show who has a token, and `hosts remove` and `admins remove` revoke one.

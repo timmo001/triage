@@ -1,0 +1,24 @@
+---
+# Serves triage through a Cloudflare Tunnel, with no ports open on this machine
+# and HTTPS from Cloudflare. Create a tunnel in the Cloudflare dashboard, add a
+# public hostname pointing at http://triage:7171, and copy its token.
+#
+#   TUNNEL_TOKEN=eyJ... docker compose -f compose.yaml -f compose.cloudflared.yaml up -d
+#
+# Cloudflare doesn't send X-Forwarded-Host, so TRIAGE_TRUST_PROXY isn't needed.
+
+services:
+  triage:
+    ports: !reset []
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.0
+    restart: unless-stopped
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?Set TUNNEL_TOKEN to the tunnel's token}
+    depends_on:
+      - triage
