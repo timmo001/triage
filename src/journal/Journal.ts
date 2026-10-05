@@ -42,6 +42,8 @@ export class Journal extends Context.Service<
               "--output=json",
               "--no-pager",
               "--quiet",
+              // Without this, fields over 4096 bytes are JSON null and crash stacks are dropped.
+              "--all",
               `--output-fields=${fields.join(",")}`,
               ...(options.after === undefined
                 ? []
