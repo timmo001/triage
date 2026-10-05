@@ -8,6 +8,7 @@ import { Redactor } from "./redact.js";
 import * as Server from "./server/Server.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
 import { Store, type TokenScope } from "./store/Store.js";
+import { LlmProvider, Suggester } from "./triage/Suggester.js";
 import { agreement, layerShadow, Provider, Triager } from "./triage/Triager.js";
 import { Uploader } from "./upload/Uploader.js";
 
@@ -231,6 +232,64 @@ const decide = Command.make(
   Command.provide(Store.layerServer),
 );
 
+const suggest = Command.make(
+  "suggest",
+  {
+    issues: Argument.String("issue").pipe(
+      Argument.withDescription("The IDs of the issues to suggest fixes for"),
+      Argument.atLeast(1),
+    ),
+    provider: Flag.Literals("provider", LlmProvider.literals).pipe(
+      Flag.withDescription(
+        "Any OpenAI-compatible or Anthropic-compatible API at --url, or Workers AI with $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN",
+      ),
+      Flag.withFallbackConfig(
+        Config.Literals(LlmProvider.literals, "TRIAGE_LLM_PROVIDER"),
+      ),
+      Flag.withDefault("openai"),
+    ),
+    url: Flag.String("url").pipe(
+      Flag.withDescription(
+        "The API, such as https://openrouter.ai/api/v1 or https://opencode.ai/zen/v1, with $TRIAGE_LLM_API_KEY when it needs one. Defaults to OpenAI's or Anthropic's own",
+      ),
+      Flag.withFallbackConfig(Config.String("TRIAGE_LLM_URL")),
+      Flag.optional,
+    ),
+    model: Flag.String("model").pipe(
+      Flag.withAlias("m"),
+      Flag.withDescription(
+        "The language model, such as @cf/zai-org/glm-4.7-flash on Workers AI",
+      ),
+      Flag.withFallbackConfig(Config.String("TRIAGE_LLM_MODEL")),
+    ),
+    json,
+  },
+  Effect.fn(function* (input) {
+    const suggestions = yield* Effect.gen(function* () {
+      const suggester = yield* Suggester;
+
+      return yield* Effect.forEach(input.issues, (issue) =>
+        suggester.suggest(issue),
+      );
+    }).pipe(Effect.provide(Suggester.layer(input)));
+
+    if (input.json) {
+      yield* Console.log(JSON.stringify(suggestions));
+
+      return;
+    }
+
+    for (const { issue, text } of suggestions) {
+      yield* Console.log(`## ${issue.id}  ${issue.title}\n\n${text}\n`);
+    }
+  }),
+).pipe(
+  Command.withDescription(
+    "Ask a language model how to fix some of the server's issues, from their redacted events only, and store its suggestions",
+  ),
+  Command.provide(Store.layerServer),
+);
+
 const label = Command.make(
   "label",
   {
@@ -426,6 +485,7 @@ const triage = Command.make("triage").pipe(
     hosts,
     admins,
     decide,
+    suggest,
     label,
     agreementCommand,
   ]),

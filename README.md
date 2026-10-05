@@ -40,5 +40,11 @@ Host tokens can only send events. To read issues from the API, add an admin with
 | `TRIAGE_DECISION_URL` | `http://127.0.0.1:11435/v1` (Ollaya) | The System One API, such as `http://127.0.0.1:11434/v1` for Ollama |
 | `TRIAGE_DECISION_API_KEY` | none | Key for a hosted System One API, such as TypeSafe or OpenCode Zen |
 | `TRIAGE_DECISION_MODEL` | `laya` through System One, `clef-flash` with Cloudflare | Decision model, such as `laya` or `winnow` on Ollaya, or `nimble` on Ollama |
+| `TRIAGE_LLM_PROVIDER` | `openai` | `openai` for any OpenAI-compatible API, `anthropic` for any Anthropic-compatible one, or `cloudflare` for Workers AI with `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` |
+| `TRIAGE_LLM_URL` | OpenAI's or Anthropic's own | The API, such as `https://openrouter.ai/api/v1`, `https://opencode.ai/zen/v1` or `http://127.0.0.1:11434/v1` for Ollama |
+| `TRIAGE_LLM_API_KEY` | none | Key for the API, when it needs one |
+| `TRIAGE_LLM_MODEL` | none | Language model for fix suggestions, such as `@cf/google/gemma-4-26b-a4b-it` on Workers AI |
 
 Decision models only see what's stored, which is redacted when it's captured. `triage label <issue> worth|noise` labels issues by hand, and `triage agreement` shows how often each model is sure and right against those labels.
+
+`triage suggest <issue>...` asks a language model how to fix issues and stores its answers. It sends the same trimmed, redacted description decision models get, and caps each response at 4,096 tokens, thinking included.

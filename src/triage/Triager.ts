@@ -120,7 +120,7 @@ const frame = (frame: Event.Frame) =>
   [frame.function, frame.module].filter((part) => part !== undefined).join(" ");
 
 /** Describe an issue from its stored, redacted events, never raw journal fields. */
-const toState = (
+export const toState = (
   issue: Issue.Issue,
   events: ReadonlyArray<Event.Event>,
 ): typeof State.Type => {
