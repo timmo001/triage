@@ -19,6 +19,8 @@ TRIAGE_DOMAIN=triage.example.com docker compose -f compose.yaml -f compose.caddy
 
 `hosts add` prints the host's token once. On that host, set `TRIAGE_SERVER` to the server's URL and `TRIAGE_TOKEN` to the token, then run `triage collect --follow --upload`.
 
+Host tokens can only send events. To read issues from the API, add an admin with `triage admins add <name>` and use its token. `hosts list` and `admins list` show who has a token, and `hosts remove` and `admins remove` revoke one.
+
 | Variable | Default | |
 | --- | --- | --- |
 | `TRIAGE_HOSTNAME` | `127.0.0.1` (`0.0.0.0` in the container) | Address to listen on |

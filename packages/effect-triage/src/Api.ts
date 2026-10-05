@@ -17,6 +17,12 @@ export class CurrentHost extends Context.Service<
   { readonly name: string }
 >()("@timmo001/effect-triage/Api/CurrentHost") {}
 
+/** The admin a request was authenticated as. */
+export class CurrentAdmin extends Context.Service<
+  CurrentAdmin,
+  { readonly name: string }
+>()("@timmo001/effect-triage/Api/CurrentAdmin") {}
+
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
   "Unauthorized",
   { message: Schema.String },
@@ -29,11 +35,24 @@ export class IssueNotFound extends Schema.TaggedError<IssueNotFound>()(
   { httpApiStatus: 404 },
 ) {}
 
-/** Authenticates a host by the bearer token it was given on enrolment. */
-export class Authorization extends HttpApiMiddleware.Service<
-  Authorization,
+/**
+ * Authenticates a host by the bearer token it was given on enrolment. Host
+ * tokens can only upload events.
+ */
+export class HostAuthorization extends HttpApiMiddleware.Service<
+  HostAuthorization,
   { provides: CurrentHost; requires: never }
->()("@timmo001/effect-triage/Api/Authorization", {
+>()("@timmo001/effect-triage/Api/HostAuthorization", {
+  requiredForClient: true,
+  security: { bearer: HttpApiSecurity.bearer },
+  error: Unauthorized,
+}) {}
+
+/** Authenticates an admin by bearer token, for reading issues. */
+export class AdminAuthorization extends HttpApiMiddleware.Service<
+  AdminAuthorization,
+  { provides: CurrentAdmin; requires: never }
+>()("@timmo001/effect-triage/Api/AdminAuthorization", {
   requiredForClient: true,
   security: { bearer: HttpApiSecurity.bearer },
   error: Unauthorized,
@@ -68,7 +87,7 @@ export class IngestGroup extends HttpApiGroup.make("ingest")
       success: IngestResult,
     }),
   )
-  .middleware(Authorization)
+  .middleware(HostAuthorization)
   .prefix("/api")
   .annotateMerge(
     OpenApi.annotations({
@@ -91,7 +110,7 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
       error: IssueNotFound,
     }),
   )
-  .middleware(Authorization)
+  .middleware(AdminAuthorization)
   .prefix("/api/issues")
   .annotateMerge(
     OpenApi.annotations({

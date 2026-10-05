@@ -29,6 +29,18 @@ export interface Pending {
   readonly last: number;
 }
 
+/** What a token can do: a host uploads events, an admin reads issues. */
+export const TokenScope = Schema.Literals(["host", "admin"]);
+
+export type TokenScope = typeof TokenScope.Type;
+
+export const Token = Schema.Struct({
+  name: Schema.String,
+  createdAt: Schema.Finite,
+});
+
+export interface Token extends Schema.Schema.Type<typeof Token> {}
+
 const EventJson = Schema.fromJsonString(Event.Event);
 
 const encodeEvent = Schema.encodeEffect(EventJson);
@@ -107,6 +119,26 @@ const migrations = SqliteMigrator.fromRecord({
       )
     `;
   }),
+  "0003_scoped_tokens": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`
+      CREATE TABLE tokens (
+        scope TEXT NOT NULL,
+        name TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (scope, name)
+      )
+    `;
+
+    yield* sql`
+      INSERT INTO tokens (scope, name, token_hash, created_at)
+      SELECT 'host', name, token_hash, created_at FROM hosts
+    `;
+
+    yield* sql`DROP TABLE hosts`;
+  }),
 });
 
 /**
@@ -143,15 +175,24 @@ export class Store extends Context.Service<
       }>,
       StoreError
     >;
-    /** Enrol a host. Returns false when the name is already taken. */
-    addHost(
+    /** Add a token. Returns false when the name is already taken in its scope. */
+    addToken(
+      scope: TokenScope,
       name: string,
       tokenHash: string,
     ): Effect.Effect<boolean, StoreError>;
-    /** The host enrolled with a token, by the token's hash. */
-    hostByToken(
+    /** The name a token belongs to in a scope, by the token's hash. */
+    tokenName(
+      scope: TokenScope,
       tokenHash: string,
     ): Effect.Effect<Option.Option<string>, StoreError>;
+    /** The tokens in a scope, oldest first. */
+    tokens(scope: TokenScope): Effect.Effect<ReadonlyArray<Token>, StoreError>;
+    /** Remove a token. Returns false when there was none by that name. */
+    removeToken(
+      scope: TokenScope,
+      name: string,
+    ): Effect.Effect<boolean, StoreError>;
     /** Events not yet uploaded to a server. */
     pending(target: string, limit: number): Effect.Effect<Pending, StoreError>;
     /** Mark events up to `last` as uploaded to a server. */
@@ -291,10 +332,11 @@ export class Store extends Context.Service<
       Effect.mapError((cause) => new StoreError({ cause })),
     );
 
-    const addHost = Effect.fn("Store.addHost")(
-      function* (name: string, tokenHash: string) {
+    const addToken = Effect.fn("Store.addToken")(
+      function* (scope: TokenScope, name: string, tokenHash: string) {
         const rows = yield* sql`
-          INSERT INTO hosts ${sql.insert({
+          INSERT INTO tokens ${sql.insert({
+            scope,
             name,
             token_hash: tokenHash,
             created_at: yield* Clock.currentTimeMillis,
@@ -308,13 +350,44 @@ export class Store extends Context.Service<
       Effect.mapError((cause) => new StoreError({ cause })),
     );
 
-    const hostByToken = Effect.fn("Store.hostByToken")(
-      function* (tokenHash: string) {
+    const tokenName = Effect.fn("Store.tokenName")(
+      function* (scope: TokenScope, tokenHash: string) {
         const rows = yield* sql<{
           name: string;
-        }>`SELECT name FROM hosts WHERE token_hash = ${tokenHash}`;
+        }>`SELECT name FROM tokens WHERE scope = ${scope} AND token_hash = ${tokenHash}`;
 
         return Option.fromNullishOr(rows[0]?.name);
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const listTokens = SqlSchema.findAll({
+      Request: TokenScope,
+      Result: Schema.Struct({ name: Schema.String, created_at: Schema.Finite }),
+      execute: (scope) =>
+        sql`SELECT name, created_at FROM tokens WHERE scope = ${scope} ORDER BY created_at`,
+    });
+
+    const tokens = Effect.fn("Store.tokens")(
+      function* (scope: TokenScope) {
+        const rows = yield* listTokens(scope);
+
+        return rows.map((row) => ({
+          name: row.name,
+          createdAt: row.created_at,
+        }));
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const removeToken = Effect.fn("Store.removeToken")(
+      function* (scope: TokenScope, name: string) {
+        const rows = yield* sql`
+          DELETE FROM tokens WHERE scope = ${scope} AND name = ${name}
+          RETURNING name
+        `;
+
+        return rows.length > 0;
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -361,8 +434,10 @@ export class Store extends Context.Service<
       add,
       issues,
       issue,
-      addHost,
-      hostByToken,
+      addToken,
+      tokenName,
+      tokens,
+      removeToken,
       pending,
       uploaded,
     });

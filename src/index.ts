@@ -5,9 +5,9 @@ import packageJson from "../package.json" with { type: "json" };
 import { Collector } from "./collect/Collector.js";
 import { Journal } from "./journal/Journal.js";
 import { Redactor } from "./redact.js";
-import { HostName, Hosts } from "./server/Hosts.js";
 import * as Server from "./server/Server.js";
-import { Store } from "./store/Store.js";
+import { TokenName, Tokens } from "./server/Tokens.js";
+import { Store, type TokenScope } from "./store/Store.js";
 import { Uploader } from "./upload/Uploader.js";
 
 const collectorLayer = Collector.layer.pipe(
@@ -151,6 +151,8 @@ const upload = Command.make(
   Command.provide(Uploader.layer.pipe(Layer.provide(Store.layer))),
 );
 
+const tokensLayer = Tokens.layer.pipe(Layer.provideMerge(Store.layerServer));
+
 const serve = Command.make(
   "serve",
   {
@@ -178,42 +180,98 @@ const serve = Command.make(
   Command.withDescription(
     "Run the triage server over HTTP, which collects events from enrolled hosts. Use a reverse proxy or Cloudflare for HTTPS",
   ),
-  Command.provide(Hosts.layer.pipe(Layer.provideMerge(Store.layerServer))),
+  Command.provide(tokensLayer),
 );
 
-const addHost = Command.make(
-  "add",
-  {
-    name: Argument.String("name").pipe(
-      Argument.withDescription(
-        "A name for the host that doesn't identify the machine, such as desktop",
-      ),
-      Argument.withSchema(HostName),
-    ),
-  },
-  Effect.fn(function* (input) {
-    const hosts = yield* Hosts;
-    const token = yield* hosts.enrol(input.name);
+const tokenCommands = (options: {
+  readonly scope: TokenScope;
+  readonly command: string;
+  readonly description: string;
+  readonly noun: string;
+  readonly nameDescription: string;
+  readonly variable: string;
+}) => {
+  const name = Argument.String("name").pipe(
+    Argument.withDescription(options.nameDescription),
+    Argument.withSchema(TokenName),
+  );
 
-    yield* Console.log(
-      `Enrolled ${input.name}. Set this on the host as TRIAGE_TOKEN; it won't be shown again:\n${Redacted.value(token)}`,
-    );
-  }),
-).pipe(
-  Command.withDescription("Enrol a host with this server"),
-  Command.provide(Hosts.layer.pipe(Layer.provide(Store.layerServer))),
-);
+  const add = Command.make(
+    "add",
+    { name },
+    Effect.fn(function* (input) {
+      const tokens = yield* Tokens;
+      const token = yield* tokens.issue(options.scope, input.name);
 
-const hosts = Command.make("hosts").pipe(
-  Command.withDescription("Manage the hosts that can send events"),
-  Command.withSubcommands([addHost]),
-);
+      yield* Console.log(
+        `Added ${input.name}. Set this as ${options.variable}; it won't be shown again:\n${Redacted.value(token)}`,
+      );
+    }),
+  ).pipe(Command.withDescription(`Add ${options.noun} and print its token`));
+
+  const list = Command.make(
+    "list",
+    { json },
+    Effect.fn(function* (input) {
+      const tokens = yield* Tokens;
+      const all = yield* tokens.list(options.scope);
+
+      if (input.json) {
+        yield* Console.log(JSON.stringify(all));
+
+        return;
+      }
+
+      for (const token of all) {
+        yield* Console.log(
+          `${token.name}  ${new Date(token.createdAt).toISOString()}`,
+        );
+      }
+    }),
+  ).pipe(Command.withDescription(`List each ${options.noun}, oldest first`));
+
+  const remove = Command.make(
+    "remove",
+    { name },
+    Effect.fn(function* (input) {
+      const tokens = yield* Tokens;
+
+      yield* tokens.revoke(options.scope, input.name);
+      yield* Console.log(`Removed ${input.name}; its token no longer works`);
+    }),
+  ).pipe(Command.withDescription(`Remove ${options.noun}, revoking its token`));
+
+  return Command.make(options.command).pipe(
+    Command.withDescription(options.description),
+    Command.withSubcommands([add, list, remove]),
+    Command.provide(tokensLayer),
+  );
+};
+
+const hosts = tokenCommands({
+  scope: "host",
+  command: "hosts",
+  description: "Manage the hosts that can send events",
+  noun: "a host",
+  nameDescription:
+    "A name for the host that doesn't identify the machine, such as desktop",
+  variable: "TRIAGE_TOKEN on the host",
+});
+
+const admins = tokenCommands({
+  scope: "admin",
+  command: "admins",
+  description: "Manage the admins that can read issues",
+  noun: "an admin",
+  nameDescription: "A name for the admin, such as aidan",
+  variable: "TRIAGE_ADMIN_TOKEN wherever you read issues",
+});
 
 const triage = Command.make("triage").pipe(
   Command.withDescription(
     "Capture crashes and errors from your machines, decide which are worth fixing, and suggest fixes",
   ),
-  Command.withSubcommands([collect, issues, upload, serve, hosts]),
+  Command.withSubcommands([collect, issues, upload, serve, hosts, admins]),
 );
 
 triage.pipe(

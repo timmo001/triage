@@ -1,12 +1,15 @@
 import { Api } from "@timmo001/effect-triage";
-import { Context, Effect, Layer, Redacted, Schedule } from "effect";
+import { Context, Layer, Redacted, Schedule } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/http";
 import { HttpApiClient, HttpApiMiddleware } from "effect/http-api";
 
 export interface TriageClientOptions {
   /** The triage server's base URL, such as `https://triage.example.com`. */
   readonly url: string;
-  /** The host's token, given when it was enrolled. */
+  /**
+   * A host token to upload events, or an admin token to read issues. Each is
+   * refused by the other's endpoints.
+   */
   readonly token: Redacted.Redacted;
 }
 
@@ -15,9 +18,16 @@ export class TriageClient extends Context.Service<
   TriageClient,
   HttpApiClient.ForApi<typeof Api.Api>
 >()("@timmo001/effect-triage-client/TriageClient") {
-  /** A client for the given server, authenticating as an enrolled host. */
-  static readonly layer = (options: TriageClientOptions) =>
-    Layer.effect(
+  /** A client for the given server, authenticating with a token. */
+  static readonly layer = (options: TriageClientOptions) => {
+    const bearer: HttpApiMiddleware.HttpApiMiddlewareClient<
+      never,
+      never,
+      never
+    > = ({ next, request }) =>
+      next(HttpClientRequest.bearerToken(request, options.token));
+
+    return Layer.effect(
       TriageClient,
       HttpApiClient.make(Api.Api, {
         transformClient: (client) =>
@@ -32,15 +42,10 @@ export class TriageClient extends Context.Service<
           ),
       }),
     ).pipe(
-      Layer.provide(
-        HttpApiMiddleware.layerClient(
-          Api.Authorization,
-          Effect.fn(function* ({ next, request }) {
-            return yield* next(
-              HttpClientRequest.bearerToken(request, options.token),
-            );
-          }),
-        ),
-      ),
+      Layer.provide([
+        HttpApiMiddleware.layerClient(Api.HostAuthorization, bearer),
+        HttpApiMiddleware.layerClient(Api.AdminAuthorization, bearer),
+      ]),
     );
+  };
 }

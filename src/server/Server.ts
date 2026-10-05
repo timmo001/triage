@@ -4,7 +4,7 @@ import { Effect, Layer, Option } from "effect";
 import { HttpMiddleware, HttpRouter } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { Store } from "../store/Store.js";
-import { Hosts } from "./Hosts.js";
+import { Tokens } from "./Tokens.js";
 
 const defaultIssues = 50;
 
@@ -12,15 +12,15 @@ const maxIssues = 500;
 
 const issueEvents = 20;
 
-const AuthorizationLayer = Layer.effect(
-  Api.Authorization,
+const HostAuthorizationLayer = Layer.effect(
+  Api.HostAuthorization,
   Effect.gen(function* () {
-    const hosts = yield* Hosts;
+    const tokens = yield* Tokens;
 
-    return Api.Authorization.of({
+    return Api.HostAuthorization.of({
       bearer: Effect.fn(function* (httpEffect, { credential }) {
-        const host = yield* hosts
-          .authenticate(credential)
+        const host = yield* tokens
+          .authenticate("host", credential)
           .pipe(Effect.orDie, Effect.map(Option.getOrUndefined));
 
         if (host === undefined) {
@@ -31,6 +31,31 @@ const AuthorizationLayer = Layer.effect(
 
         return yield* Effect.provideService(httpEffect, Api.CurrentHost, {
           name: host,
+        });
+      }),
+    });
+  }),
+);
+
+const AdminAuthorizationLayer = Layer.effect(
+  Api.AdminAuthorization,
+  Effect.gen(function* () {
+    const tokens = yield* Tokens;
+
+    return Api.AdminAuthorization.of({
+      bearer: Effect.fn(function* (httpEffect, { credential }) {
+        const admin = yield* tokens
+          .authenticate("admin", credential)
+          .pipe(Effect.orDie, Effect.map(Option.getOrUndefined));
+
+        if (admin === undefined) {
+          return yield* new Api.Unauthorized({
+            message: "Missing or unknown admin token",
+          });
+        }
+
+        return yield* Effect.provideService(httpEffect, Api.CurrentAdmin, {
+          name: admin,
         });
       }),
     });
@@ -97,12 +122,12 @@ const SystemHandlers = HttpApiBuilder.group(Api.Api, "system", (handlers) =>
   ),
 );
 
-/** The triage API's routes, needing a `Store` and `Hosts`. */
+/** The triage API's routes, needing a `Store` and `Tokens`. */
 export const routes = HttpApiBuilder.layer(Api.Api, {
   openapiPath: "/api/openapi.json",
 }).pipe(
   Layer.provide([IngestHandlers, IssuesHandlers, SystemHandlers]),
-  Layer.provide(AuthorizationLayer),
+  Layer.provide([HostAuthorizationLayer, AdminAuthorizationLayer]),
 );
 
 export interface ServeOptions {
