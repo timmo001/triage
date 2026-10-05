@@ -12,10 +12,11 @@ export const Frame = Schema.Struct({
 export interface Frame extends Schema.Schema.Type<typeof Frame> {}
 
 const common = {
-  /** Unique per source, such as a journal cursor, so an event is stored once. */
+  /** Unique per source, such as a hash of a journal cursor, so an event is stored once. */
   id: Schema.NonEmptyString,
-  /** Hostname of the machine the event came from. */
+  /** The host the event came from: its enrolled name, never a raw hostname. */
   host: Schema.NonEmptyString,
+  /** A hash of the boot the event happened in. */
   bootId: Schema.optionalKey(Schema.String),
   /** When the event happened, in milliseconds since the Unix epoch. */
   timestamp: Schema.Finite,

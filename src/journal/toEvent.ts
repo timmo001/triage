@@ -1,7 +1,7 @@
-import { Event, Severity } from "@timmo001/effect-triage";
+import { Event, Fingerprint, Severity } from "@timmo001/effect-triage";
 import { Option } from "effect";
 import type { Redact } from "../redact.js";
-import { type Entry, text } from "./Entry.js";
+import { type Entry, type Field, text } from "./Entry.js";
 
 /** systemd catalog message IDs, from `/usr/lib/systemd/catalog/systemd.catalog`. */
 export const MessageId = {
@@ -53,7 +53,9 @@ export const parseFrames = (
 
 /**
  * Turn a journal entry into a triage event, or nothing when it isn't a crash,
- * failure, OOM kill or error. Text is redacted here, before it goes anywhere.
+ * failure, OOM kill or error. Every text field is redacted here, before it is
+ * stored or sent anywhere, and the journal cursor and boot ID are replaced
+ * with hashes so events don't carry machine identifiers.
  */
 export const toEvent = (
   entry: Entry,
@@ -62,13 +64,20 @@ export const toEvent = (
   const messageId = text(entry, "MESSAGE_ID");
   const priority = Number(text(entry, "PRIORITY") ?? errorPriority);
   const message = text(entry, "MESSAGE") ?? "";
-  const identifier = text(entry, "SYSLOG_IDENTIFIER");
+
+  const redacted = (field: Field) => {
+    const value = text(entry, field);
+
+    return value === undefined ? undefined : redact(value);
+  };
+
+  const identifier = redacted("SYSLOG_IDENTIFIER");
   const bootId = text(entry, "_BOOT_ID");
 
   const common = {
-    id: entry.__CURSOR,
-    host: text(entry, "_HOSTNAME") ?? "unknown",
-    ...(bootId !== undefined && { bootId }),
+    id: Fingerprint.issueId(entry.__CURSOR),
+    host: redacted("_HOSTNAME") ?? "<host>",
+    ...(bootId !== undefined && { bootId: Fingerprint.issueId(bootId) }),
     timestamp: Math.floor(entry.__REALTIME_TIMESTAMP / 1000),
     severity: Severity.fromPriority(priority) ?? "err",
     ...(identifier !== undefined && { identifier }),
@@ -76,17 +85,17 @@ export const toEvent = (
   };
 
   const unit =
-    text(entry, "USER_UNIT") ??
-    text(entry, "UNIT") ??
-    text(entry, "_SYSTEMD_USER_UNIT") ??
-    text(entry, "_SYSTEMD_UNIT");
+    redacted("USER_UNIT") ??
+    redacted("UNIT") ??
+    redacted("_SYSTEMD_USER_UNIT") ??
+    redacted("_SYSTEMD_UNIT");
 
   switch (messageId) {
     case MessageId.coredump: {
       const crashUnit =
-        text(entry, "COREDUMP_USER_UNIT") ?? text(entry, "COREDUMP_UNIT");
+        redacted("COREDUMP_USER_UNIT") ?? redacted("COREDUMP_UNIT");
 
-      const comm = text(entry, "COREDUMP_COMM");
+      const comm = redacted("COREDUMP_COMM");
 
       return Option.some(
         Event.Event.cases.Crash.make({
@@ -94,8 +103,8 @@ export const toEvent = (
           ...(comm !== undefined && { identifier: comm }),
           ...(crashUnit !== undefined && { unit: crashUnit }),
           message: redact(message.split("\n")[0] ?? ""),
-          executable: redact(text(entry, "COREDUMP_EXE") ?? comm ?? "unknown"),
-          signal: text(entry, "COREDUMP_SIGNAL_NAME") ?? "unknown",
+          executable: redacted("COREDUMP_EXE") ?? comm ?? "unknown",
+          signal: redacted("COREDUMP_SIGNAL_NAME") ?? "unknown",
           frames: parseFrames(message, redact),
         }),
       );
@@ -105,7 +114,7 @@ export const toEvent = (
       return Option.none();
 
     case MessageId.unitFailed: {
-      const result = text(entry, "UNIT_RESULT");
+      const result = redacted("UNIT_RESULT");
 
       return Option.some(
         Event.Event.cases.UnitFailure.make({
@@ -124,7 +133,7 @@ export const toEvent = (
         Event.Event.cases.OutOfMemory.make({
           ...common,
           ...(unit !== undefined && { unit }),
-          ...(process !== undefined && { process }),
+          ...(process !== undefined && { process: redact(process) }),
         }),
       );
     }

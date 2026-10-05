@@ -5,12 +5,12 @@ import { makeRedact, regularUsers } from "../redact.js";
 import type { Entry } from "./Entry.js";
 import { MessageId, toEvent } from "./toEvent.js";
 
-const redact = makeRedact(["alex"]);
+const redact = makeRedact({ users: ["alex"], hosts: ["laptop"] });
 
 const entry = (fields: Partial<Entry>): Entry => ({
   __CURSOR: "s=1;i=2",
   __REALTIME_TIMESTAMP: 1_700_000_000_123_456,
-  _HOSTNAME: "omarchy",
+  _HOSTNAME: "laptop",
   _BOOT_ID: "boot",
   ...fields,
 });
@@ -43,8 +43,10 @@ describe("toEvent", () => {
     });
 
     expect(Event.Event.guards.Crash(crash)).toBe(true);
+    expect(crash.id).toBe(Fingerprint.issueId("s=1;i=2"));
+    expect(crash.bootId).toBe(Fingerprint.issueId("boot"));
     expect(crash).toMatchObject({
-      host: "omarchy",
+      host: "<host>",
       timestamp: 1_700_000_000_123,
       severity: "crit",
       identifier: "zsh",

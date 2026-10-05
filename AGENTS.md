@@ -15,6 +15,7 @@
 - Published libraries live under `packages/`: `@timmo001/effect-triage` (shared schemas and protocol) and `@timmo001/effect-triage-client` (the client). One version covers the CLI and both libraries.
 - Pin dependencies to exact versions (`bun add -E`).
 - Run project tasks through mise. Scripts complex enough to need logic are written in Effect and exposed as mise tasks.
+- Obfuscate everything sensitive before it leaves the machine, to any API: the triage server, decision models, LLMs or anything else. Redaction happens at capture in `src/redact.ts` and `src/journal/toEvent.ts`, so stored events never hold credentials, emails, home paths, user or host names, MAC or IP addresses, UUIDs and other machine IDs, serials or Wi-Fi names. Code that sends data anywhere sends only stored, redacted events, never raw journal fields, and new fields or sources must go through the `Redactor`.
 
 ## Validation
 
