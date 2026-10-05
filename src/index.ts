@@ -165,17 +165,18 @@ const serve = Command.make(
       Flag.withFallbackConfig(Config.Int("TRIAGE_PORT")),
       Flag.withDefault(7171),
     ),
+    trustProxy: Flag.Boolean("trust-proxy").pipe(
+      Flag.withDescription(
+        "Trust X-Forwarded-Host and X-Forwarded-For from a reverse proxy; only when the proxy is the sole way in",
+      ),
+      Flag.withFallbackConfig(Config.Boolean("TRIAGE_TRUST_PROXY")),
+      Flag.withDefault(false),
+    ),
   },
-  Effect.fn(function* (input) {
-    yield* Effect.logInfo(
-      `Serving triage on http://${input.hostname}:${input.port}`,
-    );
-
-    return yield* Layer.launch(Server.layer(input));
-  }),
+  (input) => Layer.launch(Server.layer(input)),
 ).pipe(
   Command.withDescription(
-    "Run the triage server, which collects events from enrolled hosts",
+    "Run the triage server over HTTP, which collects events from enrolled hosts. Use a reverse proxy or Cloudflare for HTTPS",
   ),
   Command.provide(Hosts.layer.pipe(Layer.provideMerge(Store.layerServer))),
 );

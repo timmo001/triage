@@ -105,9 +105,27 @@ export const routes = HttpApiBuilder.layer(Api.Api, {
   Layer.provide(AuthorizationLayer),
 );
 
-/** Serve the triage API on a port. */
-export const layer = (options: {
+export interface ServeOptions {
   readonly hostname: string;
   readonly port: number;
-}) =>
-  HttpRouter.serve(routes).pipe(Layer.provide(BunHttpServer.layer(options)));
+  /**
+   * Trust `X-Forwarded-Host` and `X-Forwarded-For` from a reverse proxy in
+   * front of the server. Only set this when the proxy is the sole way in, as
+   * clients can otherwise send these headers themselves.
+   */
+  readonly trustProxy: boolean;
+}
+
+/**
+ * Serve the triage API over plain HTTP. For HTTPS, put it behind a reverse
+ * proxy or Cloudflare, which handle TLS.
+ */
+export const layer = (options: ServeOptions) =>
+  HttpRouter.serve(
+    routes,
+    options.trustProxy ? { middleware: HttpMiddleware.xForwardedHeaders } : {},
+  ).pipe(
+    Layer.provide(
+      BunHttpServer.layer({ hostname: options.hostname, port: options.port }),
+    ),
+  );
