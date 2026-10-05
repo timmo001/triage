@@ -24,6 +24,9 @@ describe("template", () => {
         "Failed to open /home/aidan/.config/app.json for 1f0e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b at 0x7ffd1234 from 192.168.1.20:8080",
       ),
     ).toBe("Failed to open <path> for <uuid> at <hex> from <ip>");
+    expect(
+      template("pw.node: (bluez_output.80_C3_BA_7B_93_4E.1) usb 1-6:1.0"),
+    ).toBe("pw.node: (bluez_output.<mac>.<n>) usb <n>-<n>:<n>");
   });
 });
 
