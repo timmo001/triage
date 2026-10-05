@@ -110,11 +110,20 @@ const issues = Command.make(
       Flag.withDescription("The most issues to show"),
       Flag.withDefault(20),
     ),
+    server: Flag.Boolean("server").pipe(
+      Flag.withDescription(
+        "List the server's issues from $TRIAGE_SERVER_DB, for decide, label and suggest",
+      ),
+      Flag.withDefault(false),
+    ),
     json,
   },
   Effect.fn(function* (input) {
-    const store = yield* Store;
-    const list = yield* store.issues({ limit: input.limit });
+    const list = yield* Effect.gen(function* () {
+      const store = yield* Store;
+
+      return yield* store.issues({ limit: input.limit });
+    }).pipe(Effect.provide(input.server ? Store.layerServer : Store.layer));
 
     if (input.json) {
       yield* Console.log(JSON.stringify(list));
@@ -128,10 +137,7 @@ const issues = Command.make(
       );
     }
   }),
-).pipe(
-  Command.withDescription("List issues, most recently seen first"),
-  Command.provide(Store.layer),
-);
+).pipe(Command.withDescription("List issues, most recently seen first"));
 
 const upload = Command.make(
   "upload",
