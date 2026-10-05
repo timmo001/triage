@@ -8,6 +8,8 @@ describe("redact", () => {
     ["password=hunter2 token: abc", "password=<redacted> token: <redacted>"],
     ["Authorization: Bearer abc.def", "Authorization: <redacted> <redacted>"],
     ["mail alex.smith+x@example.co.uk now", "mail <email> now"],
+    ["sent to sam@example.com.", "sent to <email>."],
+    ["getty@tty1.service failed", "getty@tty1.service failed"],
     ["open /home/alex/.config/app.json", "open ~/.config/app.json"],
     ["fs 1f0e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b", "fs <uuid>"],
     ["machine 0123456789abcdef0123456789abcdef", "machine <id>"],

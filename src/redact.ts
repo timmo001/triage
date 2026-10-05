@@ -6,7 +6,10 @@ const rules: ReadonlyArray<readonly [RegExp, string]> = [
     /\b(password|passwd|secret|token|api[_-]?key|auth(?:orization)?)(\s*[=:]\s*)\S+/gi,
     "$1$2<redacted>",
   ],
-  [/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, "<email>"],
+  [
+    /[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.(?!(?:service|socket|timer|target|mount|automount|scope|slice|path|swap|device)\b)[\w-]+(?![\w-]|\.[\w-])/g,
+    "<email>",
+  ],
   [/\/home\/[^/\s]+/g, "~"],
   [
     /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
