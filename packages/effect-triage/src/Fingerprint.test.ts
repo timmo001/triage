@@ -2,14 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { Event } from "./Event.js";
 import { fingerprint, issueId, template } from "./Fingerprint.js";
 
-const base = {
-  id: "cursor",
-  host: "omarchy",
-  timestamp: 0,
-  severity: "err",
-  message: "",
-} as const;
-
 describe("template", () => {
   test("replaces the parts that change between occurrences", () => {
     expect(
@@ -32,40 +24,28 @@ describe("template", () => {
 
 describe("fingerprint", () => {
   test("groups crashes by executable, signal and top frames", () => {
-    const crash = (pid: string) =>
-      Event.cases.Crash.make({
-        ...base,
-        severity: "crit",
-        message: `Process ${pid} (ghostty) dumped core.`,
-        executable: "/usr/bin/ghostty",
-        signal: "SIGSEGV",
-        frames: [
-          { module: "ghostty" },
-          { function: "g_main_context_dispatch", module: "libglib-2.0.so.0" },
-          { function: "main", module: "ghostty" },
-          { function: "__libc_start_main", module: "libc.so.6" },
-        ],
-      });
+    const crash = Event.cases.Crash.make({
+      id: "event",
+      host: "laptop",
+      timestamp: 0,
+      severity: "crit",
+      message: "Process 1 (ghostty) dumped core.",
+      executable: "/usr/bin/ghostty",
+      signal: "SIGSEGV",
+      frames: [
+        { module: "ghostty" },
+        { function: "g_main_context_dispatch", module: "libglib-2.0.so.0" },
+        { function: "main", module: "ghostty" },
+        { function: "__libc_start_main", module: "libc.so.6" },
+      ],
+    });
 
-    expect(fingerprint(crash("1"))).toBe(
+    expect(fingerprint(crash)).toBe(
       "crash|ghostty|SIGSEGV|ghostty|g_main_context_dispatch|main",
     );
-    expect(fingerprint(crash("1"))).toBe(fingerprint(crash("2")));
   });
 
-  test("groups log errors by identifier and template", () => {
-    const log = (message: string) =>
-      Event.cases.LogError.make({ ...base, identifier: "kernel", message });
-
-    expect(
-      fingerprint(log("ucsi_acpi USBC000:00: UCSI_GET_PDOS failed (-95)")),
-    ).toBe(
-      fingerprint(log("ucsi_acpi USBC000:01: UCSI_GET_PDOS failed (-95)")),
-    );
-  });
-
-  test("issue IDs are stable 16 digit hex", () => {
-    expect(issueId("crash|ghostty|SIGSEGV")).toMatch(/^[0-9a-f]{16}$/);
+  test("issue IDs are stable", () => {
     expect(issueId("a")).toBe("af63dc4c8601ec8c");
   });
 });

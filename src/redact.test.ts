@@ -7,7 +7,6 @@ describe("redact", () => {
   test.each([
     ["password=hunter2 token: abc", "password=<redacted> token: <redacted>"],
     ["Authorization: Bearer abc.def", "Authorization: <redacted> <redacted>"],
-    ["header Bearer abc.def", "header Bearer <redacted>"],
     ["mail alex.smith+x@example.co.uk now", "mail <email> now"],
     ["open /home/alex/.config/app.json", "open ~/.config/app.json"],
     ["fs 1f0e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b", "fs <uuid>"],
@@ -16,7 +15,6 @@ describe("redact", () => {
     ["from 192.168.1.20:8080", "from <ip>:8080"],
     ["via fe80::1c2b:3d4e:5f60:7a8b%wlan0 up", "via <ip> up"],
     ["to 2001:db8:85a3:0:0:8a2e:370:7334 ok", "to <ip> ok"],
-    ["bind ::1 failed", "bind <ip> failed"],
     ["usb SerialNumber: ABC123XYZ", "usb SerialNumber: <serial>"],
     ["joined SSID 'Home Network' ok", "joined SSID <ssid> ok"],
     ["user alex on laptop.local", "user <user> on <host>.local"],

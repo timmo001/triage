@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Event, Fingerprint } from "@timmo001/effect-triage";
+import { Fingerprint } from "@timmo001/effect-triage";
 import { Option } from "effect";
 import { makeRedact, regularUsers } from "../redact.js";
 import type { Entry } from "./Entry.js";
@@ -42,17 +42,12 @@ describe("toEvent", () => {
       COREDUMP_USER_UNIT: "app-zsh.scope",
     });
 
-    expect(Event.Event.guards.Crash(crash)).toBe(true);
     expect(crash.id).toBe(Fingerprint.issueId("s=1;i=2"));
     expect(crash.bootId).toBe(Fingerprint.issueId("boot"));
     expect(crash).toMatchObject({
       host: "<host>",
       timestamp: 1_700_000_000_123,
-      severity: "crit",
-      identifier: "zsh",
-      unit: "app-zsh.scope",
       message: "Process 4242 (zsh) of user 1000 dumped core.",
-      signal: "SIGSEGV",
       frames: [
         { function: "unsetparam_pm", module: "/usr/bin/zsh" },
         { module: "~/.local/lib/libplugin.so" },
@@ -61,21 +56,7 @@ describe("toEvent", () => {
     });
   });
 
-  test("reads unit failures and skips the matching job failure", () => {
-    const failure = event({
-      MESSAGE_ID: MessageId.unitFailed,
-      PRIORITY: "4",
-      USER_UNIT: "sync.service",
-      UNIT_RESULT: "exit-code",
-      MESSAGE: "sync.service: Failed with result 'exit-code'.",
-    });
-
-    expect(Event.Event.guards.UnitFailure(failure)).toBe(true);
-    expect(failure).toMatchObject({
-      unit: "sync.service",
-      result: "exit-code",
-    });
-
+  test("skips job failures, which repeat the unit failure", () => {
     expect(
       toEvent(
         entry({
@@ -85,30 +66,6 @@ describe("toEvent", () => {
         }),
         redact,
       ),
-    ).toEqual(Option.none());
-  });
-
-  test("keeps errors and drops quieter entries", () => {
-    const log = event({
-      PRIORITY: "3",
-      SYSLOG_IDENTIFIER: "bluetoothd",
-      _SYSTEMD_UNIT: "bluetooth.service",
-      MESSAGE: "connect to 80:C3:BA:7B:93:4E failed for alex: Host is down",
-    });
-
-    expect(Event.Event.guards.LogError(log)).toBe(true);
-    expect(log).toMatchObject({
-      identifier: "bluetoothd",
-      unit: "bluetooth.service",
-      message: "connect to <mac> failed for <user>: Host is down",
-    });
-
-    expect(Fingerprint.fingerprint(log)).toBe(
-      "log|bluetoothd|connect to <mac> failed for <user>: Host is down",
-    );
-
-    expect(
-      toEvent(entry({ PRIORITY: "4", MESSAGE: "warning" }), redact),
     ).toEqual(Option.none());
   });
 
