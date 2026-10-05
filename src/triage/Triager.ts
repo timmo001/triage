@@ -25,7 +25,7 @@ import {
 } from "../store/Store.js";
 
 /** How sure a model must be before its answer counts as a clear yes or no. */
-const clear = 0.8;
+export const clear = 0.8;
 
 /** The window daily limits count over. */
 export const dayMillis = Duration.toMillis(Duration.days(1));
@@ -242,7 +242,9 @@ export const layerShadow = (options: {
         Effect.tap((decided) =>
           decided.length === 0
             ? Effect.void
-            : Effect.logInfo(`Decided on ${decided.length} new issues`),
+            : Effect.logInfo(
+                `Decided on ${decided.length} new issue${decided.length === 1 ? "" : "s"}`,
+              ),
         ),
         Effect.catch((error) =>
           Effect.logWarning(`Couldn't decide on new issues: ${error.message}`),

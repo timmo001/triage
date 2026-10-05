@@ -1,11 +1,21 @@
 import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai-compat";
 import { Event, Issue } from "@timmo001/effect-triage";
-import { Config, Context, Effect, Layer, Option, Schema } from "effect";
+import {
+  Clock,
+  Config,
+  Context,
+  type Duration,
+  Effect,
+  Layer,
+  Option,
+  Schedule,
+  Schema,
+} from "effect";
 import { LanguageModel, Prompt } from "effect/ai";
 import { FetchHttpClient } from "effect/http";
-import { IssueNotFound, Store } from "../store/Store.js";
-import { toState } from "./Triager.js";
+import { IssueNotFound, Store, type StoreError } from "../store/Store.js";
+import { clear, dayMillis, toState } from "./Triager.js";
 
 /**
  * Which API writes suggestions: any OpenAI-compatible or Anthropic-compatible
@@ -50,6 +60,17 @@ export class Suggester extends Context.Service<
     suggest(
       issueId: string,
     ): Effect.Effect<Suggestion, Effect.Error<ReturnType<typeof suggestFor>>>;
+    /**
+     * Issues `decisionModel` rated at least `worth` that this model hasn't
+     * suggested a fix for yet, most recently seen first.
+     */
+    unsuggested(options: {
+      readonly decisionModel: string;
+      readonly worth: number;
+      readonly limit: number;
+    }): Effect.Effect<ReadonlyArray<Issue.Issue>, StoreError>;
+    /** How many suggestions this model has made since `since`, in milliseconds. */
+    suggestedSince(since: number): Effect.Effect<number, StoreError>;
   }
 >()("triage/triage/Suggester") {
   /**
@@ -70,6 +91,9 @@ export class Suggester extends Context.Service<
 
         return Suggester.of({
           suggest: (issueId) => suggestFor(store, model, name, issueId),
+          unsuggested: (options) =>
+            store.unsuggested({ ...options, model: name }),
+          suggestedSince: (since) => store.suggestedSince(name, since),
         });
       }),
     ).pipe(
@@ -78,6 +102,58 @@ export class Suggester extends Context.Service<
       ),
     );
 }
+
+/**
+ * Suggest fixes every `interval` for issues `decisionModel` clearly rated
+ * worth fixing, up to `limit` a run and `daily` in any 24 hours. A failed run
+ * is logged and tried again next time.
+ */
+export const layerAutomatic = (options: {
+  readonly interval: Duration.Input;
+  readonly limit: number;
+  readonly daily: number;
+  readonly decisionModel: string;
+}) =>
+  Layer.effectDiscard(
+    Effect.gen(function* () {
+      const suggester = yield* Suggester;
+
+      yield* Effect.gen(function* () {
+        const left =
+          options.daily -
+          (yield* suggester.suggestedSince(
+            (yield* Clock.currentTimeMillis) - dayMillis,
+          ));
+
+        if (left <= 0) {
+          return 0;
+        }
+
+        const issues = yield* suggester.unsuggested({
+          decisionModel: options.decisionModel,
+          worth: clear,
+          limit: Math.min(options.limit, left),
+        });
+
+        yield* Effect.forEach(issues, (issue) => suggester.suggest(issue.id));
+
+        return issues.length;
+      }).pipe(
+        Effect.tap((count) =>
+          count === 0
+            ? Effect.void
+            : Effect.logInfo(
+                `Suggested fixes for ${count} issue${count === 1 ? "" : "s"}`,
+              ),
+        ),
+        Effect.catch((error) =>
+          Effect.logWarning(`Couldn't suggest fixes: ${error.message}`),
+        ),
+        Effect.repeat(Schedule.spaced(options.interval)),
+        Effect.forkScoped,
+      );
+    }),
+  );
 
 const apiKey = Config.Redacted("TRIAGE_LLM_API_KEY").pipe(
   Config.withDefault(undefined),

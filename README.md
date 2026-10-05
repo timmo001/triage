@@ -38,7 +38,7 @@ Host tokens can only send events. To read issues from the API, add an admin with
 | `TRIAGE_SERVER_DB` | `$XDG_STATE_HOME/triage/server.db` (`/data/server.db` in the container) | Server database |
 | `TRIAGE_TRUST_PROXY` | `false` | Trust `X-Forwarded-Host` and `X-Forwarded-For`. Only turn this on when the proxy is the only way to reach the server |
 | `TRIAGE_DECIDE` | `false` | Ask a decision model about new issues every 5 minutes. The answers are only stored for now, to compare models |
-| `TRIAGE_DECIDE_DAILY` | `100` | With `TRIAGE_DECIDE`, the most issues to decide on in any 24 hours |
+| `TRIAGE_DECIDE_DAILY` | `20` | With `TRIAGE_DECIDE`, the most issues to decide on in any 24 hours |
 | `TRIAGE_DECISION_PROVIDER` | `typesafe` | `typesafe` for any TypeSafe System One API, such as Ollaya or Ollama 0.35+ locally, or `cloudflare` for Clef on Workers AI with `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` |
 | `TRIAGE_DECISION_URL` | `http://127.0.0.1:11435/v1` (Ollaya) | The System One API, such as `http://127.0.0.1:11434/v1` for Ollama |
 | `TRIAGE_DECISION_API_KEY` | none | Key for a hosted System One API, such as TypeSafe or OpenCode Zen |
@@ -47,6 +47,10 @@ Host tokens can only send events. To read issues from the API, add an admin with
 | `TRIAGE_LLM_URL` | OpenAI's or Anthropic's own | The API, such as `https://openrouter.ai/api/v1`, `https://opencode.ai/zen/v1` or `http://127.0.0.1:11434/v1` for Ollama |
 | `TRIAGE_LLM_API_KEY` | none | Key for the API, when it needs one |
 | `TRIAGE_LLM_MODEL` | none | Language model for fix suggestions, such as `@cf/google/gemma-4-26b-a4b-it` on Workers AI |
+| `TRIAGE_SUGGEST` | `false` | Suggest fixes every 15 minutes for issues the decision model rates worth fixing with at least 0.8 probability. Needs `TRIAGE_LLM_MODEL` |
+| `TRIAGE_SUGGEST_DAILY` | `5` | With `TRIAGE_SUGGEST`, the most suggestions to ask for in any 24 hours |
+
+AI only runs when you ask for it. `TRIAGE_DECIDE` and `TRIAGE_SUGGEST` are off unless you turn them on, and each stops at its daily limit. On the `serve` command line, the language model settings are `--llm-provider`, `--llm-url` and `--llm-model`, since `--provider`, `--url` and `--model` are the decision model's.
 
 Decision models only see what's stored, which is redacted when it's captured. `triage label <issue> worth|noise` labels issues by hand, and `triage agreement` shows how often each model is sure and right against those labels.
 

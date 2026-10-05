@@ -1,6 +1,6 @@
 import { BunRuntime, BunServices } from "@effect/platform-bun";
 import { Config, Console, Effect, Layer, Option, Redacted } from "effect";
-import { Argument, Command, Flag } from "effect/cli";
+import { Argument, CliError, Command, Flag } from "effect/cli";
 import packageJson from "../package.json" with { type: "json" };
 import { Collector } from "./collect/Collector.js";
 import { Journal } from "./journal/Journal.js";
@@ -8,7 +8,7 @@ import { Redactor } from "./redact.js";
 import * as Server from "./server/Server.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
 import { Store, type TokenScope } from "./store/Store.js";
-import { LlmProvider, Suggester } from "./triage/Suggester.js";
+import { layerAutomatic, LlmProvider, Suggester } from "./triage/Suggester.js";
 import { agreement, layerShadow, Provider, Triager } from "./triage/Triager.js";
 import { Uploader } from "./upload/Uploader.js";
 
@@ -188,6 +188,15 @@ const decisionFlags = {
   ),
 };
 
+/** The decision model, or the provider's default when none is set. */
+const decisionModel = (input: {
+  readonly provider: Provider;
+  readonly model: Option.Option<string>;
+}) =>
+  Option.getOrElse(input.model, () =>
+    input.provider === "cloudflare" ? "clef-flash" : "laya",
+  );
+
 const triagerLayer = (input: {
   readonly provider: Provider;
   readonly url: string;
@@ -196,9 +205,7 @@ const triagerLayer = (input: {
   Triager.layer({
     provider: input.provider,
     url: input.url,
-    model: Option.getOrElse(input.model, () =>
-      input.provider === "cloudflare" ? "clef-flash" : "laya",
-    ),
+    model: decisionModel(input),
   });
 
 const decide = Command.make(
@@ -238,6 +245,34 @@ const decide = Command.make(
   Command.provide(Store.layerServer),
 );
 
+const llmProviderFlag = (name: string, urlFlag: string) =>
+  Flag.Literals(name, LlmProvider.literals).pipe(
+    Flag.withDescription(
+      `Any OpenAI-compatible or Anthropic-compatible API at --${urlFlag}, or Workers AI with $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN`,
+    ),
+    Flag.withFallbackConfig(
+      Config.Literals(LlmProvider.literals, "TRIAGE_LLM_PROVIDER"),
+    ),
+    Flag.withDefault("openai"),
+  );
+
+const llmUrlFlag = (name: string) =>
+  Flag.String(name).pipe(
+    Flag.withDescription(
+      "The API, such as https://openrouter.ai/api/v1 or https://opencode.ai/zen/v1, with $TRIAGE_LLM_API_KEY when it needs one. Defaults to OpenAI's or Anthropic's own",
+    ),
+    Flag.withFallbackConfig(Config.String("TRIAGE_LLM_URL")),
+    Flag.optional,
+  );
+
+const llmModelFlag = (name: string) =>
+  Flag.String(name).pipe(
+    Flag.withDescription(
+      "The language model, such as @cf/zai-org/glm-4.7-flash on Workers AI",
+    ),
+    Flag.withFallbackConfig(Config.String("TRIAGE_LLM_MODEL")),
+  );
+
 const suggest = Command.make(
   "suggest",
   {
@@ -245,29 +280,9 @@ const suggest = Command.make(
       Argument.withDescription("The IDs of the issues to suggest fixes for"),
       Argument.atLeast(1),
     ),
-    provider: Flag.Literals("provider", LlmProvider.literals).pipe(
-      Flag.withDescription(
-        "Any OpenAI-compatible or Anthropic-compatible API at --url, or Workers AI with $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN",
-      ),
-      Flag.withFallbackConfig(
-        Config.Literals(LlmProvider.literals, "TRIAGE_LLM_PROVIDER"),
-      ),
-      Flag.withDefault("openai"),
-    ),
-    url: Flag.String("url").pipe(
-      Flag.withDescription(
-        "The API, such as https://openrouter.ai/api/v1 or https://opencode.ai/zen/v1, with $TRIAGE_LLM_API_KEY when it needs one. Defaults to OpenAI's or Anthropic's own",
-      ),
-      Flag.withFallbackConfig(Config.String("TRIAGE_LLM_URL")),
-      Flag.optional,
-    ),
-    model: Flag.String("model").pipe(
-      Flag.withAlias("m"),
-      Flag.withDescription(
-        "The language model, such as @cf/zai-org/glm-4.7-flash on Workers AI",
-      ),
-      Flag.withFallbackConfig(Config.String("TRIAGE_LLM_MODEL")),
-    ),
+    provider: llmProviderFlag("provider", "url"),
+    url: llmUrlFlag("url"),
+    model: llmModelFlag("model").pipe(Flag.withAlias("m")),
     json,
   },
   Effect.fn(function* (input) {
@@ -380,23 +395,61 @@ const serve = Command.make(
         "With --decide, the most issues to decide on in any 24 hours",
       ),
       Flag.withFallbackConfig(Config.Int("TRIAGE_DECIDE_DAILY")),
-      Flag.withDefault(100),
+      Flag.withDefault(20),
     ),
     ...decisionFlags,
-  },
-  (input) =>
-    Layer.launch(
-      input.decide
-        ? Layer.merge(
-            Server.layer(input),
-            layerShadow({
-              interval: "5 minutes",
-              limit: 20,
-              daily: input.decideDaily,
-            }).pipe(Layer.provide(triagerLayer(input))),
-          )
-        : Server.layer(input),
+    suggest: Flag.Boolean("suggest").pipe(
+      Flag.withDescription(
+        "Ask a language model every 15 minutes how to fix issues the decision model clearly rates worth fixing, storing its suggestions. Off unless set",
+      ),
+      Flag.withFallbackConfig(Config.Boolean("TRIAGE_SUGGEST")),
+      Flag.withDefault(false),
     ),
+    suggestDaily: Flag.Int("suggest-daily").pipe(
+      Flag.withDescription(
+        "With --suggest, the most suggestions to ask for in any 24 hours",
+      ),
+      Flag.withFallbackConfig(Config.Int("TRIAGE_SUGGEST_DAILY")),
+      Flag.withDefault(5),
+    ),
+    llmProvider: llmProviderFlag("llm-provider", "llm-url"),
+    llmUrl: llmUrlFlag("llm-url"),
+    llmModel: llmModelFlag("llm-model").pipe(Flag.optional),
+  },
+  Effect.fnUntraced(function* (input) {
+    const decider = input.decide
+      ? layerShadow({
+          interval: "5 minutes",
+          limit: 20,
+          daily: input.decideDaily,
+        }).pipe(Layer.provide(triagerLayer(input)))
+      : Layer.empty;
+
+    const suggester = input.suggest
+      ? layerAutomatic({
+          interval: "15 minutes",
+          limit: 5,
+          daily: input.suggestDaily,
+          decisionModel: `${input.provider}/${decisionModel(input)}`,
+        }).pipe(
+          Layer.provide(
+            Suggester.layer({
+              provider: input.llmProvider,
+              url: input.llmUrl,
+              model: yield* Effect.fromOption(input.llmModel).pipe(
+                Effect.mapError(
+                  () => new CliError.MissingOption({ option: "llm-model" }),
+                ),
+              ),
+            }),
+          ),
+        )
+      : Layer.empty;
+
+    return yield* Layer.launch(
+      Layer.mergeAll(Server.layer(input), decider, suggester),
+    );
+  }),
 ).pipe(
   Command.withDescription(
     "Run the triage server over HTTP, which collects events from enrolled hosts. Use a reverse proxy or Cloudflare for HTTPS",
