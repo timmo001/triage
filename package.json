@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@effect/platform-bun": "4.0.1",
+    "@effect/sql-sqlite-bun": "4.0.1",
     "@timmo001/effect-triage": "workspace:*",
     "@timmo001/effect-triage-client": "workspace:*",
     "effect": "4.0.1"
