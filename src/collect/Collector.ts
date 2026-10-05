@@ -1,11 +1,18 @@
+import { Event } from "@timmo001/effect-triage";
 import { Context, Effect, Layer, Option, Stream } from "effect";
+import { type Entry, text } from "../journal/Entry.js";
 import { Journal, type JournalError } from "../journal/Journal.js";
-import { toEvent } from "../journal/toEvent.js";
+import { rawUnit, toEvent } from "../journal/toEvent.js";
 import { Redactor } from "../redact.js";
 import { Store, type StoreError } from "../store/Store.js";
 
 /** The store's cursor key for this machine's journal. */
 const source = "journal";
+
+/** How many earlier lines from the same unit to keep with a failure or crash. */
+const breadcrumbLines = 10;
+
+const takesBreadcrumbs = Event.Event.isAnyOf(["UnitFailure", "Crash"]);
 
 export interface CollectResult {
   /** Journal entries read. */
@@ -40,6 +47,39 @@ export class Collector extends Context.Service<
       const store = yield* Store;
       const { redact } = yield* Redactor;
 
+      const withBreadcrumbs = (entry: Entry, event: Event.Event) => {
+        const bootId = text(entry, "_BOOT_ID");
+        const unit = rawUnit(entry);
+
+        if (
+          !takesBreadcrumbs(event) ||
+          unit === undefined ||
+          bootId === undefined
+        ) {
+          return Effect.succeed(event);
+        }
+
+        return journal
+          .before({
+            cursor: entry.__CURSOR,
+            bootId,
+            ...unit,
+            lines: breadcrumbLines,
+          })
+          .pipe(
+            Effect.map((lines) =>
+              lines.length === 0
+                ? event
+                : { ...event, breadcrumbs: lines.map(redact) },
+            ),
+            Effect.catch((error) =>
+              Effect.logDebug("Couldn't read breadcrumbs", {
+                error: error.message,
+              }).pipe(Effect.as(event)),
+            ),
+          );
+      };
+
       const collect = Effect.fn("Collector.collect")(function* (
         options: CollectOptions,
       ) {
@@ -58,8 +98,13 @@ export class Collector extends Context.Service<
                   return;
                 }
 
-                const events = entries.flatMap((entry) =>
-                  Option.toArray(toEvent(entry, redact)),
+                const events = yield* Effect.forEach(
+                  entries.flatMap((entry) =>
+                    Option.toArray(toEvent(entry, redact)).map(
+                      (event) => [entry, event] as const,
+                    ),
+                  ),
+                  ([entry, event]) => withBreadcrumbs(entry, event),
                 );
 
                 totals.added += yield* store.record(

@@ -25,8 +25,15 @@ const common = {
   identifier: Schema.optionalKey(Schema.String),
   /** The systemd unit the event belongs to. */
   unit: Schema.optionalKey(Schema.String),
+  /** Whether `unit` runs in the system manager or a user's. */
+  scope: Schema.optionalKey(Schema.Literals(["system", "user"])),
   /** The redacted message. */
   message: Schema.String,
+  /**
+   * Redacted lines the same unit logged just before, in the same boot, oldest
+   * first.
+   */
+  breadcrumbs: Schema.optionalKey(Schema.Array(Schema.String)),
 };
 
 /**

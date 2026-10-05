@@ -51,6 +51,45 @@ export const parseFrames = (
   });
 };
 
+/** Where an entry names its unit, in order of preference. */
+const unitFields: ReadonlyArray<readonly [Field, Scope]> = [
+  ["USER_UNIT", "user"],
+  ["UNIT", "system"],
+  ["_SYSTEMD_USER_UNIT", "user"],
+  ["_SYSTEMD_UNIT", "system"],
+];
+
+/** Where a coredump names the crashed process's unit. */
+const crashUnitFields: ReadonlyArray<readonly [Field, Scope]> = [
+  ["COREDUMP_USER_UNIT", "user"],
+  ["COREDUMP_UNIT", "system"],
+];
+
+type Scope = "system" | "user";
+
+/**
+ * The unit an entry belongs to, unredacted, and the manager it runs in. Only
+ * for reading more of this machine's journal: redact it before storing it.
+ */
+export const rawUnit = (
+  entry: Entry,
+): { readonly unit: string; readonly scope: Scope } | undefined => {
+  const fields =
+    text(entry, "MESSAGE_ID") === MessageId.coredump
+      ? crashUnitFields
+      : unitFields;
+
+  for (const [field, scope] of fields) {
+    const unit = text(entry, field);
+
+    if (unit !== undefined) {
+      return { unit, scope };
+    }
+  }
+
+  return undefined;
+};
+
 /**
  * Turn a journal entry into a triage event, or nothing when it isn't a crash,
  * failure, OOM kill or error. Every text field is redacted here, before it is
@@ -84,24 +123,20 @@ export const toEvent = (
     message: redact(message),
   };
 
+  const found = rawUnit(entry);
+
   const unit =
-    redacted("USER_UNIT") ??
-    redacted("UNIT") ??
-    redacted("_SYSTEMD_USER_UNIT") ??
-    redacted("_SYSTEMD_UNIT");
+    found === undefined ? {} : { unit: redact(found.unit), scope: found.scope };
 
   switch (messageId) {
     case MessageId.coredump: {
-      const crashUnit =
-        redacted("COREDUMP_USER_UNIT") ?? redacted("COREDUMP_UNIT");
-
       const comm = redacted("COREDUMP_COMM");
 
       return Option.some(
         Event.Event.cases.Crash.make({
           ...common,
           ...(comm !== undefined && { identifier: comm }),
-          ...(crashUnit !== undefined && { unit: crashUnit }),
+          ...unit,
           message: redact(message.split("\n")[0] ?? ""),
           executable: redacted("COREDUMP_EXE") ?? comm ?? "unknown",
           signal: redacted("COREDUMP_SIGNAL_NAME") ?? "unknown",
@@ -119,7 +154,7 @@ export const toEvent = (
       return Option.some(
         Event.Event.cases.UnitFailure.make({
           ...common,
-          ...(unit !== undefined && { unit }),
+          ...unit,
           ...(result !== undefined && { result }),
         }),
       );
@@ -132,7 +167,7 @@ export const toEvent = (
       return Option.some(
         Event.Event.cases.OutOfMemory.make({
           ...common,
-          ...(unit !== undefined && { unit }),
+          ...unit,
           ...(process !== undefined && { process: redact(process) }),
         }),
       );
@@ -143,7 +178,7 @@ export const toEvent = (
         ? Option.some(
             Event.Event.cases.LogError.make({
               ...common,
-              ...(unit !== undefined && { unit }),
+              ...unit,
             }),
           )
         : Option.none();

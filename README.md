@@ -27,6 +27,8 @@ The server always listens on `7171` inside the container, so proxies and tunnels
 
 `hosts add` prints the host's token once. On that host, set `TRIAGE_SERVER` to the server's URL and `TRIAGE_TOKEN` to the token, then run `triage collect --follow --upload`.
 
+Hosts redact everything they collect before storing or sending it, including their own user and host names. Set `TRIAGE_REDACT_NAMES` on a host to other names to hide, comma-separated, such as your GitHub account, which shows up in repository URLs. For failures and crashes, hosts also keep the last 10 lines the unit logged, redacted the same way, to give suggestions something to go on.
+
 Host tokens can only send events. To read issues from the API, add an admin with `triage admins add <name>` and use its token. `hosts list` and `admins list` show who has a token, and `hosts remove` and `admins remove` revoke one.
 
 | Variable | Default | |
