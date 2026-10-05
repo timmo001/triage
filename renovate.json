@@ -1,4 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>timmo001/renovate-config"]
+  "extends": ["github>timmo001/renovate-config"],
+  "packageRules": [
+    {
+      "description": "Keep Bun the same in mise, the container image and its types.",
+      "matchDepNames": ["bun", "oven/bun", "@types/bun"],
+      "groupName": "Bun",
+      "groupSlug": "bun"
+    }
+  ]
 }
