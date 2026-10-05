@@ -1,6 +1,6 @@
 import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai-compat";
-import { Issue } from "@timmo001/effect-triage";
+import { Event, Issue } from "@timmo001/effect-triage";
 import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 import { LanguageModel, Prompt } from "effect/ai";
 import { FetchHttpClient } from "effect/http";
@@ -25,11 +25,11 @@ export type LlmProvider = typeof LlmProvider.Type;
  */
 const maxOutput = 4096;
 
-const instructions = `You help someone fix a crash or error on their own Linux machine, often Arch Linux with the Omarchy Hyprland desktop. You're given an issue grouped from the system journal, with sample messages and, for crashes, the top stack frames. Personal details were redacted before you saw them: <user>, <host>, <ip>, <mac>, <uuid>, <id>, <email>, <redacted>, and ~ for the home directory.
+const instructions = `You help someone fix a crash or error on their own Linux machine, often Arch Linux with the Omarchy Hyprland desktop. You're given an issue grouped from the system journal, with sample messages, for crashes the top stack frames, and when known the systemd unit, whether it's a system or user unit, and the lines it logged just before. Personal details were redacted before you saw them: <user>, <host>, <ip>, <mac>, <uuid>, <id>, <email>, <redacted>, and ~ for the home directory.
 
 Reply in Markdown, in under 250 words:
 1. The most likely cause, in one or two sentences.
-2. Numbered steps to confirm and fix it, with the exact commands to run.
+2. Numbered steps to confirm and fix it, with the exact commands to run. For user units, use \`systemctl --user\` and \`journalctl --user-unit\`.
 
 Say when the details aren't enough to be sure, and what to check next. Don't invent package names, options or file paths.`;
 
@@ -137,6 +137,32 @@ const languageModel = (options: {
   }
 };
 
+/** The longest breadcrumb line sent, matching the decision models' messages. */
+const maxBreadcrumb = 300;
+
+/**
+ * The decision models' description of an issue, plus its unit and the lines
+ * the unit logged before the latest event that has them.
+ */
+const describe = (issue: Issue.Issue, events: ReadonlyArray<Event.Event>) => {
+  const state = toState(issue, events);
+  const latest = events.find((event) => event.breadcrumbs !== undefined);
+  const unit = latest ?? events[0];
+
+  return {
+    issue: {
+      ...state.issue,
+      ...(unit?.unit !== undefined && { unit: unit.unit }),
+      ...(unit?.scope !== undefined && { scope: unit.scope }),
+      ...(latest?.breadcrumbs !== undefined && {
+        breadcrumbs: latest.breadcrumbs.map((line) =>
+          line.slice(0, maxBreadcrumb),
+        ),
+      }),
+    },
+  };
+};
+
 const suggestFor = Effect.fnUntraced(function* (
   store: Store["Service"],
   model: LanguageModel.LanguageModel,
@@ -152,7 +178,7 @@ const suggestFor = Effect.fnUntraced(function* (
   const { issue, events } = found.value;
 
   const response = yield* model.generateText({
-    prompt: Prompt.make(JSON.stringify(toState(issue, events), null, 2)).pipe(
+    prompt: Prompt.make(JSON.stringify(describe(issue, events), null, 2)).pipe(
       Prompt.setSystem(instructions),
     ),
   });
