@@ -8,8 +8,7 @@
 
 services:
   triage:
-    build: .
-    image: triage
+    image: ghcr.io/timmo001/triage:latest
     restart: unless-stopped
     ports:
       - ${TRIAGE_PORT:-7171}:7171
