@@ -1,0 +1,94 @@
+---
+name: Release
+
+# yamllint disable-line rule:truthy
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  tools:
+    name: Resolve release tools
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    outputs:
+      bun: ${{ steps.versions.outputs.bun }}
+      node: ${{ steps.versions.outputs.node }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@5ac50f778e26fac95da98d50503682459e86d566
+
+      - name: Read tool versions
+        id: versions
+        run: |
+          printf 'bun=%s\n' "$(mise current bun)" >> "$GITHUB_OUTPUT"
+          printf 'node=%s\n' "$(mise current node)" >> "$GITHUB_OUTPUT"
+
+  effect-triage-npm:
+    name: effect-triage npm
+    needs: tools
+    permissions:
+      contents: read
+      id-token: write
+    uses: timmo001/workflows/.github/workflows/publish-npm-package.yml@82ee28374d3471231113dabc3dd436f65a47132f # 20261004.0
+    with:
+      bun-version: ${{ needs.tools.outputs.bun }}
+      node-version: ${{ needs.tools.outputs.node }}
+      package-path: packages/effect-triage
+      check-command: cd ../.. && bun run check && bun run test
+
+  effect-triage-jsr:
+    name: effect-triage JSR
+    needs: tools
+    permissions:
+      contents: read
+      id-token: write
+    uses: timmo001/workflows/.github/workflows/publish-jsr-package.yml@82ee28374d3471231113dabc3dd436f65a47132f # 20261004.0
+    with:
+      bun-version: ${{ needs.tools.outputs.bun }}
+      package-path: packages/effect-triage
+      check-command: (cd ../.. && bun run check && bun run test) && bun run build
+
+  # The client pins @timmo001/effect-triage to this release, so publish it once effect-triage is out.
+  client-npm:
+    name: effect-triage-client npm
+    needs:
+      - tools
+      - effect-triage-npm
+    permissions:
+      contents: read
+      id-token: write
+    uses: timmo001/workflows/.github/workflows/publish-npm-package.yml@82ee28374d3471231113dabc3dd436f65a47132f # 20261004.0
+    with:
+      bun-version: ${{ needs.tools.outputs.bun }}
+      node-version: ${{ needs.tools.outputs.node }}
+      package-path: packages/client
+      check-command: cd ../.. && bun run check && bun run test
+
+  client-jsr:
+    name: effect-triage-client JSR
+    needs:
+      - tools
+      - effect-triage-jsr
+    permissions:
+      contents: read
+      id-token: write
+    uses: timmo001/workflows/.github/workflows/publish-jsr-package.yml@82ee28374d3471231113dabc3dd436f65a47132f # 20261004.0
+    with:
+      bun-version: ${{ needs.tools.outputs.bun }}
+      package-path: packages/client
+      # The JSR entry resolves @timmo001/effect-triage from the workspace, so build it too.
+      check-command: cd ../.. && bun run check && bun run test && bun run build:packages
