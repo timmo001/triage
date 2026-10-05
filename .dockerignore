@@ -1,0 +1,8 @@
+**
+!package.json
+!bun.lock
+!tsconfig.json
+!packages/*/package.json
+!packages/*/src/**
+!src/**
+**/*.test.ts
