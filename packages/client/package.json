@@ -1,0 +1,54 @@
+{
+  "name": "@timmo001/effect-triage-client",
+  "version": "0.0.0",
+  "description": "Effect client for a triage server",
+  "keywords": [
+    "effect",
+    "triage",
+    "rpc"
+  ],
+  "homepage": "https://github.com/timmo001/triage/tree/main/packages/client#readme",
+  "bugs": {
+    "url": "https://github.com/timmo001/triage/issues"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/timmo001/triage.git",
+    "directory": "packages/client"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "bun": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "prepack": "bun run build"
+  },
+  "dependencies": {
+    "@timmo001/effect-triage": "0.0.0"
+  },
+  "peerDependencies": {
+    "effect": "4.0.1"
+  },
+  "devDependencies": {
+    "effect": "4.0.1"
+  }
+}
