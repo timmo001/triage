@@ -43,11 +43,21 @@ Reply in Markdown, in under 250 words:
 
 Say when the details aren't enough to be sure, and what to check next. Don't invent package names, options or file paths.`;
 
+/** An event a suggestion was based on. */
+export interface Evidence {
+  readonly host: string;
+  readonly id: string;
+  /** When it happened, in milliseconds since the Unix epoch. */
+  readonly timestamp: number;
+}
+
 export interface Suggestion {
   readonly issue: Issue.Issue;
   /** The model that wrote it, as `provider/model`. */
   readonly model: string;
   readonly text: string;
+  /** Every event the model was given, newest first. */
+  readonly evidence: ReadonlyArray<Evidence>;
 }
 
 /**
@@ -259,12 +269,19 @@ const suggestFor = Effect.fnUntraced(function* (
     ),
   });
 
+  const evidence = events.map(({ host, id, timestamp }) => ({
+    host,
+    id,
+    timestamp,
+  }));
+
   yield* store.saveSuggestion({
     issueId: issue.id,
     model: name,
     issueCount: issue.count,
     text: response.text,
+    evidence: JSON.stringify(evidence.map(({ host, id }) => ({ host, id }))),
   });
 
-  return { issue, model: name, text: response.text };
+  return { issue, model: name, text: response.text, evidence };
 });

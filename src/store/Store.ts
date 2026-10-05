@@ -74,6 +74,8 @@ export interface StoredSuggestion {
   readonly issueCount: number;
   /** The suggestion, in Markdown. */
   readonly text: string;
+  /** The events the model was given, as JSON `{ host, id }` pairs. */
+  readonly evidence: string;
 }
 
 /** A model's decision on an issue next to the hand label for it. */
@@ -227,6 +229,13 @@ const migrations = SqliteMigrator.fromRecord({
         text TEXT NOT NULL,
         PRIMARY KEY (issue_id, model)
       )
+    `;
+  }),
+  "0007_suggestion_evidence": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`
+      ALTER TABLE suggestions ADD COLUMN evidence TEXT NOT NULL DEFAULT '[]'
     `;
   }),
 });
@@ -698,11 +707,13 @@ export class Store extends Context.Service<
             suggested_at: yield* Clock.currentTimeMillis,
             issue_count: suggestion.issueCount,
             text: suggestion.text,
+            evidence: suggestion.evidence,
           })}
           ON CONFLICT (issue_id, model) DO UPDATE SET
             suggested_at = excluded.suggested_at,
             issue_count = excluded.issue_count,
-            text = excluded.text
+            text = excluded.text,
+            evidence = excluded.evidence
         `;
       },
       Effect.mapError((cause) => new StoreError({ cause })),

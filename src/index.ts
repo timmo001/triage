@@ -300,8 +300,13 @@ const suggest = Command.make(
       return;
     }
 
-    for (const { issue, text } of suggestions) {
-      yield* Console.log(`## ${issue.id}  ${issue.title}\n\n${text}\n`);
+    for (const { issue, text, evidence } of suggestions) {
+      const hosts = [...new Set(evidence.map((event) => event.host))];
+      const times = evidence.map((event) => event.timestamp);
+
+      yield* Console.log(
+        `## ${issue.id}  ${issue.title}\n\n${text}\n\nBased on ${evidence.length} of ${issue.count} events from ${hosts.join(", ")}, ${new Date(Math.min(...times)).toISOString()} to ${new Date(Math.max(...times)).toISOString()}\n`,
+      );
     }
   }),
 ).pipe(
