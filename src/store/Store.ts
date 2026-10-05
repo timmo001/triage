@@ -41,6 +41,22 @@ export const Token = Schema.Struct({
 
 export interface Token extends Schema.Schema.Type<typeof Token> {}
 
+/** What a decision model made of an issue, for comparing models and labels. */
+export interface StoredDecision {
+  readonly issueId: string;
+  readonly model: string;
+  /** How many events the issue had when the model decided. */
+  readonly issueCount: number;
+  /** The probability that the issue is worth fixing. */
+  readonly worth: number;
+  /** The expected severity level, from 0 (none) to 3 (critical). */
+  readonly severity: number;
+  /** The most likely cause. */
+  readonly cause: string;
+  /** Every answer with its probabilities, as JSON. */
+  readonly answers: string;
+}
+
 const EventJson = Schema.fromJsonString(Event.Event);
 
 const encodeEvent = Schema.encodeEffect(EventJson);
@@ -139,6 +155,23 @@ const migrations = SqliteMigrator.fromRecord({
 
     yield* sql`DROP TABLE hosts`;
   }),
+  "0004_decisions": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`
+      CREATE TABLE decisions (
+        issue_id TEXT NOT NULL REFERENCES issues (id),
+        model TEXT NOT NULL,
+        decided_at INTEGER NOT NULL,
+        issue_count INTEGER NOT NULL,
+        worth REAL NOT NULL,
+        severity REAL NOT NULL,
+        cause TEXT NOT NULL,
+        answers TEXT NOT NULL,
+        PRIMARY KEY (issue_id, model)
+      )
+    `;
+  }),
 });
 
 /**
@@ -197,6 +230,13 @@ export class Store extends Context.Service<
     pending(target: string, limit: number): Effect.Effect<Pending, StoreError>;
     /** Mark events up to `last` as uploaded to a server. */
     uploaded(target: string, last: number): Effect.Effect<void, StoreError>;
+    /** Issues a model hasn't decided on yet, most recently seen first. */
+    undecided(
+      model: string,
+      limit: number,
+    ): Effect.Effect<ReadonlyArray<Issue.Issue>, StoreError>;
+    /** Store a model's decision, replacing any earlier one for the issue. */
+    saveDecision(decision: StoredDecision): Effect.Effect<void, StoreError>;
   }
 >()("triage/store/Store") {
   static readonly make = Effect.gen(function* () {
@@ -428,6 +468,53 @@ export class Store extends Context.Service<
       Effect.mapError((cause) => new StoreError({ cause })),
     );
 
+    const listUndecided = SqlSchema.findAll({
+      Request: Schema.Struct({ model: Schema.String, limit: Schema.Int }),
+      Result: IssueRow,
+      execute: ({ model, limit }) => sql`
+        SELECT * FROM issues
+        WHERE count > 0 AND id NOT IN (
+          SELECT issue_id FROM decisions WHERE model = ${model}
+        )
+        ORDER BY last_seen DESC
+        LIMIT ${limit}
+      `,
+    });
+
+    const undecided = Effect.fn("Store.undecided")(
+      function* (model: string, limit: number) {
+        const rows = yield* listUndecided({ model, limit });
+
+        return rows.map(toIssue);
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const saveDecision = Effect.fn("Store.saveDecision")(
+      function* (decision: StoredDecision) {
+        yield* sql`
+          INSERT INTO decisions ${sql.insert({
+            issue_id: decision.issueId,
+            model: decision.model,
+            decided_at: yield* Clock.currentTimeMillis,
+            issue_count: decision.issueCount,
+            worth: decision.worth,
+            severity: decision.severity,
+            cause: decision.cause,
+            answers: decision.answers,
+          })}
+          ON CONFLICT (issue_id, model) DO UPDATE SET
+            decided_at = excluded.decided_at,
+            issue_count = excluded.issue_count,
+            worth = excluded.worth,
+            severity = excluded.severity,
+            cause = excluded.cause,
+            answers = excluded.answers
+        `;
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
     return Store.of({
       cursor,
       record,
@@ -440,6 +527,8 @@ export class Store extends Context.Service<
       removeToken,
       pending,
       uploaded,
+      undecided,
+      saveDecision,
     });
   });
 

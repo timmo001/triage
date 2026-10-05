@@ -5,6 +5,7 @@
     "": {
       "name": "triage",
       "dependencies": {
+        "@effect/ai-typesafe": "4.0.1",
         "@effect/platform-bun": "4.0.1",
         "@effect/sql-sqlite-bun": "4.0.1",
         "@timmo001/effect-triage": "workspace:*",
@@ -47,6 +48,8 @@
     },
   },
   "packages": {
+    "@effect/ai-typesafe": ["@effect/ai-typesafe@4.0.1", "", { "peerDependencies": { "effect": "^4.0.1" } }, "sha512-jZ4cpx2aVAtMDSx3tHNNFWu8uGHWvaHxYmz8Tdj3zme9XiN+jru3kuSrXHJ9XgsUSQh1g8NalXniuoCj2ayq0g=="],
+
     "@effect/platform-bun": ["@effect/platform-bun@4.0.1", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.1" }, "peerDependencies": { "effect": "^4.0.1" } }, "sha512-m+QR4bp39ZWujCuEsUhZADIYIOFZcUHHlmrixENZqZRbEYgaPLMUWiPrRJ69CM4BuuHW8oCOxfMGUU7oSw/o5g=="],
 
     "@effect/platform-node-shared": ["@effect/platform-node-shared@4.0.1", "", { "dependencies": { "@types/ws": "^8.18.1", "ws": "^8.22.0" }, "peerDependencies": { "effect": "^4.0.1" } }, "sha512-VanaejudEhKJ4mpmqnEzdncVUhN6sGSO9ZDND54mRxAlZxj+4dYAWjDTYAy9o4tJo9aALeP2U8cVcOFzEdSeLg=="],

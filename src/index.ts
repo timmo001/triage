@@ -8,6 +8,7 @@ import { Redactor } from "./redact.js";
 import * as Server from "./server/Server.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
 import { Store, type TokenScope } from "./store/Store.js";
+import { Triager } from "./triage/Triager.js";
 import { Uploader } from "./upload/Uploader.js";
 
 const collectorLayer = Collector.layer.pipe(
@@ -153,6 +154,53 @@ const upload = Command.make(
 
 const tokensLayer = Tokens.layer.pipe(Layer.provideMerge(Store.layerServer));
 
+const decide = Command.make(
+  "decide",
+  {
+    url: Flag.String("url").pipe(
+      Flag.withDescription("The decision model API, such as Ollaya's"),
+      Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_URL")),
+      Flag.withDefault("http://127.0.0.1:11435/v1"),
+    ),
+    model: Flag.String("model").pipe(
+      Flag.withAlias("m"),
+      Flag.withDescription("The decision model, such as laya or winnow"),
+      Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_MODEL")),
+      Flag.withDefault("laya"),
+    ),
+    limit: Flag.Int("limit").pipe(
+      Flag.withAlias("n"),
+      Flag.withDescription("The most issues to decide on"),
+      Flag.withDefault(20),
+    ),
+    json,
+  },
+  Effect.fn(function* (input) {
+    const decided = yield* Effect.gen(function* () {
+      const triager = yield* Triager;
+
+      return yield* triager.decide(input.limit);
+    }).pipe(Effect.provide(Triager.layer(input)));
+
+    if (input.json) {
+      yield* Console.log(JSON.stringify(decided));
+
+      return;
+    }
+
+    for (const { issue, answers } of decided) {
+      yield* Console.log(
+        `${issue.id}  worth ${answers.worth.probability.toFixed(2)}  ${answers.severity.label.padEnd(8)}  ${answers.cause.label.padEnd(13)}  ${issue.title}`,
+      );
+    }
+  }),
+).pipe(
+  Command.withDescription(
+    "Ask a decision model whether the server's new issues are worth fixing, storing the answers without acting on them",
+  ),
+  Command.provide(Store.layerServer),
+);
+
 const serve = Command.make(
   "serve",
   {
@@ -271,7 +319,15 @@ const triage = Command.make("triage").pipe(
   Command.withDescription(
     "Capture crashes and errors from your machines, decide which are worth fixing, and suggest fixes",
   ),
-  Command.withSubcommands([collect, issues, upload, serve, hosts, admins]),
+  Command.withSubcommands([
+    collect,
+    issues,
+    upload,
+    serve,
+    hosts,
+    admins,
+    decide,
+  ]),
 );
 
 triage.pipe(
