@@ -7,9 +7,14 @@ Capture crashes and errors from your machines, decide which are worth fixing, an
 The server speaks plain HTTP. For HTTPS, run it behind a reverse proxy such as Caddy, Traefik or nginx, or behind Cloudflare, and let that handle TLS.
 
 ```sh
-docker build -t triage .
-docker run -d --name triage -p 7171:7171 -v triage:/data triage
-docker exec triage triage hosts add desktop
+docker compose up -d
+docker compose exec triage triage hosts add desktop
+```
+
+For HTTPS through Caddy, with certificates for your domain set up automatically:
+
+```sh
+TRIAGE_DOMAIN=triage.example.com docker compose -f compose.yaml -f compose.caddy.yaml up -d
 ```
 
 `hosts add` prints the host's token once. On that host, set `TRIAGE_SERVER` to the server's URL and `TRIAGE_TOKEN` to the token, then run `triage collect --follow --upload`.

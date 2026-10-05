@@ -1,9 +1,6 @@
 # The triage server. Serves plain HTTP on port 7171: put it behind a reverse
 # proxy for HTTPS, and set TRIAGE_TRUST_PROXY=true when the proxy is the only
-# way in. Data lives in /data, so mount a volume there.
-#
-#   docker run -d -p 7171:7171 -v triage:/data ghcr.io/timmo001/triage
-#   docker exec <container> triage hosts add desktop
+# way in. Data lives in /data, so mount a volume there. See compose.yaml.
 
 FROM oven/bun:1.4.2 AS build
 

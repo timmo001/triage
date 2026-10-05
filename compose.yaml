@@ -1,0 +1,19 @@
+---
+# The triage server over plain HTTP, for a trusted network. For HTTPS, add
+# compose.caddy.yaml, or put your own reverse proxy or Cloudflare in front.
+#
+#   docker compose up -d
+#   docker compose exec triage triage hosts add desktop
+
+services:
+  triage:
+    build: .
+    image: triage
+    restart: unless-stopped
+    ports:
+      - ${TRIAGE_PORT:-7171}:7171
+    volumes:
+      - triage:/data
+
+volumes:
+  triage:
