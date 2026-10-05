@@ -1,9 +1,12 @@
 # Keeps a local triage server running in the background, outside the invoking
 # shell or agent. Manage it with the serve:* mise tasks.
 
-# Uses its own port and database so it never touches a real server's
+# Uses its own port and database so it never touches a real server's. The port
+# moves up when 7172 is taken; with the pitchfork proxy enabled, the server is
+# always at https://server.triage.localhost whichever port it gets.
 [daemons.server]
-run = 'TRIAGE_SERVER_DB="${XDG_STATE_HOME:-$HOME/.local/state}/triage/dev-server.db" exec bun run --watch src/index.ts serve --port 7172'
-ready_http = "http://127.0.0.1:7172/api/health"
-health_http = "http://127.0.0.1:7172/api/health"
+run = 'TRIAGE_SERVER_DB="${XDG_STATE_HOME:-$HOME/.local/state}/triage/dev-server.db" exec bun run --watch src/index.ts serve --port "$PORT"'
+port = { expect = [7172], bump = 10 }
+ready_cmd = 'curl -fsS "http://127.0.0.1:$PORT/api/health"'
+health_cmd = 'curl -fsS "http://127.0.0.1:$PORT/api/health"'
 retry = true
