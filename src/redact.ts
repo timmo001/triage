@@ -1,4 +1,4 @@
-import { Context, Effect, FileSystem, Layer } from "effect";
+import { Config, Context, Effect, FileSystem, Layer } from "effect";
 
 const rules: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bBearer\s+\S+/gi, "Bearer <redacted>"],
@@ -88,7 +88,9 @@ export const regularUsers = (passwd: string): ReadonlyArray<string> =>
 
 /**
  * Redacts text with this machine's hostname and regular user names added to
- * the rules. Everything triage stores or sends anywhere goes through it.
+ * the rules, plus any other names in `$TRIAGE_REDACT_NAMES` (comma-separated),
+ * such as a GitHub account. Everything triage stores or sends anywhere goes
+ * through it.
  */
 export class Redactor extends Context.Service<
   Redactor,
@@ -105,9 +107,16 @@ export class Redactor extends Context.Service<
       const passwd = yield* read("/etc/passwd");
       const hostname = (yield* read("/proc/sys/kernel/hostname")).trim();
 
+      const names = yield* Config.String("TRIAGE_REDACT_NAMES").pipe(
+        Config.withDefault(""),
+      );
+
       return Redactor.of({
         redact: makeRedact({
-          users: regularUsers(passwd),
+          users: [
+            ...regularUsers(passwd),
+            ...names.split(",").map((name) => name.trim()),
+          ],
           hosts: [hostname],
         }),
       });
