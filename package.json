@@ -20,7 +20,7 @@
     "build:packages": "bun run --cwd packages/effect-triage build && bun run --cwd packages/client build"
   },
   "dependencies": {
-    "@effect/platform-bun": "4.0.0",
+    "@effect/platform-bun": "4.0.1",
     "@timmo001/effect-triage": "workspace:*",
     "@timmo001/effect-triage-client": "workspace:*",
     "effect": "4.0.1"
