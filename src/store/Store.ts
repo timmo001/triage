@@ -1,6 +1,7 @@
 import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-bun";
 import { Event, Issue } from "@timmo001/effect-triage";
 import {
+  Clock,
   Config,
   Context,
   Effect,
@@ -19,6 +20,13 @@ export class StoreError extends Schema.TaggedError<StoreError>()("StoreError", {
 export interface ListOptions {
   /** The most issues to return, most recently seen first. */
   readonly limit: number;
+}
+
+export interface Pending {
+  /** Events not yet uploaded, oldest first. */
+  readonly events: ReadonlyArray<Event.Event>;
+  /** The position to mark as uploaded once they're sent. */
+  readonly last: number;
 }
 
 const EventJson = Schema.fromJsonString(Event.Event);
@@ -81,6 +89,24 @@ const migrations = SqliteMigrator.fromRecord({
       )
     `;
   }),
+  "0002_hosts_and_uploads": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`
+      CREATE TABLE hosts (
+        name TEXT PRIMARY KEY,
+        token_hash TEXT NOT NULL UNIQUE,
+        created_at INTEGER NOT NULL
+      )
+    `;
+
+    yield* sql`
+      CREATE TABLE uploads (
+        target TEXT PRIMARY KEY,
+        last_event INTEGER NOT NULL
+      )
+    `;
+  }),
 });
 
 /**
@@ -101,9 +127,35 @@ export class Store extends Context.Service<
       events: ReadonlyArray<Event.Event>,
       cursor: string,
     ): Effect.Effect<number, StoreError>;
+    /** Store events sent by a host. Returns how many events were new. */
+    add(events: ReadonlyArray<Event.Event>): Effect.Effect<number, StoreError>;
     issues(
       options: ListOptions,
     ): Effect.Effect<ReadonlyArray<Issue.Issue>, StoreError>;
+    /** An issue with its latest events, newest first. */
+    issue(
+      id: string,
+      events: number,
+    ): Effect.Effect<
+      Option.Option<{
+        readonly issue: Issue.Issue;
+        readonly events: ReadonlyArray<Event.Event>;
+      }>,
+      StoreError
+    >;
+    /** Enrol a host. Returns false when the name is already taken. */
+    addHost(
+      name: string,
+      tokenHash: string,
+    ): Effect.Effect<boolean, StoreError>;
+    /** The host enrolled with a token, by the token's hash. */
+    hostByToken(
+      tokenHash: string,
+    ): Effect.Effect<Option.Option<string>, StoreError>;
+    /** Events not yet uploaded to a server. */
+    pending(target: string, limit: number): Effect.Effect<Pending, StoreError>;
+    /** Mark events up to `last` as uploaded to a server. */
+    uploaded(target: string, last: number): Effect.Effect<void, StoreError>;
   }
 >()("triage/store/Store") {
   static readonly make = Effect.gen(function* () {
@@ -182,6 +234,16 @@ export class Store extends Context.Service<
       Effect.mapError((cause) => new StoreError({ cause })),
     );
 
+    const add = Effect.fn("Store.add")(
+      function* (events: ReadonlyArray<Event.Event>) {
+        const added = yield* Effect.forEach(events, insert);
+
+        return added.reduce<number>((total, count) => total + count, 0);
+      },
+      sql.withTransaction,
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
     const listIssues = SqlSchema.findAll({
       Request: Schema.Int,
       Result: IssueRow,
@@ -198,7 +260,112 @@ export class Store extends Context.Service<
       Effect.mapError((cause) => new StoreError({ cause })),
     );
 
-    return Store.of({ cursor, record, issues });
+    const findIssue = SqlSchema.findOneOption({
+      Request: Schema.String,
+      Result: IssueRow,
+      execute: (id) => sql`SELECT * FROM issues WHERE id = ${id} AND count > 0`,
+    });
+
+    const issueEvents = SqlSchema.findAll({
+      Request: Schema.Struct({ id: Schema.String, limit: Schema.Int }),
+      Result: Schema.Struct({ data: EventJson }),
+      execute: ({ id, limit }) =>
+        sql`SELECT data FROM events WHERE issue_id = ${id} ORDER BY timestamp DESC LIMIT ${limit}`,
+    });
+
+    const issue = Effect.fn("Store.issue")(
+      function* (id: string, limit: number) {
+        const row = yield* findIssue(id);
+
+        if (Option.isNone(row)) {
+          return Option.none();
+        }
+
+        const rows = yield* issueEvents({ id, limit });
+
+        return Option.some({
+          issue: toIssue(row.value),
+          events: rows.map((event) => event.data),
+        });
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const addHost = Effect.fn("Store.addHost")(
+      function* (name: string, tokenHash: string) {
+        const rows = yield* sql`
+          INSERT INTO hosts ${sql.insert({
+            name,
+            token_hash: tokenHash,
+            created_at: yield* Clock.currentTimeMillis,
+          })}
+          ON CONFLICT DO NOTHING
+          RETURNING name
+        `;
+
+        return rows.length > 0;
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const hostByToken = Effect.fn("Store.hostByToken")(
+      function* (tokenHash: string) {
+        const rows = yield* sql<{
+          name: string;
+        }>`SELECT name FROM hosts WHERE token_hash = ${tokenHash}`;
+
+        return Option.fromNullishOr(rows[0]?.name);
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const pendingEvents = SqlSchema.findAll({
+      Request: Schema.Struct({ target: Schema.String, limit: Schema.Int }),
+      Result: Schema.Struct({ rowid: Schema.Int, data: EventJson }),
+      execute: ({ target, limit }) => sql`
+        SELECT rowid, data FROM events
+        WHERE rowid > coalesce(
+          (SELECT last_event FROM uploads WHERE target = ${target}),
+          0
+        )
+        ORDER BY rowid
+        LIMIT ${limit}
+      `,
+    });
+
+    const pending = Effect.fn("Store.pending")(
+      function* (target: string, limit: number) {
+        const rows = yield* pendingEvents({ target, limit });
+
+        return {
+          events: rows.map((row) => row.data),
+          last: rows.at(-1)?.rowid ?? 0,
+        };
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const uploaded = Effect.fn("Store.uploaded")(
+      function* (target: string, last: number) {
+        yield* sql`
+          INSERT INTO uploads ${sql.insert({ target, last_event: last })}
+          ON CONFLICT (target) DO UPDATE SET last_event = excluded.last_event
+        `;
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    return Store.of({
+      cursor,
+      record,
+      add,
+      issues,
+      issue,
+      addHost,
+      hostByToken,
+      pending,
+      uploaded,
+    });
   });
 
   /** A store in the given SQLite database file, migrated before use. */
@@ -209,26 +376,36 @@ export class Store extends Context.Service<
     );
 
   /**
-   * The store at `$TRIAGE_DB`, or `triage.db` in `$XDG_STATE_HOME/triage`,
-   * creating its directory when needed.
+   * A store in `$XDG_STATE_HOME/triage`, unless the given environment
+   * variable names another file, creating its directory when needed.
    */
-  static readonly layer = Layer.unwrap(
-    Effect.gen(function* () {
-      const fs = yield* FileSystem.FileSystem;
-      const path = yield* Path.Path;
-      const home = yield* Config.String("HOME").pipe(Config.withDefault(""));
+  static readonly layerState = (file: string, variable: string) =>
+    Layer.unwrap(
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const home = yield* Config.String("HOME").pipe(Config.withDefault(""));
 
-      const stateHome = yield* Config.String("XDG_STATE_HOME").pipe(
-        Config.withDefault(path.join(home, ".local", "state")),
-      );
+        const stateHome = yield* Config.String("XDG_STATE_HOME").pipe(
+          Config.withDefault(path.join(home, ".local", "state")),
+        );
 
-      const filename = yield* Config.String("TRIAGE_DB").pipe(
-        Config.withDefault(path.join(stateHome, "triage", "triage.db")),
-      );
+        const filename = yield* Config.String(variable).pipe(
+          Config.withDefault(path.join(stateHome, "triage", file)),
+        );
 
-      yield* fs.makeDirectory(path.dirname(filename), { recursive: true });
+        yield* fs.makeDirectory(path.dirname(filename), { recursive: true });
 
-      return Store.layerFile(filename);
-    }),
+        return Store.layerFile(filename);
+      }),
+    );
+
+  /** This machine's events, at `$TRIAGE_DB` or `triage.db`. */
+  static readonly layer = Store.layerState("triage.db", "TRIAGE_DB");
+
+  /** The server's events from every host, at `$TRIAGE_SERVER_DB` or `server.db`. */
+  static readonly layerServer = Store.layerState(
+    "server.db",
+    "TRIAGE_SERVER_DB",
   );
 }
