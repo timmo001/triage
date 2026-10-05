@@ -1,3 +1,5 @@
+export * as Api from "./Api.js";
+
 export * as Event from "./Event.js";
 
 export * as Fingerprint from "./Fingerprint.js";
