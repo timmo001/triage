@@ -157,22 +157,24 @@ const tokensLayer = Tokens.layer.pipe(Layer.provideMerge(Store.layerServer));
 const decisionFlags = {
   provider: Flag.Literals("provider", Provider.literals).pipe(
     Flag.withDescription(
-      "Decide locally through Ollaya, or with Clef on Cloudflare using $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN",
+      "Decide through any TypeSafe System One API, such as Ollaya or Ollama locally, or with Clef on Cloudflare using $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN",
     ),
     Flag.withFallbackConfig(
       Config.Literals(Provider.literals, "TRIAGE_DECISION_PROVIDER"),
     ),
-    Flag.withDefault("ollaya"),
+    Flag.withDefault("typesafe"),
   ),
   url: Flag.String("url").pipe(
-    Flag.withDescription("Ollaya's API, or another TypeSafe-compatible one"),
+    Flag.withDescription(
+      "The System One API: Ollaya by default, Ollama at http://127.0.0.1:11434/v1, or a hosted one with $TRIAGE_DECISION_API_KEY",
+    ),
     Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_URL")),
     Flag.withDefault("http://127.0.0.1:11435/v1"),
   ),
   model: Flag.String("model").pipe(
     Flag.withAlias("m"),
     Flag.withDescription(
-      "The decision model: laya by default with Ollaya, clef-flash with Cloudflare",
+      "The decision model: laya by default through System One, clef-flash with Cloudflare",
     ),
     Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_MODEL")),
     Flag.optional,

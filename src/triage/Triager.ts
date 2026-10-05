@@ -5,6 +5,7 @@ import {
 import { TypeSafeClient, TypeSafeDecisionModel } from "@effect/ai-typesafe";
 import { Event, Issue } from "@timmo001/effect-triage";
 import {
+  Config,
   Context,
   type Duration,
   Effect,
@@ -164,9 +165,10 @@ export class Triager extends Context.Service<
   }
 >()("triage/triage/Triager") {
   /**
-   * Ollaya, or another TypeSafe-compatible API, at `url`, or Clef on
-   * Cloudflare Workers AI with `$CLOUDFLARE_ACCOUNT_ID` and
-   * `$CLOUDFLARE_API_TOKEN`. Decisions are stored as `provider/model`.
+   * Any TypeSafe System One API at `url`, such as Ollaya or Ollama locally,
+   * with `$TRIAGE_DECISION_API_KEY` when it needs one, or Clef on Cloudflare
+   * Workers AI with `$CLOUDFLARE_ACCOUNT_ID` and `$CLOUDFLARE_API_TOKEN`.
+   * Decisions are stored as `provider/model`.
    */
   static readonly layer = (options: {
     readonly provider: Provider;
@@ -191,8 +193,11 @@ export class Triager extends Context.Service<
     );
 }
 
-/** Where decisions are made: locally through Ollaya, or on Cloudflare. */
-export const Provider = Schema.Literals(["ollaya", "cloudflare"]);
+/**
+ * Where decisions are made: any TypeSafe System One API, local or hosted, or
+ * Clef on Cloudflare.
+ */
+export const Provider = Schema.Literals(["typesafe", "cloudflare"]);
 
 export type Provider = typeof Provider.Type;
 
@@ -233,7 +238,14 @@ const decisionModel = (options: {
         Layer.provide(CloudflareClient.layerConfig()),
       )
     : TypeSafeDecisionModel.layer({ model: options.model }).pipe(
-        Layer.provide(TypeSafeClient.layer({ apiUrl: options.url })),
+        Layer.provide(
+          TypeSafeClient.layerConfig({
+            apiUrl: Config.succeed(options.url),
+            apiKey: Config.Redacted("TRIAGE_DECISION_API_KEY").pipe(
+              Config.withDefault(undefined),
+            ),
+          }),
+        ),
       );
 
 const decideAll = Effect.fnUntraced(function* (
