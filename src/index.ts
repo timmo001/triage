@@ -1,5 +1,5 @@
 import { BunRuntime, BunServices } from "@effect/platform-bun";
-import { Config, Console, Effect, Layer, Redacted } from "effect";
+import { Config, Console, Effect, Layer, Option, Redacted } from "effect";
 import { Argument, Command, Flag } from "effect/cli";
 import packageJson from "../package.json" with { type: "json" };
 import { Collector } from "./collect/Collector.js";
@@ -8,7 +8,7 @@ import { Redactor } from "./redact.js";
 import * as Server from "./server/Server.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
 import { Store, type TokenScope } from "./store/Store.js";
-import { Triager } from "./triage/Triager.js";
+import { Provider, Triager } from "./triage/Triager.js";
 import { Uploader } from "./upload/Uploader.js";
 
 const collectorLayer = Collector.layer.pipe(
@@ -157,16 +157,27 @@ const tokensLayer = Tokens.layer.pipe(Layer.provideMerge(Store.layerServer));
 const decide = Command.make(
   "decide",
   {
+    provider: Flag.Literals("provider", Provider.literals).pipe(
+      Flag.withDescription(
+        "Decide locally through Ollaya, or with Clef on Cloudflare using $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN",
+      ),
+      Flag.withFallbackConfig(
+        Config.Literals(Provider.literals, "TRIAGE_DECISION_PROVIDER"),
+      ),
+      Flag.withDefault("ollaya"),
+    ),
     url: Flag.String("url").pipe(
-      Flag.withDescription("The decision model API, such as Ollaya's"),
+      Flag.withDescription("Ollaya's API, or another TypeSafe-compatible one"),
       Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_URL")),
       Flag.withDefault("http://127.0.0.1:11435/v1"),
     ),
     model: Flag.String("model").pipe(
       Flag.withAlias("m"),
-      Flag.withDescription("The decision model, such as laya or winnow"),
+      Flag.withDescription(
+        "The decision model: laya by default with Ollaya, clef-flash with Cloudflare",
+      ),
       Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_MODEL")),
-      Flag.withDefault("laya"),
+      Flag.optional,
     ),
     limit: Flag.Int("limit").pipe(
       Flag.withAlias("n"),
@@ -176,11 +187,15 @@ const decide = Command.make(
     json,
   },
   Effect.fn(function* (input) {
+    const model = Option.getOrElse(input.model, () =>
+      input.provider === "cloudflare" ? "clef-flash" : "laya",
+    );
+
     const decided = yield* Effect.gen(function* () {
       const triager = yield* Triager;
 
       return yield* triager.decide(input.limit);
-    }).pipe(Effect.provide(Triager.layer(input)));
+    }).pipe(Effect.provide(Triager.layer({ ...input, model })));
 
     if (input.json) {
       yield* Console.log(JSON.stringify(decided));

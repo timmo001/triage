@@ -5,6 +5,7 @@
     "": {
       "name": "triage",
       "dependencies": {
+        "@effect/ai-cloudflare": "4.0.1",
         "@effect/ai-typesafe": "4.0.1",
         "@effect/platform-bun": "4.0.1",
         "@effect/sql-sqlite-bun": "4.0.1",
@@ -48,6 +49,8 @@
     },
   },
   "packages": {
+    "@effect/ai-cloudflare": ["@effect/ai-cloudflare@4.0.1", "", { "peerDependencies": { "effect": "^4.0.1" } }, "sha512-UNB6A0AouDbjX5Lpg9xSHSJjxCE80C/FTIFfSu82I/XGdRHF6PV+k7JCR19L/0cNNM7GxnXOBqpDkyVCImRE+A=="],
+
     "@effect/ai-typesafe": ["@effect/ai-typesafe@4.0.1", "", { "peerDependencies": { "effect": "^4.0.1" } }, "sha512-jZ4cpx2aVAtMDSx3tHNNFWu8uGHWvaHxYmz8Tdj3zme9XiN+jru3kuSrXHJ9XgsUSQh1g8NalXniuoCj2ayq0g=="],
 
     "@effect/platform-bun": ["@effect/platform-bun@4.0.1", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.1" }, "peerDependencies": { "effect": "^4.0.1" } }, "sha512-m+QR4bp39ZWujCuEsUhZADIYIOFZcUHHlmrixENZqZRbEYgaPLMUWiPrRJ69CM4BuuHW8oCOxfMGUU7oSw/o5g=="],

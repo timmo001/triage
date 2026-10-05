@@ -1,3 +1,7 @@
+import {
+  CloudflareClient,
+  CloudflareDecisionModel,
+} from "@effect/ai-cloudflare";
 import { TypeSafeClient, TypeSafeDecisionModel } from "@effect/ai-typesafe";
 import { Event, Issue } from "@timmo001/effect-triage";
 import { Context, Effect, Layer, Option, Schema, type Types } from "effect";
@@ -106,8 +110,13 @@ export class Triager extends Context.Service<
     >;
   }
 >()("triage/triage/Triager") {
-  /** Ollaya, or another TypeSafe-compatible API, at `url`. */
+  /**
+   * Ollaya, or another TypeSafe-compatible API, at `url`, or Clef on
+   * Cloudflare Workers AI with `$CLOUDFLARE_ACCOUNT_ID` and
+   * `$CLOUDFLARE_API_TOKEN`. Decisions are stored as `provider/model`.
+   */
   static readonly layer = (options: {
+    readonly provider: Provider;
     readonly url: string;
     readonly model: string;
   }) =>
@@ -116,25 +125,44 @@ export class Triager extends Context.Service<
       Effect.gen(function* () {
         const store = yield* Store;
         const decisions = yield* DecisionModel.DecisionModel;
+        const name = `${options.provider}/${options.model}`;
 
         return Triager.of({
-          decide: (limit) => decideAll(store, decisions, options.model, limit),
+          decide: (limit) => decideAll(store, decisions, name, limit),
         });
       }),
     ).pipe(
-      Layer.provide(TypeSafeDecisionModel.layer({ model: options.model })),
-      Layer.provide(TypeSafeClient.layer({ apiUrl: options.url })),
-      Layer.provide(FetchHttpClient.layer),
+      Layer.provide(
+        decisionModel(options).pipe(Layer.provide(FetchHttpClient.layer)),
+      ),
     );
 }
+
+/** Where decisions are made: locally through Ollaya, or on Cloudflare. */
+export const Provider = Schema.Literals(["ollaya", "cloudflare"]);
+
+export type Provider = typeof Provider.Type;
+
+const decisionModel = (options: {
+  readonly provider: Provider;
+  readonly url: string;
+  readonly model: string;
+}) =>
+  options.provider === "cloudflare"
+    ? CloudflareDecisionModel.layer({ model: options.model }).pipe(
+        Layer.provide(CloudflareClient.layerConfig()),
+      )
+    : TypeSafeDecisionModel.layer({ model: options.model }).pipe(
+        Layer.provide(TypeSafeClient.layer({ apiUrl: options.url })),
+      );
 
 const decideAll = Effect.fnUntraced(function* (
   store: Store["Service"],
   decisions: DecisionModel.DecisionModel,
-  model: string,
+  name: string,
   limit: number,
 ) {
-  const issues = yield* store.undecided(model, limit);
+  const issues = yield* store.undecided(name, limit);
   const decided: Array<Decided> = [];
 
   for (const summary of issues) {
@@ -152,7 +180,7 @@ const decideAll = Effect.fnUntraced(function* (
 
     yield* store.saveDecision({
       issueId: issue.id,
-      model,
+      model: name,
       issueCount: issue.count,
       worth: answers.worth.probability,
       severity: answers.severity.rating,

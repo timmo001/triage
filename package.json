@@ -20,6 +20,7 @@
     "build:packages": "bun run --cwd packages/effect-triage build && bun run --cwd packages/client build"
   },
   "dependencies": {
+    "@effect/ai-cloudflare": "4.0.1",
     "@effect/ai-typesafe": "4.0.1",
     "@effect/platform-bun": "4.0.1",
     "@effect/sql-sqlite-bun": "4.0.1",
