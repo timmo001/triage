@@ -7,7 +7,7 @@ compatibility: Requires mise, Bun and the GitHub CLI from the triage repository 
 
 # Releasing triage
 
-One version covers the CLI and both libraries. A published, non-prerelease GitHub release runs `.github/workflows/release.yml`, which publishes `@timmo001/effect-triage` then `@timmo001/effect-triage-client` to npm and JSR through OIDC, with no tokens. Prereleases publish nothing.
+One version covers the CLI and both libraries. A published, non-prerelease GitHub release runs `.github/workflows/release.yml`, which publishes `@timmo001/effect-triage` then `@timmo001/effect-triage-client` to npm and JSR through OIDC, with no tokens, and pushes the server image to `ghcr.io/timmo001/triage` tagged with the version, `major.minor` and `latest` (amd64 only for now). Prereleases publish nothing.
 
 ## Bump the version
 
