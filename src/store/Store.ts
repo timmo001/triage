@@ -292,6 +292,11 @@ export class Store extends Context.Service<
       model: string,
       limit: number,
     ): Effect.Effect<ReadonlyArray<Issue.Issue>, StoreError>;
+    /** How many decisions a model has made since `since`, in milliseconds. */
+    decidedSince(
+      model: string,
+      since: number,
+    ): Effect.Effect<number, StoreError>;
     /** Store a model's decision, replacing any earlier one for the issue. */
     saveDecision(decision: StoredDecision): Effect.Effect<void, StoreError>;
     /** Label an issue by hand, replacing any earlier label. */
@@ -304,6 +309,21 @@ export class Store extends Context.Service<
       ReadonlyArray<LabelledDecision>,
       StoreError
     >;
+    /**
+     * Issues `decisionModel` rated at least `worth` that `model` hasn't
+     * suggested a fix for yet, most recently seen first.
+     */
+    unsuggested(options: {
+      readonly model: string;
+      readonly decisionModel: string;
+      readonly worth: number;
+      readonly limit: number;
+    }): Effect.Effect<ReadonlyArray<Issue.Issue>, StoreError>;
+    /** How many suggestions a model has made since `since`, in milliseconds. */
+    suggestedSince(
+      model: string,
+      since: number,
+    ): Effect.Effect<number, StoreError>;
     /** Store a model's suggestion, replacing any earlier one for the issue. */
     saveSuggestion(
       suggestion: StoredSuggestion,
@@ -618,6 +638,57 @@ export class Store extends Context.Service<
       Effect.withSpan("Store.labelledDecisions"),
     );
 
+    const countSince = (table: "decisions" | "suggestions", column: string) =>
+      Effect.fn(`Store.${table}Since`)(
+        function* (model: string, since: number) {
+          const rows = yield* sql<{ count: number }>`
+            SELECT count(*) AS count FROM ${sql(table)}
+            WHERE model = ${model} AND ${sql(column)} >= ${since}
+          `;
+
+          return rows[0]?.count ?? 0;
+        },
+        Effect.mapError((cause) => new StoreError({ cause })),
+      );
+
+    const decidedSince = countSince("decisions", "decided_at");
+    const suggestedSince = countSince("suggestions", "suggested_at");
+
+    const listUnsuggested = SqlSchema.findAll({
+      Request: Schema.Struct({
+        model: Schema.String,
+        decisionModel: Schema.String,
+        worth: Schema.Finite,
+        limit: Schema.Int,
+      }),
+      Result: IssueRow,
+      execute: ({ model, decisionModel, worth, limit }) => sql`
+        SELECT issues.* FROM issues JOIN decisions ON decisions.issue_id = issues.id
+        WHERE decisions.model = ${decisionModel}
+          AND decisions.worth >= ${worth}
+          AND issues.count > 0
+          AND issues.id NOT IN (
+            SELECT issue_id FROM suggestions WHERE model = ${model}
+          )
+        ORDER BY issues.last_seen DESC
+        LIMIT ${limit}
+      `,
+    });
+
+    const unsuggested = Effect.fn("Store.unsuggested")(
+      function* (options: {
+        readonly model: string;
+        readonly decisionModel: string;
+        readonly worth: number;
+        readonly limit: number;
+      }) {
+        const rows = yield* listUnsuggested(options);
+
+        return rows.map(toIssue);
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
     const saveSuggestion = Effect.fn("Store.saveSuggestion")(
       function* (suggestion: StoredSuggestion) {
         yield* sql`
@@ -650,9 +721,12 @@ export class Store extends Context.Service<
       pending,
       uploaded,
       undecided,
+      decidedSince,
       saveDecision,
       label,
       labelledDecisions,
+      unsuggested,
+      suggestedSince,
       saveSuggestion,
     });
   });
