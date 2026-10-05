@@ -370,10 +370,17 @@ const serve = Command.make(
     ),
     decide: Flag.Boolean("decide").pipe(
       Flag.withDescription(
-        "Ask a decision model about new issues every few minutes, storing the answers without acting on them",
+        "Ask a decision model about new issues every few minutes, storing the answers without acting on them. Off unless set",
       ),
       Flag.withFallbackConfig(Config.Boolean("TRIAGE_DECIDE")),
       Flag.withDefault(false),
+    ),
+    decideDaily: Flag.Int("decide-daily").pipe(
+      Flag.withDescription(
+        "With --decide, the most issues to decide on in any 24 hours",
+      ),
+      Flag.withFallbackConfig(Config.Int("TRIAGE_DECIDE_DAILY")),
+      Flag.withDefault(100),
     ),
     ...decisionFlags,
   },
@@ -382,9 +389,11 @@ const serve = Command.make(
       input.decide
         ? Layer.merge(
             Server.layer(input),
-            layerShadow({ interval: "5 minutes", limit: 20 }).pipe(
-              Layer.provide(triagerLayer(input)),
-            ),
+            layerShadow({
+              interval: "5 minutes",
+              limit: 20,
+              daily: input.decideDaily,
+            }).pipe(Layer.provide(triagerLayer(input))),
           )
         : Server.layer(input),
     ),

@@ -5,9 +5,10 @@ import {
 import { TypeSafeClient, TypeSafeDecisionModel } from "@effect/ai-typesafe";
 import { Event, Issue } from "@timmo001/effect-triage";
 import {
+  Clock,
   Config,
   Context,
-  type Duration,
+  Duration,
   Effect,
   Layer,
   Option,
@@ -17,10 +18,17 @@ import {
 } from "effect";
 import { Decision, DecisionModel } from "effect/ai";
 import { FetchHttpClient } from "effect/http";
-import { type LabelledDecision, Store } from "../store/Store.js";
+import {
+  type LabelledDecision,
+  Store,
+  type StoreError,
+} from "../store/Store.js";
 
 /** How sure a model must be before its answer counts as a clear yes or no. */
 const clear = 0.8;
+
+/** The window daily limits count over. */
+export const dayMillis = Duration.toMillis(Duration.days(1));
 
 /** How a model's decisions compare with hand labels. */
 export interface Agreement {
@@ -162,6 +170,8 @@ export class Triager extends Context.Service<
       ReadonlyArray<Decided>,
       Effect.Error<ReturnType<typeof decideAll>>
     >;
+    /** How many decisions this model has made since `since`, in milliseconds. */
+    decidedSince(since: number): Effect.Effect<number, StoreError>;
   }
 >()("triage/triage/Triager") {
   /**
@@ -184,6 +194,7 @@ export class Triager extends Context.Service<
 
         return Triager.of({
           decide: (limit) => decideAll(store, decisions, name, limit),
+          decidedSince: (since) => store.decidedSince(name, since),
         });
       }),
     ).pipe(
@@ -202,18 +213,32 @@ export const Provider = Schema.Literals(["typesafe", "cloudflare"]);
 export type Provider = typeof Provider.Type;
 
 /**
- * Decide on new issues every `interval`, still in shadow mode. A failed run,
- * such as the model being unreachable, is logged and tried again next time.
+ * Decide on new issues every `interval`, still in shadow mode, up to `limit`
+ * a run and `daily` in any 24 hours. A failed run, such as the model being
+ * unreachable, is logged and tried again next time.
  */
 export const layerShadow = (options: {
   readonly interval: Duration.Input;
   readonly limit: number;
+  readonly daily: number;
 }) =>
   Layer.effectDiscard(
     Effect.gen(function* () {
       const triager = yield* Triager;
 
-      yield* triager.decide(options.limit).pipe(
+      yield* Effect.gen(function* () {
+        const left =
+          options.daily -
+          (yield* triager.decidedSince(
+            (yield* Clock.currentTimeMillis) - dayMillis,
+          ));
+
+        if (left <= 0) {
+          return [];
+        }
+
+        return yield* triager.decide(Math.min(options.limit, left));
+      }).pipe(
         Effect.tap((decided) =>
           decided.length === 0
             ? Effect.void
