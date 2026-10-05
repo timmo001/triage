@@ -4,7 +4,16 @@ import {
 } from "@effect/ai-cloudflare";
 import { TypeSafeClient, TypeSafeDecisionModel } from "@effect/ai-typesafe";
 import { Event, Issue } from "@timmo001/effect-triage";
-import { Context, Effect, Layer, Option, Schema, type Types } from "effect";
+import {
+  Context,
+  type Duration,
+  Effect,
+  Layer,
+  Option,
+  Schedule,
+  Schema,
+  type Types,
+} from "effect";
 import { Decision, DecisionModel } from "effect/ai";
 import { FetchHttpClient } from "effect/http";
 import { type LabelledDecision, Store } from "../store/Store.js";
@@ -186,6 +195,33 @@ export class Triager extends Context.Service<
 export const Provider = Schema.Literals(["ollaya", "cloudflare"]);
 
 export type Provider = typeof Provider.Type;
+
+/**
+ * Decide on new issues every `interval`, still in shadow mode. A failed run,
+ * such as the model being unreachable, is logged and tried again next time.
+ */
+export const layerShadow = (options: {
+  readonly interval: Duration.Input;
+  readonly limit: number;
+}) =>
+  Layer.effectDiscard(
+    Effect.gen(function* () {
+      const triager = yield* Triager;
+
+      yield* triager.decide(options.limit).pipe(
+        Effect.tap((decided) =>
+          decided.length === 0
+            ? Effect.void
+            : Effect.logInfo(`Decided on ${decided.length} new issues`),
+        ),
+        Effect.catch((error) =>
+          Effect.logWarning(`Couldn't decide on new issues: ${error.message}`),
+        ),
+        Effect.repeat(Schedule.spaced(options.interval)),
+        Effect.forkScoped,
+      );
+    }),
+  );
 
 const decisionModel = (options: {
   readonly provider: Provider;

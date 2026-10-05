@@ -35,3 +35,9 @@ Host tokens can only send events. To read issues from the API, add an admin with
 | `TRIAGE_PORT` | `7171` | Port to listen on |
 | `TRIAGE_SERVER_DB` | `$XDG_STATE_HOME/triage/server.db` (`/data/server.db` in the container) | Server database |
 | `TRIAGE_TRUST_PROXY` | `false` | Trust `X-Forwarded-Host` and `X-Forwarded-For`. Only turn this on when the proxy is the only way to reach the server |
+| `TRIAGE_DECIDE` | `false` | Ask a decision model about new issues every 5 minutes. The answers are only stored for now, to compare models |
+| `TRIAGE_DECISION_PROVIDER` | `ollaya` | `ollaya` for a local Ollaya, or `cloudflare` for Clef on Workers AI with `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` |
+| `TRIAGE_DECISION_URL` | `http://127.0.0.1:11435/v1` | Ollaya's API |
+| `TRIAGE_DECISION_MODEL` | `laya` with Ollaya, `clef-flash` with Cloudflare | Decision model |
+
+Decision models only see what's stored, which is redacted when it's captured. `triage label <issue> worth|noise` labels issues by hand, and `triage agreement` shows how often each model is sure and right against those labels.

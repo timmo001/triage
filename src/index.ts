@@ -8,7 +8,7 @@ import { Redactor } from "./redact.js";
 import * as Server from "./server/Server.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
 import { Store, type TokenScope } from "./store/Store.js";
-import { agreement, Provider, Triager } from "./triage/Triager.js";
+import { agreement, layerShadow, Provider, Triager } from "./triage/Triager.js";
 import { Uploader } from "./upload/Uploader.js";
 
 const collectorLayer = Collector.layer.pipe(
@@ -154,31 +154,48 @@ const upload = Command.make(
 
 const tokensLayer = Tokens.layer.pipe(Layer.provideMerge(Store.layerServer));
 
+const decisionFlags = {
+  provider: Flag.Literals("provider", Provider.literals).pipe(
+    Flag.withDescription(
+      "Decide locally through Ollaya, or with Clef on Cloudflare using $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN",
+    ),
+    Flag.withFallbackConfig(
+      Config.Literals(Provider.literals, "TRIAGE_DECISION_PROVIDER"),
+    ),
+    Flag.withDefault("ollaya"),
+  ),
+  url: Flag.String("url").pipe(
+    Flag.withDescription("Ollaya's API, or another TypeSafe-compatible one"),
+    Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_URL")),
+    Flag.withDefault("http://127.0.0.1:11435/v1"),
+  ),
+  model: Flag.String("model").pipe(
+    Flag.withAlias("m"),
+    Flag.withDescription(
+      "The decision model: laya by default with Ollaya, clef-flash with Cloudflare",
+    ),
+    Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_MODEL")),
+    Flag.optional,
+  ),
+};
+
+const triagerLayer = (input: {
+  readonly provider: Provider;
+  readonly url: string;
+  readonly model: Option.Option<string>;
+}) =>
+  Triager.layer({
+    provider: input.provider,
+    url: input.url,
+    model: Option.getOrElse(input.model, () =>
+      input.provider === "cloudflare" ? "clef-flash" : "laya",
+    ),
+  });
+
 const decide = Command.make(
   "decide",
   {
-    provider: Flag.Literals("provider", Provider.literals).pipe(
-      Flag.withDescription(
-        "Decide locally through Ollaya, or with Clef on Cloudflare using $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN",
-      ),
-      Flag.withFallbackConfig(
-        Config.Literals(Provider.literals, "TRIAGE_DECISION_PROVIDER"),
-      ),
-      Flag.withDefault("ollaya"),
-    ),
-    url: Flag.String("url").pipe(
-      Flag.withDescription("Ollaya's API, or another TypeSafe-compatible one"),
-      Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_URL")),
-      Flag.withDefault("http://127.0.0.1:11435/v1"),
-    ),
-    model: Flag.String("model").pipe(
-      Flag.withAlias("m"),
-      Flag.withDescription(
-        "The decision model: laya by default with Ollaya, clef-flash with Cloudflare",
-      ),
-      Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_MODEL")),
-      Flag.optional,
-    ),
+    ...decisionFlags,
     limit: Flag.Int("limit").pipe(
       Flag.withAlias("n"),
       Flag.withDescription("The most issues to decide on"),
@@ -187,15 +204,11 @@ const decide = Command.make(
     json,
   },
   Effect.fn(function* (input) {
-    const model = Option.getOrElse(input.model, () =>
-      input.provider === "cloudflare" ? "clef-flash" : "laya",
-    );
-
     const decided = yield* Effect.gen(function* () {
       const triager = yield* Triager;
 
       return yield* triager.decide(input.limit);
-    }).pipe(Effect.provide(Triager.layer({ ...input, model })));
+    }).pipe(Effect.provide(triagerLayer(input)));
 
     if (input.json) {
       yield* Console.log(JSON.stringify(decided));
@@ -288,8 +301,26 @@ const serve = Command.make(
       Flag.withFallbackConfig(Config.Boolean("TRIAGE_TRUST_PROXY")),
       Flag.withDefault(false),
     ),
+    decide: Flag.Boolean("decide").pipe(
+      Flag.withDescription(
+        "Ask a decision model about new issues every few minutes, storing the answers without acting on them",
+      ),
+      Flag.withFallbackConfig(Config.Boolean("TRIAGE_DECIDE")),
+      Flag.withDefault(false),
+    ),
+    ...decisionFlags,
   },
-  (input) => Layer.launch(Server.layer(input)),
+  (input) =>
+    Layer.launch(
+      input.decide
+        ? Layer.merge(
+            Server.layer(input),
+            layerShadow({ interval: "5 minutes", limit: 20 }).pipe(
+              Layer.provide(triagerLayer(input)),
+            ),
+          )
+        : Server.layer(input),
+    ),
 ).pipe(
   Command.withDescription(
     "Run the triage server over HTTP, which collects events from enrolled hosts. Use a reverse proxy or Cloudflare for HTTPS",
