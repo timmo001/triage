@@ -1,11 +1,12 @@
 import { BunHttpServer } from "@effect/platform-bun";
 import { Api } from "@timmo001/effect-triage";
 import { Effect, Layer, Option, Redacted } from "effect";
-import { HttpMiddleware, HttpRouter } from "effect/http";
+import { HttpMiddleware, HttpRouter, HttpServerResponse } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { Store } from "../store/Store.js";
 import { Work } from "../triage/Work.js";
 import { Tokens } from "./Tokens.js";
+import { bundleWeb } from "./webBundle.js" with { type: "macro" };
 
 const defaultIssues = 50;
 
@@ -231,6 +232,42 @@ export const routes = HttpApiBuilder.layer(Api.Api, {
   ]),
 );
 
+const contentTypes = new Map([
+  ["html", "text/html; charset=utf-8"],
+  ["js", "text/javascript; charset=utf-8"],
+  ["css", "text/css; charset=utf-8"],
+  ["svg", "image/svg+xml"],
+]);
+
+/**
+ * The web UI's files, built into the binary. Asset names carry a content
+ * hash, so only `index.html` needs checking for changes.
+ */
+const webFiles = new Map(
+  Object.entries(bundleWeb()).map(([name, body]) => [
+    name,
+    HttpServerResponse.text(body, {
+      contentType: contentTypes.get(name.split(".").pop() ?? ""),
+      headers: {
+        "cache-control":
+          name === "index.html"
+            ? "no-cache"
+            : "public, max-age=31536000, immutable",
+      },
+    }),
+  ]),
+);
+
+const notFound = HttpServerResponse.empty({ status: 404 });
+
+const web = HttpRouter.add("GET", "/*", (request) =>
+  Effect.succeed(
+    webFiles.get(
+      new URL(request.url, "http://triage").pathname.slice(1) || "index.html",
+    ) ?? notFound,
+  ),
+);
+
 export interface ServeOptions {
   readonly hostname: string;
   readonly port: number;
@@ -248,7 +285,7 @@ export interface ServeOptions {
  */
 export const layer = (options: ServeOptions) =>
   HttpRouter.serve(
-    routes,
+    Layer.merge(routes, web),
     options.trustProxy ? { middleware: HttpMiddleware.xForwardedHeaders } : {},
   ).pipe(
     Layer.provide(

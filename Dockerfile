@@ -13,11 +13,13 @@ WORKDIR /src
 COPY package.json bun.lock ./
 COPY packages/effect-triage/package.json packages/effect-triage/
 COPY packages/client/package.json packages/client/
+COPY web/package.json web/
 
 RUN bun install --frozen-lockfile
 
 COPY tsconfig.json ./
 COPY packages packages
+COPY web web
 COPY src src
 
 RUN bun run build

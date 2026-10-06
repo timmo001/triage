@@ -5,4 +5,8 @@
 !packages/*/package.json
 !packages/*/src/**
 !src/**
+!web/package.json
+!web/index.html
+!web/favicon.svg
+!web/src/**
 **/*.test.ts

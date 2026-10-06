@@ -1,0 +1,18 @@
+{
+  "name": "@triage/web",
+  "version": "0.3.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rm -rf dist && bun build index.html --outdir dist --minify --conditions=bun",
+    "lint:lit": "lit-analyzer \"src/**/*.ts\" --strict"
+  },
+  "dependencies": {
+    "@effect/platform-browser": "4.0.1",
+    "@timmo001/effect-triage": "workspace:*",
+    "effect": "4.0.1",
+    "lit": "3.3.3"
+  },
+  "devDependencies": {}
+}

@@ -73,6 +73,9 @@ jobs:
             http://127.0.0.1:7172/api/tokens/host
           sudo test -f data/server.db
 
+      - name: Check the app image serves the web UI
+        run: curl -sf http://127.0.0.1:7172/ | grep -q '<triage-app>'
+
       - name: App logs
         if: always()
         run: docker logs app || true
