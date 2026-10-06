@@ -128,7 +128,10 @@ const IssuesHandlers = HttpApiBuilder.group(
     return handlers.handleAll({
       list: ({ query }) =>
         store
-          .issues({ limit: bounded(query.limit, defaultIssues, maxIssues) })
+          .issues({
+            limit: bounded(query.limit, defaultIssues, maxIssues),
+            host: query.host,
+          })
           .pipe(Effect.orDie),
       get: Effect.fn(function* ({ params }) {
         const review = yield* store
@@ -205,6 +208,16 @@ const WorkHandlers = HttpApiBuilder.group(
   }),
 );
 
+const HostsHandlers = HttpApiBuilder.group(
+  Api.Api,
+  "hosts",
+  Effect.fn(function* (handlers) {
+    const store = yield* Store;
+
+    return handlers.handle("list", () => store.hosts.pipe(Effect.orDie));
+  }),
+);
+
 const TokensHandlers = HttpApiBuilder.group(
   Api.Api,
   "tokens",
@@ -243,6 +256,7 @@ const apiRoutes = (
     Layer.provide([
       IngestHandlers,
       IssuesHandlers,
+      HostsHandlers,
       WorkHandlers,
       TokensHandlers,
       SystemHandlers,

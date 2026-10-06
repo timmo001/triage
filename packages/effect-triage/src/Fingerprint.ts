@@ -49,8 +49,15 @@ export const unitTemplate = (unit: string) =>
     .replace(/^session-\w+(?=\.scope$)/, "session-<id>");
 
 /**
+ * A fingerprint kept to one host. Errors and OOM kills with the same wording
+ * often have a cause particular to each machine, so they group per host.
+ */
+export const onHost = (key: string, host: string) => `${key}|${host}`;
+
+/**
  * The grouping key for an event. Events with the same fingerprint belong to
- * the same issue, on any host.
+ * the same issue: crashes and unit failures on any host, errors and OOM kills
+ * on one host.
  */
 export const fingerprint = (event: Event): string =>
   Event.match(event, {
@@ -70,13 +77,19 @@ export const fingerprint = (event: Event): string =>
         failure.result ?? "",
       ].join("|"),
     OutOfMemory: (oom) =>
-      ["oom", oom.process ?? unitTemplate(oom.unit ?? "?")].join("|"),
+      onHost(
+        ["oom", oom.process ?? unitTemplate(oom.unit ?? "?")].join("|"),
+        oom.host,
+      ),
     LogError: (log) =>
-      [
-        "log",
-        log.identifier ?? unitTemplate(log.unit ?? "?"),
-        template(log.message),
-      ].join("|"),
+      onHost(
+        [
+          "log",
+          log.identifier ?? unitTemplate(log.unit ?? "?"),
+          template(log.message),
+        ].join("|"),
+        log.host,
+      ),
   });
 
 /** A short, stable ID for a fingerprint: 64-bit FNV-1a as 16 hex digits. */

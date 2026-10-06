@@ -3,7 +3,7 @@ import { AsyncResult } from "effect/reactivity";
 import { css, html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { AtomController } from "./AtomController.js";
-import { issueHref, issueLimit, issues } from "./triage.js";
+import { hosts, issueHref, issueLimit, issues } from "./triage.js";
 import {
   ago,
   formatPercent,
@@ -92,6 +92,27 @@ export class TriageIssues extends LitElement {
       td.when {
         white-space: nowrap;
       }
+
+      td.hosts {
+        font-size: 0.85rem;
+      }
+
+      .host {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+      }
+
+      .host select {
+        font: inherit;
+        color: inherit;
+        background: var(--triage-surface);
+        border: 1px solid var(--triage-border);
+        border-radius: 0.375rem;
+        padding: 0.3rem 0.5rem;
+      }
     `,
   ];
 
@@ -99,7 +120,39 @@ export class TriageIssues extends LitElement {
 
   @state() accessor sort: Sort = "recent";
 
-  readonly #issues = new AtomController(this, () => issues);
+  /** The host to show issues from, or every host when empty. */
+  @state() accessor host = "";
+
+  readonly #issues = new AtomController(this, () => issues(this.host));
+
+  readonly #hosts = new AtomController(this, () => hosts);
+
+  #renderHosts() {
+    const known = AsyncResult.getOrElse(this.#hosts.value, () => []);
+
+    return html`
+      <label class="host">
+        <span class="muted-text">Host</span>
+        <select
+          @change=${(event: Event) => {
+            if (event.target instanceof HTMLSelectElement) {
+              this.host = event.target.value;
+            }
+          }}
+        >
+          <option value="" ?selected=${this.host === ""}>All hosts</option>
+          ${known.map(
+            (host) => html`
+              <option value=${host.host} ?selected=${host.host === this.host}>
+                ${host.host} (${host.issues}
+                ${host.issues === 1 ? "issue" : "issues"})
+              </option>
+            `,
+          )}
+        </select>
+      </label>
+    `;
+  }
 
   override render() {
     return AsyncResult.matchWithError(this.#issues.value, {
@@ -150,6 +203,7 @@ export class TriageIssues extends LitElement {
               )}
             </div>
           </div>
+          ${this.#renderHosts()}
           ${
             shown.length === 0
               ? html`<p class="message">No issues here.</p>`
@@ -165,6 +219,7 @@ export class TriageIssues extends LitElement {
                           Worth
                         </th>
                         <th>Events</th>
+                        <th>Hosts</th>
                         <th>Last seen</th>
                       </tr>
                     </thead>
@@ -184,6 +239,7 @@ export class TriageIssues extends LitElement {
                               }
                             </td>
                             <td class="count">${issue.count}</td>
+                            <td class="hosts">${issue.hosts.join(", ")}</td>
                             <td
                               class="when"
                               title=${formatTime(issue.lastSeen)}

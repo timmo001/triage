@@ -44,6 +44,26 @@ describe("fingerprint", () => {
     expect(fingerprint(crash)).toBe(
       "crash|ghostty|SIGSEGV|ghostty|g_main_context_dispatch|main",
     );
+    expect(fingerprint({ ...crash, host: "desktop" })).toBe(fingerprint(crash));
+  });
+
+  test("keeps log errors to one host", () => {
+    const error = Event.cases.LogError.make({
+      id: "event",
+      host: "laptop",
+      source: "journal",
+      timestamp: 0,
+      severity: "err",
+      identifier: "bluetoothd",
+      message: "connect failed (-16)",
+    });
+
+    expect(fingerprint(error)).toBe(
+      "log|bluetoothd|connect failed (<n>)|laptop",
+    );
+    expect(fingerprint({ ...error, host: "desktop" })).not.toBe(
+      fingerprint(error),
+    );
   });
 
   test("groups numbered instances of a templated unit", () => {

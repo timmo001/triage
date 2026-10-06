@@ -1,4 +1,4 @@
-import { Context, Schema } from "effect";
+import { Context, Effect, Schema } from "effect";
 import {
   HttpApi,
   HttpApiEndpoint,
@@ -145,14 +145,45 @@ export const IssueDetail = Schema.Struct({
 
 export interface IssueDetail extends Schema.Schema.Type<typeof IssueDetail> {}
 
+/** How often an issue happened on one host. */
+export const HostCount = Schema.Struct({
+  /** The host's enrolled name. */
+  host: Schema.String,
+  /** How many of the issue's events came from it. */
+  count: Schema.Int,
+  /** When its first and latest events happened, in milliseconds since the Unix epoch. */
+  firstSeen: Schema.Finite,
+  lastSeen: Schema.Finite,
+});
+
+export interface HostCount extends Schema.Schema.Type<typeof HostCount> {}
+
 /** An issue in a list, with the latest decision's worth when there is one. */
 export const IssueSummary = Schema.Struct({
   ...Issue.fields,
   /** The probability the latest decision gave that it's worth fixing. */
   worth: Schema.optional(Schema.Finite),
+  /** The hosts it happened on, by name. Older servers don't send this. */
+  hosts: Schema.Array(Schema.String).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+  ),
 });
 
 export interface IssueSummary extends Schema.Schema.Type<typeof IssueSummary> {}
+
+/** A host that has sent events, and how much. */
+export const HostSummary = Schema.Struct({
+  /** The host's enrolled name. */
+  host: Schema.String,
+  /** How many events it has sent. */
+  events: Schema.Int,
+  /** How many issues those events belong to. */
+  issues: Schema.Int,
+  /** When its latest event happened, in milliseconds since the Unix epoch. */
+  lastSeen: Schema.Finite,
+});
+
+export interface HostSummary extends Schema.Schema.Type<typeof HostSummary> {}
 
 /** What a decision model last made of an issue, for people to read. */
 export const IssueDecision = Schema.Struct({
@@ -217,6 +248,13 @@ export const IssueReview = Schema.Struct({
   suggestions: Schema.Array(IssueSuggestion),
   /** The hand label, when someone has given one. */
   label: Schema.optional(Label),
+  /**
+   * How often it happened on each host, most events first. Older servers
+   * don't send this.
+   */
+  hosts: Schema.Array(HostCount).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+  ),
 });
 
 export interface IssueReview extends Schema.Schema.Type<typeof IssueReview> {}
@@ -283,6 +321,8 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
     HttpApiEndpoint.get("list", "/", {
       query: {
         limit: Schema.optional(Schema.Int),
+        /** Only issues that happened on this host. */
+        host: Schema.optional(Schema.String),
       },
       success: Schema.Array(IssueSummary),
     }),
@@ -387,6 +427,21 @@ export class TokensGroup extends HttpApiGroup.make("tokens")
     }),
   ) {}
 
+export class HostsGroup extends HttpApiGroup.make("hosts")
+  .add(
+    HttpApiEndpoint.get("list", "/", {
+      success: Schema.Array(HostSummary),
+    }),
+  )
+  .middleware(AdminAuthorization)
+  .prefix("/api/hosts")
+  .annotateMerge(
+    OpenApi.annotations({
+      title: "Hosts",
+      description: "Every host that has sent events, most recently seen first",
+    }),
+  ) {}
+
 export class SystemGroup extends HttpApiGroup.make("system").add(
   HttpApiEndpoint.get("health", "/api/health", {
     success: HttpApiSchema.NoContent,
@@ -397,6 +452,7 @@ export class SystemGroup extends HttpApiGroup.make("system").add(
 export class Api extends HttpApi.make("triage")
   .add(IngestGroup)
   .add(IssuesGroup)
+  .add(HostsGroup)
   .add(WorkGroup)
   .add(TokensGroup)
   .add(SystemGroup)

@@ -47,8 +47,14 @@ const issuesKey = ["issues"];
 /** The most issues the list shows. */
 export const issueLimit = 500;
 
-export const issues = TriageApi.query("issues", "list", {
-  query: { limit: issueLimit },
+export const issues = Atom.family((host: string) =>
+  TriageApi.query("issues", "list", {
+    query: host === "" ? { limit: issueLimit } : { limit: issueLimit, host },
+    reactivityKeys: issuesKey,
+  }),
+);
+
+export const hosts = TriageApi.query("hosts", "list", {
   reactivityKeys: issuesKey,
 });
 

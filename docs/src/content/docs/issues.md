@@ -3,14 +3,14 @@ title: Issues
 description: How events become issues, the states an issue goes through, and how decision models are measured.
 ---
 
-Triage groups events into issues by what went wrong, not when or where:
+Triage groups events into issues by what went wrong, not when:
 
 - Crashes group by executable and signal, plus their top stack frames when there are any.
 - Failed units group by unit and how they failed. Transient scopes, `systemd-run` units, session scopes and units with numbered instances each group as one.
-- Out-of-memory kills group by the process that was killed.
-- Errors group by the program that logged them and the message, with its numbers, paths, IDs and addresses taken out.
+- Out-of-memory kills group by the process that was killed, on each host.
+- Errors group by the program that logged them and the message, with its numbers, paths, IDs and addresses taken out, on each host.
 
-The same fault on two hosts is one issue, with events from both.
+A crash or failed unit on two hosts is one issue, with events from both, and its page shows how often it happened on each. Errors and OOM kills stay separate for each host, since the same message often has a cause particular to that machine.
 
 ```bash
 triage issues            # this host's issues
@@ -37,7 +37,7 @@ An event later than an issue's resolution reopens it as regressed, and decision 
 
 ## In a browser
 
-The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues, filtered by state and sortable by how likely the latest decision says they're worth fixing. Each issue's page shows its hosts and latest events, what each decision model made of it, any suggested fixes, and buttons to resolve, mute, reopen or unmute it.
+The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues with the hosts each happened on, filtered by state or host and sortable by how likely the latest decision says they're worth fixing. Each issue's page shows how often it happened on each host, its latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, and buttons to resolve, mute, reopen or unmute it.
 
 Sign in with an [admin token](/setup/server#tokens). It's kept in that browser until you sign out. In the [Home Assistant app](/setup/server#home-assistant), open **Triage** in Home Assistant's sidebar instead, with no token needed.
 

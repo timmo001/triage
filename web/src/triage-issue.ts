@@ -81,6 +81,19 @@ export class TriageIssue extends LitElement {
         margin: 0;
       }
 
+      .hosts {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.2rem;
+      }
+
+      .hosts .muted-text {
+        margin-left: 0.5rem;
+        font-size: 0.85rem;
+      }
+
       .actions {
         display: flex;
         align-items: center;
@@ -219,11 +232,7 @@ export class TriageIssue extends LitElement {
               ${ago(value.issue.lastSeen)}
             </dd>
             <dt>Hosts</dt>
-            <dd>
-              ${[...new Set(value.events.map((event) => event.host))].join(
-                ", ",
-              )}
-            </dd>
+            <dd>${renderHosts(value.hosts)}</dd>
           </dl>
           <div class="actions">
             ${actions[value.issue.state].map(
@@ -358,6 +367,27 @@ const renderSuggestions = (suggestions: ReadonlyArray<Api.IssueSuggestion>) =>
           )}
         </ol>
       `;
+
+const renderHosts = (hosts: ReadonlyArray<Api.HostCount>) => html`
+  <ul class="hosts">
+    ${hosts.map(
+      (host) => html`
+        <li>
+          <strong>${host.host}</strong>
+          <span class="muted-text">
+            ${host.count} ${host.count === 1 ? "event" : "events"}, first
+            <span title=${formatTime(host.firstSeen)}
+              >${ago(host.firstSeen)}</span
+            >, last
+            <span title=${formatTime(host.lastSeen)}
+              >${ago(host.lastSeen)}</span
+            >
+          </span>
+        </li>
+      `,
+    )}
+  </ul>
+`;
 
 type Field = readonly [label: string, value?: string];
 

@@ -1,5 +1,5 @@
 import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-bun";
-import { Api, Event, Issue } from "@timmo001/effect-triage";
+import { Api, Event, Fingerprint, Issue } from "@timmo001/effect-triage";
 import {
   Clock,
   Config,
@@ -29,6 +29,8 @@ export class IssueNotFound extends Schema.TaggedError<IssueNotFound>()(
 export interface ListOptions {
   /** The most issues to return, most recently seen first. */
   readonly limit: number;
+  /** Only issues that happened on this host. */
+  readonly host?: string | undefined;
 }
 
 export interface Pending {
@@ -110,6 +112,21 @@ const toIssue = (row: typeof IssueRow.Type, now: number): Issue.Issue => ({
 const SummaryRow = Schema.Struct({
   ...IssueRow.fields,
   worth: Schema.NullOr(Schema.Finite),
+  hosts: Schema.fromJsonString(Schema.Array(Schema.String)),
+});
+
+const HostCountRow = Schema.Struct({
+  host: Schema.String,
+  count: Schema.Int,
+  first_seen: Schema.Finite,
+  last_seen: Schema.Finite,
+});
+
+const HostRow = Schema.Struct({
+  host: Schema.String,
+  events: Schema.Int,
+  issues: Schema.Int,
+  last_seen: Schema.Finite,
 });
 
 const DecisionRow = Schema.Struct({
@@ -266,6 +283,63 @@ const migrations = SqliteMigrator.fromRecord({
     yield* sql`ALTER TABLE decisions ADD COLUMN decided_by TEXT`;
     yield* sql`ALTER TABLE suggestions ADD COLUMN suggested_by TEXT`;
   }),
+  // Errors and OOM kills now group per host. Each one's events move to an issue
+  // for their host, which keeps the old issue's state, decisions, label and
+  // suggestions.
+  "0010_per_host_issues": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    const pairs = yield* sql<{ id: string; fingerprint: string; host: string }>`
+      SELECT DISTINCT issues.id, issues.fingerprint, events.host
+      FROM issues JOIN events ON events.issue_id = issues.id
+      WHERE issues.kind IN ('LogError', 'OutOfMemory')
+    `;
+
+    for (const { id, fingerprint, host } of pairs) {
+      const key = Fingerprint.onHost(fingerprint, host);
+      const next = Fingerprint.issueId(key);
+
+      yield* sql`
+        INSERT INTO issues (id, fingerprint, kind, title, first_seen, last_seen,
+          count, status, resolved_at, regressed_at)
+        SELECT ${next}, ${key}, kind, title,
+          (SELECT MIN(timestamp) FROM events WHERE issue_id = ${id} AND host = ${host}),
+          (SELECT MAX(timestamp) FROM events WHERE issue_id = ${id} AND host = ${host}),
+          (SELECT COUNT(*) FROM events WHERE issue_id = ${id} AND host = ${host}),
+          status, resolved_at, regressed_at
+        FROM issues WHERE id = ${id}
+      `;
+      yield* sql`
+        INSERT INTO decisions (issue_id, model, decided_at, decided_by,
+          issue_count, worth, severity, cause, answers)
+        SELECT ${next}, model, decided_at, decided_by, issue_count, worth,
+          severity, cause, answers
+        FROM decisions WHERE issue_id = ${id}
+      `;
+      yield* sql`
+        INSERT INTO labels (issue_id, worth, labelled_at)
+        SELECT ${next}, worth, labelled_at FROM labels WHERE issue_id = ${id}
+      `;
+      yield* sql`
+        INSERT INTO suggestions (issue_id, model, suggested_at, suggested_by,
+          issue_count, text, evidence)
+        SELECT ${next}, model, suggested_at, suggested_by, issue_count, text,
+          evidence
+        FROM suggestions WHERE issue_id = ${id}
+      `;
+      yield* sql`
+        UPDATE events SET issue_id = ${next}
+        WHERE issue_id = ${id} AND host = ${host}
+      `;
+    }
+
+    for (const id of new Set(pairs.map((pair) => pair.id))) {
+      yield* sql`DELETE FROM decisions WHERE issue_id = ${id}`;
+      yield* sql`DELETE FROM labels WHERE issue_id = ${id}`;
+      yield* sql`DELETE FROM suggestions WHERE issue_id = ${id}`;
+      yield* sql`DELETE FROM issues WHERE id = ${id}`;
+    }
+  }),
 });
 
 /**
@@ -291,6 +365,8 @@ export class Store extends Context.Service<
     issues(
       options: ListOptions,
     ): Effect.Effect<ReadonlyArray<Api.IssueSummary>, StoreError>;
+    /** Every host that has sent events, most recently seen first. */
+    readonly hosts: Effect.Effect<ReadonlyArray<Api.HostSummary>, StoreError>;
     /** An issue with its latest events, newest first. */
     issue(
       id: string,
@@ -488,33 +564,83 @@ export class Store extends Context.Service<
     );
 
     const listIssues = SqlSchema.findAll({
-      Request: Schema.Int,
+      Request: Schema.Struct({
+        limit: Schema.Int,
+        host: Schema.NullOr(Schema.String),
+      }),
       Result: SummaryRow,
-      execute: (limit) => sql`
+      execute: ({ limit, host }) => sql`
         SELECT issues.*, (
           SELECT worth FROM decisions
           WHERE decisions.issue_id = issues.id
           ORDER BY decided_at DESC
           LIMIT 1
-        ) AS worth
-        FROM issues WHERE count > 0 ORDER BY last_seen DESC LIMIT ${limit}
+        ) AS worth, (
+          SELECT json_group_array(DISTINCT host) FROM events
+          WHERE events.issue_id = issues.id
+        ) AS hosts
+        FROM issues
+        WHERE count > 0 AND (${host} IS NULL OR EXISTS (
+          SELECT 1 FROM events
+          WHERE events.issue_id = issues.id AND events.host = ${host}
+        ))
+        ORDER BY last_seen DESC LIMIT ${limit}
       `,
     });
 
     const issues = Effect.fn("Store.issues")(
       function* (options: ListOptions) {
-        const rows = yield* listIssues(options.limit);
+        const rows = yield* listIssues({
+          limit: options.limit,
+          host: options.host ?? null,
+        });
+
         const now = yield* Clock.currentTimeMillis;
 
         return rows.map((row): Api.IssueSummary =>
           Object.assign(
             toIssue(row, now),
+            { hosts: row.hosts },
             row.worth === null ? {} : { worth: row.worth },
           ),
         );
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
+
+    const listHosts = SqlSchema.findAll({
+      Request: Schema.Void,
+      Result: HostRow,
+      execute: () => sql`
+        SELECT host, COUNT(*) AS events, COUNT(DISTINCT issue_id) AS issues,
+          MAX(timestamp) AS last_seen
+        FROM events GROUP BY host ORDER BY last_seen DESC
+      `,
+    });
+
+    const hosts = listHosts(undefined).pipe(
+      Effect.map((rows) =>
+        rows.map((row): Api.HostSummary => ({
+          host: row.host,
+          events: row.events,
+          issues: row.issues,
+          lastSeen: row.last_seen,
+        })),
+      ),
+      Effect.mapError((cause) => new StoreError({ cause })),
+      Effect.withSpan("Store.hosts"),
+    );
+
+    const issueHosts = SqlSchema.findAll({
+      Request: Schema.String,
+      Result: HostCountRow,
+      execute: (id) => sql`
+        SELECT host, COUNT(*) AS count, MIN(timestamp) AS first_seen,
+          MAX(timestamp) AS last_seen
+        FROM events WHERE issue_id = ${id}
+        GROUP BY host ORDER BY count DESC, host
+      `,
+    });
 
     const findIssue = SqlSchema.findOneOption({
       Request: Schema.String,
@@ -582,6 +708,7 @@ export class Store extends Context.Service<
         const decisions = yield* issueDecisions(id);
         const suggestions = yield* issueSuggestions(id);
         const label = yield* issueLabel(id);
+        const hostCounts = yield* issueHosts(id);
 
         return Option.some<Api.IssueReview>({
           ...detail.value,
@@ -591,6 +718,12 @@ export class Store extends Context.Service<
               label: row.worth ? ("worth" as const) : ("noise" as const),
             }),
           }),
+          hosts: hostCounts.map((row) => ({
+            host: row.host,
+            count: row.count,
+            firstSeen: row.first_seen,
+            lastSeen: row.last_seen,
+          })),
           decisions: decisions.map((row) => ({
             model: row.model,
             decidedAt: row.decided_at,
@@ -892,6 +1025,7 @@ export class Store extends Context.Service<
       record,
       add,
       issues,
+      hosts,
       issue,
       review,
       addToken,

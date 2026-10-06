@@ -37,7 +37,10 @@ export type State = typeof State.Type;
 /** How long an issue stays new or regressed, in milliseconds. */
 export const recentMillis = 7 * 24 * 60 * 60 * 1000;
 
-/** Events grouped by fingerprint, across every host they happened on. */
+/**
+ * Events grouped by fingerprint: crashes and unit failures across every host
+ * they happened on, errors and OOM kills on one host.
+ */
 export const Issue = Schema.Struct({
   /** {@link issueId} of the fingerprint. */
   id: Schema.NonEmptyString,
