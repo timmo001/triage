@@ -1,0 +1,5 @@
+[install]
+# lit-analyzer imports typescript without declaring it. Without the hoisted
+# fallback it always resolves the root typescript, not whichever version
+# (sometimes 7, which has no JS API) the store happened to hoist.
+hoist = false

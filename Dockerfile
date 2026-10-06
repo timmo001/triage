@@ -10,7 +10,7 @@ FROM oven/bun:1.4.2@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1
 
 WORKDIR /src
 
-COPY package.json bun.lock ./
+COPY package.json bun.lock bunfig.toml ./
 COPY packages/effect-triage/package.json packages/effect-triage/
 COPY packages/client/package.json packages/client/
 COPY web/package.json web/

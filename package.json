@@ -41,7 +41,7 @@
     "oxlint": "1.87.0",
     "oxlint-tsgolint": "7.0.2003",
     "prettier": "3.9.9",
-    "typescript": "7.0.2"
+    "typescript": "6.0.3"
   },
   "workspaces": [
     "packages/*",

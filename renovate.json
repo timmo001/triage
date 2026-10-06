@@ -7,6 +7,11 @@
       "matchDepNames": ["bun", "oven/bun", "@types/bun"],
       "groupName": "Bun",
       "groupSlug": "bun"
+    },
+    {
+      "description": "lit-analyzer needs the TypeScript JS API, which TypeScript 7 doesn't have. Type-checking uses @typescript/native.",
+      "matchDepNames": ["typescript"],
+      "allowedVersions": "<7"
     }
   ]
 }
