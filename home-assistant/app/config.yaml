@@ -26,7 +26,7 @@ environment:
 backup: cold
 options:
   trust_proxy: false
-  decide_daily: 20
+  decide_daily: 100
   suggest_daily: 5
 schema:
   server_admin_token: password?

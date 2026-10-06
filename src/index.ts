@@ -546,7 +546,7 @@ const serve = Command.make(
         "The most issues each decision model may decide on in any 24 hours, here with --decide or by workers",
       ),
       Flag.withFallbackConfig(Config.Int("TRIAGE_DECIDE_DAILY")),
-      Flag.withDefault(20),
+      Flag.withDefault(100),
     ),
     suggestDaily: Flag.Int("suggest-daily").pipe(
       Flag.withDescription(

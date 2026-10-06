@@ -35,7 +35,7 @@ Environment variables win over the file. The Home Assistant app uses this for it
 | `TRIAGE_SERVER_ADMIN_TOKEN` | none | An admin token the server always accepts, at least 32 characters, for managing tokens with `--server`. It isn't stored or listed |
 | `TRIAGE_INGRESS_PORT` | none (`8099` in the Home Assistant app) | A second port for Home Assistant ingress, which treats every request as an admin's and only answers `TRIAGE_INGRESS_FROM` |
 | `TRIAGE_INGRESS_FROM` | `172.30.32.2`, Home Assistant's Supervisor | The only address the ingress port answers |
-| `TRIAGE_DECIDE_DAILY` | `20` | The most issues each decision model may decide on in any 24 hours, by the server and its workers together |
+| `TRIAGE_DECIDE_DAILY` | `100` | The most issues each decision model may decide on in any 24 hours, by the server and its workers together |
 | `TRIAGE_SUGGEST_DAILY` | `5` | The most suggestions each language model may make in any 24 hours, by the server and its workers together |
 
 ## Workers and admins
