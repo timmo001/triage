@@ -136,6 +136,27 @@ run = "pitchfork restart server"
 description = "Stop the background local server"
 run = "pitchfork stop server"
 
+[tasks."serve:web"]
+description = "Start the web UI with hot reloading in the background through Pitchfork, using the background local server"
+depends = ["install"]
+run = ["pitchfork start server", "pitchfork start web"]
+
+[tasks."serve:web:status"]
+description = "Show the background web UI status"
+run = "pitchfork status web"
+
+[tasks."serve:web:logs"]
+description = "Follow the background web UI logs"
+run = "pitchfork logs -t web"
+
+[tasks."serve:web:restart"]
+description = "Restart the background web UI"
+run = "pitchfork restart web"
+
+[tasks."serve:web:stop"]
+description = "Stop the background web UI"
+run = "pitchfork stop web"
+
 [tasks."serve:server:enrol"]
 description = "Enrol a host with the background local server, printing its token"
 usage = 'arg "<name>" help="The host name, such as desktop"'
