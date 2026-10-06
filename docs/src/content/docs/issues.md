@@ -37,7 +37,7 @@ An event later than an issue's resolution reopens it as regressed, and decision 
 
 ## In a browser
 
-The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues with the hosts each happened on, filtered by state or host and sortable by how likely the latest decision says they're worth fixing. Each issue's page shows how often it happened on each host, its latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, and buttons to resolve, mute, reopen or unmute it.
+The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues with the hosts each happened on, loading more as you scroll. You can filter them by state, host, kind or label, search their titles, sort them by when they were last or first seen, how likely the latest decision says they're worth fixing, how many events they have or their title, and group them by state, kind or label. The page remembers these choices in the browser. Tick issues, or a whole group, to resolve, mute, reopen or label them together. Each issue's page shows how often it happened on each host, its latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, and buttons to resolve, mute, reopen or unmute it.
 
 Sign in with an [admin token](/setup/server#tokens). It's kept in that browser until you sign out. In the [Home Assistant app](/setup/server#home-assistant), open **Triage** in Home Assistant's sidebar instead, with no token needed.
 

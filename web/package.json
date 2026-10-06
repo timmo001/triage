@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@effect/platform-browser": "4.0.1",
+    "@tanstack/lit-table": "9.2.6",
+    "@tanstack/lit-virtual": "3.14.2",
     "@timmo001/effect-triage": "workspace:*",
     "dompurify": "3.4.16",
     "effect": "4.0.1",

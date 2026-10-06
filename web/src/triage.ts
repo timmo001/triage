@@ -1,9 +1,13 @@
 import { BrowserKeyValueStore } from "@effect/platform-browser";
-import { Api } from "@timmo001/effect-triage";
-import { Data, Layer, Schema } from "effect";
-import { FetchHttpClient, HttpClientRequest } from "effect/http";
+import { Api, Issue } from "@timmo001/effect-triage";
+import { Data, Effect, Layer, Option, Schema, Stream } from "effect";
+import {
+  FetchHttpClient,
+  HttpClientError,
+  HttpClientRequest,
+} from "effect/http";
 import { HttpApiMiddleware } from "effect/http-api";
-import { Atom, AtomHttpApi } from "effect/reactivity";
+import { Atom, AtomHttpApi, Reactivity } from "effect/reactivity";
 
 const storage = Atom.runtime(BrowserKeyValueStore.layerLocalStorage);
 
@@ -44,14 +48,125 @@ export class TriageApi extends AtomHttpApi.Service<TriageApi>()(
 
 const issuesKey = ["issues"];
 
-/** The most issues the list shows. */
-export const issueLimit = 500;
+/** How the issue list is filtered, sorted and grouped, kept between visits. */
+export const ListSettings = Schema.Struct({
+  state: Schema.optional(Issue.State),
+  sort: Api.IssueSort,
+  order: Api.SortOrder,
+  group: Schema.optional(Api.IssueGrouping),
+  host: Schema.optional(Schema.String),
+  kind: Schema.optional(Issue.Kind),
+  label: Schema.optional(Api.LabelFilter),
+  search: Schema.optional(Schema.String),
+});
 
-export const issues = Atom.family((host: string) =>
-  TriageApi.query("issues", "list", {
-    query: host === "" ? { limit: issueLimit } : { limit: issueLimit, host },
-    reactivityKeys: issuesKey,
+export interface ListSettings extends Schema.Schema.Type<typeof ListSettings> {}
+
+export const listSettings = Atom.kvs({
+  runtime: storage,
+  key: "triage-issue-list",
+  schema: ListSettings,
+  defaultValue: (): ListSettings => ({ sort: "lastSeen", order: "desc" }),
+});
+
+/** How many issues each page of the list fetches. */
+const pageSize = 100;
+
+/** Requests that couldn't be made or understood are defects, as in queries. */
+const asDefects = <A, E, R>(
+  effect: Effect.Effect<
+    A,
+    E | HttpClientError.HttpClientError | Schema.SchemaError,
+    R
+  >,
+) =>
+  Effect.catchIf(
+    effect,
+    (error) =>
+      Schema.isSchemaError(error) || HttpClientError.isHttpClientError(error),
+    (error) => Effect.die(error),
+  );
+
+/**
+ * The issues matching the list settings, a page at a time. Writing to it
+ * fetches the next page; changing the settings starts again from the first.
+ */
+export const issueList = TriageApi.runtime.factory.withReactivity(issuesKey)(
+  TriageApi.runtime.pull((get) => {
+    const settings = get(listSettings);
+
+    return Stream.paginate(0, (offset) =>
+      TriageApi.use((client) =>
+        client.issues.list({
+          query: { ...settings, limit: pageSize, offset },
+        }),
+      ).pipe(
+        asDefects,
+        Effect.map(
+          (page) =>
+            [
+              page,
+              page.length < pageSize
+                ? Option.none()
+                : Option.some(offset + pageSize),
+            ] as const,
+        ),
+      ),
+    );
   }),
+);
+
+/** The settings the counts depend on, so changing the state or sort keeps them. */
+const countFilters = Atom.make((get): Api.IssueFilters => {
+  const { host, kind, label, search } = get(listSettings);
+
+  return { host, kind, label, search };
+}).pipe(
+  Atom.withEquality<Api.IssueFilters>(
+    (a, b) =>
+      a.host === b.host &&
+      a.kind === b.kind &&
+      a.label === b.label &&
+      a.search === b.search,
+  ),
+);
+
+/** How many issues match the list's filters, in all and in each state. */
+export const issueCounts = TriageApi.runtime.factory.withReactivity(issuesKey)(
+  TriageApi.runtime.atom((get) => {
+    const query = get(countFilters);
+
+    return TriageApi.use((client) => client.issues.counts({ query })).pipe(
+      asDefects,
+    );
+  }),
+);
+
+export type BulkAction =
+  { readonly status: Issue.Status } | { readonly label: Api.Label };
+
+/** Apply an action to several issues, then refresh everything showing them. */
+export const bulkAction = TriageApi.runtime.fn(
+  (input: {
+    readonly ids: ReadonlyArray<string>;
+    readonly action: BulkAction;
+  }) =>
+    TriageApi.use((client) =>
+      Effect.forEach(
+        input.ids,
+        (id) =>
+          "status" in input.action
+            ? client.issues.setStatus({
+                params: { id },
+                payload: { status: input.action.status },
+              })
+            : client.issues.setLabel({
+                params: { id },
+                payload: { label: input.action.label },
+              }),
+        { concurrency: 4, discard: true },
+      ),
+    ).pipe(asDefects, Effect.ensuring(Reactivity.invalidate(issuesKey))),
 );
 
 export const hosts = TriageApi.query("hosts", "list", {
