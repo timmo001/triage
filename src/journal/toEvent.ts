@@ -173,8 +173,9 @@ export const toEvent = (
       );
     }
 
+    // Blank error lines, like the kernel's one each boot, carry nothing to triage.
     default:
-      return priority <= errorPriority
+      return priority <= errorPriority && message.trim() !== ""
         ? Option.some(
             Event.Event.cases.LogError.make({
               ...common,
