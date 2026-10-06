@@ -7,6 +7,7 @@ const log = (id: string, timestamp: number) =>
   Event.Event.cases.LogError.make({
     id,
     host: "omarchy",
+    source: "journal",
     timestamp,
     severity: "err",
     identifier: "bluetoothd",

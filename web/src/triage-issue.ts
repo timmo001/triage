@@ -1,4 +1,4 @@
-import type { Api, Event, Issue } from "@timmo001/effect-triage";
+import { type Api, Event, type Issue } from "@timmo001/effect-triage";
 import DOMPurify from "dompurify";
 import { Predicate } from "effect";
 import { AsyncResult } from "effect/reactivity";
@@ -121,6 +121,16 @@ export class TriageIssue extends LitElement {
       details {
         margin-top: 0.5rem;
         font-size: 0.85rem;
+      }
+
+      .event-fields {
+        margin: 0.5rem 0 0;
+        gap: 0.15rem 1rem;
+        font-size: 0.8rem;
+      }
+
+      .event-fields dd {
+        overflow-wrap: anywhere;
       }
 
       table {
@@ -349,15 +359,52 @@ const renderSuggestions = (suggestions: ReadonlyArray<Api.IssueSuggestion>) =>
         </ol>
       `;
 
+type Field = readonly [label: string, value?: string];
+
+// Everything stored about where an event came from, in the order people look
+// for it.
+const eventFields = (event: Event.Event) => {
+  const fields: ReadonlyArray<Field> = [
+    ["Host", event.host],
+    ["Source", event.source],
+    ["Program", event.identifier],
+    [
+      "Unit",
+      event.unit === undefined || event.scope === undefined
+        ? event.unit
+        : `${event.unit} (${event.scope})`,
+    ],
+    ...Event.Event.match<ReadonlyArray<Field>>(event, {
+      Crash: (crash) => [
+        ["Executable", crash.executable],
+        ["Signal", crash.signal],
+      ],
+      UnitFailure: (failure) => [["Result", failure.result]],
+      OutOfMemory: (oom) => [["Killed", oom.process]],
+      LogError: () => [],
+    }),
+    ["Boot", event.bootId],
+  ];
+
+  return fields.flatMap(([label, value]) =>
+    value === undefined ? [] : [[label, value] as const],
+  );
+};
+
 const renderEvent = (event: Event.Event) => html`
   <li>
     <header>
       <time title=${formatTime(event.timestamp)}>${ago(event.timestamp)}</time>
-      <span>${event.host}</span>
       <span>${event.severity}</span>
-      ${event.unit === undefined ? null : html`<span>${event.unit}</span>`}
     </header>
     <pre>${event.message}</pre>
+    <dl class="event-fields">
+      ${eventFields(event).map(
+        ([label, value]) =>
+          html`<dt>${label}</dt>
+            <dd>${value}</dd>`,
+      )}
+    </dl>
     ${
       Predicate.isTagged(event, "Crash") && event.frames.length > 0
         ? html`<details>

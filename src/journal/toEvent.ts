@@ -116,6 +116,7 @@ export const toEvent = (
   const common = {
     id: Fingerprint.issueId(entry.__CURSOR),
     host: redacted("_HOSTNAME") ?? "<host>",
+    source: "journal",
     ...(bootId !== undefined && { bootId: Fingerprint.issueId(bootId) }),
     timestamp: Math.floor(entry.__REALTIME_TIMESTAMP / 1000),
     severity: Severity.fromPriority(priority) ?? "err",

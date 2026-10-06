@@ -27,6 +27,7 @@ describe("fingerprint", () => {
     const crash = Event.cases.Crash.make({
       id: "event",
       host: "laptop",
+      source: "journal",
       timestamp: 0,
       severity: "crit",
       message: "Process 1 (ghostty) dumped core.",

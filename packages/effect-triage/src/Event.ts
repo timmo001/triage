@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { Severity } from "./Severity.js";
 
 /** One frame of a crash stack trace, innermost first. */
@@ -16,6 +16,13 @@ const common = {
   id: Schema.NonEmptyString,
   /** The host the event came from: its enrolled name, never a raw hostname. */
   host: Schema.NonEmptyString,
+  /**
+   * Where on the host the event was read from, such as `journal`. Events from
+   * before 0.5.0 have none and decode as `journal`, the only source then.
+   */
+  source: Schema.NonEmptyString.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed("journal")),
+  ),
   /** A hash of the boot the event happened in. */
   bootId: Schema.optionalKey(Schema.String),
   /** When the event happened, in milliseconds since the Unix epoch. */
