@@ -1,4 +1,8 @@
-import { mdiFilterVariantRemove } from "@mdi/js";
+import {
+  mdiChevronDown,
+  mdiChevronRight,
+  mdiFilterVariantRemove,
+} from "@mdi/js";
 import { VirtualizerController } from "@tanstack/lit-virtual";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
@@ -23,7 +27,10 @@ const skeletonWidths = ["7rem", "5rem", "8rem", "6rem"];
 /**
  * One of the issue list's filters: a list of options to tick, matching
  * issues with any of them. Every filter is the same height and scrolls its
- * options inside it. Fires `filter-change` with the ticked values.
+ * options inside it. Fires `filter-change` with the ticked values, and
+ * `filter-toggle` with whether to show the options.
+ *
+ * @cssprop --triage-filter-color - The heading's icon colour. Defaults to the accent.
  */
 @customElement("triage-filter")
 export class TriageFilter extends LitElement {
@@ -33,7 +40,6 @@ export class TriageFilter extends LitElement {
       .header {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
         box-sizing: border-box;
         min-height: 2.75rem;
         margin-inline: calc(-1 * var(--triage-filter-inset, 0rem));
@@ -41,15 +47,34 @@ export class TriageFilter extends LitElement {
         font-size: 0.95rem;
         font-weight: 600;
         background: var(--triage-bg);
-        border-block: 1px solid var(--triage-border);
+        border-top: 1px solid var(--triage-border);
       }
 
-      .header > .icon {
-        color: var(--triage-accent);
+      :host([expanded]) .header {
+        border-bottom: 1px solid var(--triage-border);
+      }
+
+      .toggle {
+        flex: 1;
+        gap: 0.5rem;
+        min-height: 2.75rem;
+        padding: 0;
+        font-weight: inherit;
+        background: none;
+        border: 0;
+        border-radius: 0;
+      }
+
+      .toggle > .icon {
+        color: var(--triage-filter-color, var(--triage-accent));
+      }
+
+      .toggle > .icon:first-child {
+        width: 1.35em;
+        height: 1.35em;
       }
 
       .clear {
-        margin-inline-start: auto;
         background: none;
         border-color: transparent;
       }
@@ -155,6 +180,9 @@ export class TriageFilter extends LitElement {
   /** Shows placeholder rows while the options load. */
   @property({ type: Boolean }) accessor loading = false;
 
+  /** Whether the options show. The page decides, from `filter-toggle`. */
+  @property({ type: Boolean, reflect: true }) accessor expanded = true;
+
   @query(".scroller") accessor scroller: HTMLDivElement | null = null;
 
   readonly #optionList = new VirtualizerController<HTMLDivElement, Element>(
@@ -236,22 +264,37 @@ export class TriageFilter extends LitElement {
   override render() {
     return html`
       <div class="header">
-        ${this.path === "" ? nothing : icon(this.path)} ${this.label}
+        <button
+          class="toggle"
+          aria-expanded=${this.expanded}
+          aria-controls="options"
+          @click=${() =>
+            this.dispatchEvent(
+              new CustomEvent("filter-toggle", { detail: !this.expanded }),
+            )}
+        >
+          ${icon(this.expanded ? mdiChevronDown : mdiChevronRight)}
+          ${this.path === "" ? nothing : icon(this.path)} ${this.label}
+          ${
+            this.value.length === 0
+              ? nothing
+              : html`<span class="badge">${this.value.length}</span>`
+          }
+        </button>
         ${
           this.value.length === 0
             ? nothing
-            : html`<span class="badge">${this.value.length}</span>
-                <button
-                  class="clear icon-only"
-                  aria-label="Clear ${this.label}"
-                  title="Clear"
-                  @click=${() => this.#change([])}
-                >
-                  ${icon(mdiFilterVariantRemove)}
-                </button>`
+            : html`<button
+                class="clear icon-only"
+                aria-label="Clear ${this.label}"
+                title="Clear"
+                @click=${() => this.#change([])}
+              >
+                ${icon(mdiFilterVariantRemove)}
+              </button>`
         }
       </div>
-      <div class="scroller">
+      <div id="options" class="scroller" ?hidden=${!this.expanded}>
         ${
           this.loading
             ? html`<div role="progressbar" aria-label="Loading ${this.label}">
@@ -280,5 +323,6 @@ declare global {
 
   interface HTMLElementEventMap {
     "filter-change": CustomEvent<ReadonlyArray<string>>;
+    "filter-toggle": CustomEvent<boolean>;
   }
 }

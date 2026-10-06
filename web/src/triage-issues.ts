@@ -212,6 +212,13 @@ const loadAhead = 10;
 /** Below this width the list shows one cell with a secondary line. */
 const narrowWidth = 640;
 
+type FilterName = "host" | "kind" | "label";
+
+const filterNames: ReadonlyArray<FilterName> = ["host", "kind", "label"];
+
+/** Matches where the filters open as a bottom sheet, one at a time. */
+const sheetQuery = window.matchMedia("(max-width: 39.99rem)");
+
 /** The columns a row shows, in order, after the selection checkbox. */
 const shownColumns = columns.flatMap((definition) => {
   const id =
@@ -821,6 +828,31 @@ export class TriageIssues extends LitElement {
 
   @state() accessor rowSelection: RowSelectionState = {};
 
+  /**
+   * The filters showing their options, until one is toggled. The sheet
+   * starts with only the first, the side panel with all of them.
+   */
+  @state() accessor openFilters: ReadonlyArray<FilterName> | undefined =
+    undefined;
+
+  #isOpen(name: FilterName) {
+    return (
+      this.openFilters ?? (sheetQuery.matches ? ["host"] : filterNames)
+    ).includes(name);
+  }
+
+  #toggleFilter(name: FilterName, open: boolean) {
+    if (sheetQuery.matches) {
+      this.openFilters = open ? [name] : [];
+
+      return;
+    }
+
+    this.openFilters = filterNames.filter((filter) =>
+      filter === name ? open : this.#isOpen(filter),
+    );
+  }
+
   /** The skeleton filling the window while a fresh list loads. */
   @query(".skeleton:not(.more)") accessor skeleton: HTMLElement | null = null;
 
@@ -1064,6 +1096,10 @@ export class TriageIssues extends LitElement {
           label="Host"
           path=${mdiServer}
           ?loading=${AsyncResult.isInitial(this.#hosts.value)}
+          .expanded=${this.#isOpen("host")}
+          style="--triage-filter-color: var(--triage-new)"
+          @filter-toggle=${(event: CustomEvent<boolean>) =>
+            this.#toggleFilter("host", event.detail)}
           .options=${known.map((host) => ({
             value: host.host,
             title: host.host,
@@ -1077,6 +1113,10 @@ export class TriageIssues extends LitElement {
           label="Kind"
           path=${mdiAlertCircleOutline}
           .options=${kindOptions}
+          .expanded=${this.#isOpen("kind")}
+          style="--triage-filter-color: var(--triage-regressed)"
+          @filter-toggle=${(event: CustomEvent<boolean>) =>
+            this.#toggleFilter("kind", event.detail)}
           .value=${settings.kind ?? []}
           @filter-change=${(event: CustomEvent<ReadonlyArray<string>>) =>
             this.#update({ kind: event.detail })}
@@ -1085,6 +1125,10 @@ export class TriageIssues extends LitElement {
           label="Label"
           path=${mdiTagOutline}
           .options=${labelOptions}
+          .expanded=${this.#isOpen("label")}
+          style="--triage-filter-color: var(--triage-resolved)"
+          @filter-toggle=${(event: CustomEvent<boolean>) =>
+            this.#toggleFilter("label", event.detail)}
           .value=${settings.label ?? []}
           @filter-change=${(event: CustomEvent<ReadonlyArray<string>>) =>
             this.#update({ label: event.detail })}

@@ -19,13 +19,13 @@ triage issues --server   # the server's, on the server
 
 ## States
 
-| State | Means |
-| --- | --- |
-| New | First seen in the last week |
-| Ongoing | Seen before that, and still open |
-| Regressed | Happened again after it was resolved, in the last week |
-| Resolved | Fixed, as far as you know |
-| Muted | Hidden from decision and language models, however often it happens |
+| State     | Means                                                              |
+| --------- | ------------------------------------------------------------------ |
+| New       | First seen in the last week                                        |
+| Ongoing   | Seen before that, and still open                                   |
+| Regressed | Happened again after it was resolved, in the last week             |
+| Resolved  | Fixed, as far as you know                                          |
+| Muted     | Hidden from decision and language models, however often it happens |
 
 ```bash
 triage resolve <issue>...
@@ -37,7 +37,11 @@ An event later than an issue's resolution reopens it as regressed, and decision 
 
 ## In a browser
 
-The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues with the hosts each happened on, loading more as you scroll. You can filter them by state, host, kind or label, search their titles, sort them by when they were last or first seen, how likely the latest decision says they're worth fixing, how many events they have or their title, and group them by state, kind or label. The page remembers these choices in the browser. Tick issues, or a whole group, to resolve, mute, reopen or label them together. Each issue's page shows how often it happened on each host, its latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, and buttons to resolve, mute, reopen or unmute it.
+The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues with the hosts each happened on, loading more as you scroll. Search their titles, sort them by when they were last or first seen, how likely the latest decision says they're worth fixing, how many events they have or their title, and group them by state, kind or label. Groups collapse, and the page remembers which ones you collapsed.
+
+**Filters** opens a panel with the issues in each state, and lists of hosts, kinds and labels to tick. Ticking more than one in a list shows issues that match any of them, and each list has its own clear button. The page remembers these choices in the browser.
+
+Tick issues, or a whole group, to resolve, mute, reopen or label them together. Each issue's page shows how often it happened on each host, its 20 latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, and buttons to resolve, mute, reopen or unmute it.
 
 Sign in with an [admin token](/setup/server#tokens). It's kept in that browser until you sign out. In the [Home Assistant app](/setup/server#home-assistant), open **Triage** in Home Assistant's sidebar instead, with no token needed.
 
