@@ -1,5 +1,5 @@
 import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-bun";
-import { type Api, Event, Issue } from "@timmo001/effect-triage";
+import { Api, Event, Issue } from "@timmo001/effect-triage";
 import {
   Clock,
   Config,
@@ -38,20 +38,13 @@ export interface Pending {
   readonly last: number;
 }
 
-/**
- * What a token can do: a host uploads events, an admin reads issues, and a
- * worker decides on issues or suggests fixes for them.
- */
-export const TokenScope = Schema.Literals(["host", "admin", "worker"]);
+export const TokenScope = Api.TokenScope;
 
-export type TokenScope = typeof TokenScope.Type;
+export type TokenScope = Api.TokenScope;
 
-export const Token = Schema.Struct({
-  name: Schema.String,
-  createdAt: Schema.Finite,
-});
+export const Token = Api.Token;
 
-export interface Token extends Schema.Schema.Type<typeof Token> {}
+export type Token = Api.Token;
 
 /** What a decision model made of an issue, for comparing models and labels. */
 export type StoredDecision = Api.Decision;

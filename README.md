@@ -63,12 +63,21 @@ Hosts redact everything they collect before storing or sending it, including the
 
 Host tokens can only send events. To read issues from the API, add an admin with `triage admins add <name>` and use its token. Worker tokens, from `triage workers add <name>`, can only fetch work and send back answers. `hosts list`, `admins list` and `workers list` show who has a token, and `remove` on each revokes one.
 
+Admins can also manage tokens over the API, so you don't need a shell on the server, such as with the Home Assistant app. Set `TRIAGE_SERVER_ADMIN_TOKEN` on the server to a long random value (at least 32 characters, such as from `openssl rand -base64 32`), then from any machine:
+
+```sh
+TRIAGE_ADMIN_TOKEN=<the same value> triage hosts add laptop --server https://triage.example.com
+```
+
+`add`, `list` and `remove` all take `--server`.
+
 | Variable | Default | |
 | --- | --- | --- |
 | `TRIAGE_HOSTNAME` | `127.0.0.1` (`0.0.0.0` in the container) | Address to listen on |
 | `TRIAGE_PORT` | `7171` | Port to listen on |
 | `TRIAGE_SERVER_DB` | `$XDG_STATE_HOME/triage/server.db` (`/data/server.db` in the container) | Server database |
 | `TRIAGE_TRUST_PROXY` | `false` | Trust `X-Forwarded-Host` and `X-Forwarded-For`. Only turn this on when the proxy is the only way to reach the server |
+| `TRIAGE_SERVER_ADMIN_TOKEN` | none | An admin token the server always accepts, at least 32 characters, for managing tokens with `--server`. It isn't stored or listed |
 | `TRIAGE_DECIDE` | `false` | Ask a decision model about new issues every 5 minutes. The answers are only stored for now, to compare models |
 | `TRIAGE_DECIDE_DAILY` | `20` | The most issues each decision model may decide on in any 24 hours, by the server with `TRIAGE_DECIDE` and by its workers together |
 | `TRIAGE_DECISION_PROVIDER` | `typesafe` | `typesafe` for any TypeSafe System One API, such as Ollaya or Ollama 0.35+ locally, or `cloudflare` for Clef on Workers AI with `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` |

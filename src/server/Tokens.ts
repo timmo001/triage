@@ -1,45 +1,32 @@
+import { Api } from "@timmo001/effect-triage";
 import {
+  Config,
   Context,
   Crypto,
   Effect,
   Layer,
   Option,
   Redacted,
-  Schema,
 } from "effect";
 import { Base64Url, Hex } from "effect/encoding";
 import { Store, StoreError, Token, TokenScope } from "../store/Store.js";
 
-/**
- * A token's name. For a host it's what the server knows the host by, in place
- * of its real hostname, so choose something that doesn't identify the machine.
- */
-export const TokenName = Schema.String.check(
-  Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,62}$/),
-);
+export const TokenName = Api.TokenName;
 
-export class TokenExists extends Schema.TaggedError<TokenExists>()(
-  "TokenExists",
-  { scope: TokenScope, owner: Schema.String },
-) {
-  override get message() {
-    return `There's already a ${this.scope} called ${this.owner}`;
-  }
-}
+export const TokenExists = Api.TokenExists;
 
-export class TokenNotFound extends Schema.TaggedError<TokenNotFound>()(
-  "TokenNotFound",
-  { scope: TokenScope, owner: Schema.String },
-) {
-  override get message() {
-    return `There's no ${this.scope} called ${this.owner}`;
-  }
-}
+export const TokenNotFound = Api.TokenNotFound;
+
+/** The admin name requests with the token from settings are made as. */
+export const settingsAdmin = "settings";
+
+/** The shortest token accepted from settings, to keep it unguessable. */
+const minimumSettingsToken = 32;
 
 /**
  * Issues and checks the server's tokens. Host tokens can only upload events,
- * admin tokens can only read issues, and worker tokens can only fetch work
- * and send back answers.
+ * admin tokens can only read issues and manage tokens, and worker tokens can
+ * only fetch work and send back answers.
  */
 export class Tokens extends Context.Service<
   Tokens,
@@ -48,7 +35,7 @@ export class Tokens extends Context.Service<
     issue(
       scope: TokenScope,
       name: string,
-    ): Effect.Effect<Redacted.Redacted, TokenExists | StoreError>;
+    ): Effect.Effect<Redacted.Redacted, Api.TokenExists | StoreError>;
     /** The name a token belongs to in a scope, if any. */
     authenticate(
       scope: TokenScope,
@@ -58,9 +45,14 @@ export class Tokens extends Context.Service<
     revoke(
       scope: TokenScope,
       name: string,
-    ): Effect.Effect<void, TokenNotFound | StoreError>;
+    ): Effect.Effect<void, Api.TokenNotFound | StoreError>;
   }
 >()("triage/server/Tokens") {
+  /**
+   * Tokens kept in the store. `$TRIAGE_SERVER_ADMIN_TOKEN`, when set, also
+   * works as an admin token, for servers you can't run `triage` commands on,
+   * such as the Home Assistant app. It isn't stored or listed.
+   */
   static readonly layer = Layer.effect(
     Tokens,
     Effect.gen(function* () {
@@ -72,6 +64,25 @@ export class Tokens extends Context.Service<
           .digest("SHA-256", new TextEncoder().encode(Redacted.value(token)))
           .pipe(Effect.map(Hex.encode), Effect.orDie);
 
+      const settingsToken = yield* Config.option(
+        Config.Redacted("TRIAGE_SERVER_ADMIN_TOKEN"),
+      );
+
+      if (
+        Option.isSome(settingsToken) &&
+        Redacted.value(settingsToken.value).length < minimumSettingsToken
+      ) {
+        return yield* Effect.die(
+          new Error(
+            `TRIAGE_SERVER_ADMIN_TOKEN must be at least ${minimumSettingsToken} characters`,
+          ),
+        );
+      }
+
+      const settingsHash = yield* Effect.transposeOption(
+        Option.map(settingsToken, hash),
+      );
+
       const issue = Effect.fn("Tokens.issue")(function* (
         scope: TokenScope,
         name: string,
@@ -81,7 +92,7 @@ export class Tokens extends Context.Service<
         const added = yield* store.addToken(scope, name, yield* hash(token));
 
         if (!added) {
-          return yield* new TokenExists({ scope, owner: name });
+          return yield* new Api.TokenExists({ scope, owner: name });
         }
 
         return token;
@@ -91,7 +102,13 @@ export class Tokens extends Context.Service<
         scope: TokenScope,
         token: Redacted.Redacted,
       ) {
-        return yield* store.tokenName(scope, yield* hash(token));
+        const tokenHash = yield* hash(token);
+
+        if (scope === "admin" && Option.contains(settingsHash, tokenHash)) {
+          return Option.some(settingsAdmin);
+        }
+
+        return yield* store.tokenName(scope, tokenHash);
       });
 
       const revoke = Effect.fn("Tokens.revoke")(function* (
@@ -101,7 +118,7 @@ export class Tokens extends Context.Service<
         const removed = yield* store.removeToken(scope, name);
 
         if (!removed) {
-          return yield* new TokenNotFound({ scope, owner: name });
+          return yield* new Api.TokenNotFound({ scope, owner: name });
         }
       });
 

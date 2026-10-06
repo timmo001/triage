@@ -1,6 +1,6 @@
 import { BunHttpServer } from "@effect/platform-bun";
 import { Api } from "@timmo001/effect-triage";
-import { Effect, Layer, Option } from "effect";
+import { Effect, Layer, Option, Redacted } from "effect";
 import { HttpMiddleware, HttpRouter } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { Store } from "../store/Store.js";
@@ -176,6 +176,27 @@ const WorkHandlers = HttpApiBuilder.group(
   }),
 );
 
+const TokensHandlers = HttpApiBuilder.group(
+  Api.Api,
+  "tokens",
+  Effect.fn(function* (handlers) {
+    const tokens = yield* Tokens;
+
+    return handlers.handleAll({
+      list: ({ params }) => tokens.list(params.scope).pipe(Effect.orDie),
+      add: ({ params, payload }) =>
+        tokens.issue(params.scope, payload.name).pipe(
+          Effect.map((token) => ({ token: Redacted.value(token) })),
+          Effect.catchTag("StoreError", Effect.die),
+        ),
+      remove: ({ params }) =>
+        tokens
+          .revoke(params.scope, params.name)
+          .pipe(Effect.catchTag("StoreError", Effect.die)),
+    });
+  }),
+);
+
 const SystemHandlers = HttpApiBuilder.group(Api.Api, "system", (handlers) =>
   Effect.succeed(
     handlers.handleAll({
@@ -188,7 +209,13 @@ const SystemHandlers = HttpApiBuilder.group(Api.Api, "system", (handlers) =>
 export const routes = HttpApiBuilder.layer(Api.Api, {
   openapiPath: "/api/openapi.json",
 }).pipe(
-  Layer.provide([IngestHandlers, IssuesHandlers, WorkHandlers, SystemHandlers]),
+  Layer.provide([
+    IngestHandlers,
+    IssuesHandlers,
+    WorkHandlers,
+    TokensHandlers,
+    SystemHandlers,
+  ]),
   Layer.provide([
     HostAuthorizationLayer,
     AdminAuthorizationLayer,

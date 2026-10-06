@@ -42,6 +42,51 @@ export class IssueNotFound extends Schema.TaggedError<IssueNotFound>()(
 ) {}
 
 /**
+ * What a token can do: a host uploads events, an admin reads issues and
+ * manages tokens, and a worker decides on issues or suggests fixes for them.
+ */
+export const TokenScope = Schema.Literals(["host", "admin", "worker"]);
+
+export type TokenScope = typeof TokenScope.Type;
+
+/**
+ * A token's name. For a host or worker it's what the server knows it by, in
+ * place of its real hostname, so choose something that doesn't identify the
+ * machine.
+ */
+export const TokenName = Schema.String.check(
+  Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,62}$/),
+);
+
+/** A token's owner. The token itself is only shown when it's issued. */
+export const Token = Schema.Struct({
+  name: Schema.String,
+  createdAt: Schema.Finite,
+});
+
+export interface Token extends Schema.Schema.Type<typeof Token> {}
+
+export class TokenExists extends Schema.TaggedError<TokenExists>()(
+  "TokenExists",
+  { scope: TokenScope, owner: Schema.String },
+  { httpApiStatus: 409 },
+) {
+  override get message() {
+    return `There's already a ${this.scope} called ${this.owner}`;
+  }
+}
+
+export class TokenNotFound extends Schema.TaggedError<TokenNotFound>()(
+  "TokenNotFound",
+  { scope: TokenScope, owner: Schema.String },
+  { httpApiStatus: 404 },
+) {
+  override get message() {
+    return `There's no ${this.scope} called ${this.owner}`;
+  }
+}
+
+/**
  * Authenticates a host by the bearer token it was given on enrolment. Host
  * tokens can only upload events.
  */
@@ -54,7 +99,7 @@ export class HostAuthorization extends HttpApiMiddleware.Service<
   error: Unauthorized,
 }) {}
 
-/** Authenticates an admin by bearer token, for reading issues. */
+/** Authenticates an admin by bearer token, for reading issues and managing tokens. */
 export class AdminAuthorization extends HttpApiMiddleware.Service<
   AdminAuthorization,
   { provides: CurrentAdmin; requires: never }
@@ -218,6 +263,37 @@ export class WorkGroup extends HttpApiGroup.make("work")
     }),
   ) {}
 
+export class TokensGroup extends HttpApiGroup.make("tokens")
+  .add(
+    HttpApiEndpoint.get("list", "/:scope", {
+      params: { scope: TokenScope },
+      success: Schema.Array(Token),
+    }),
+    HttpApiEndpoint.post("add", "/:scope", {
+      params: { scope: TokenScope },
+      payload: Schema.Struct({ name: TokenName }),
+      success: Schema.Struct({
+        /** The new token, which is never shown again. */
+        token: Schema.String,
+      }),
+      error: TokenExists,
+    }),
+    HttpApiEndpoint.delete("remove", "/:scope/:name", {
+      params: { scope: TokenScope, name: Schema.String },
+      success: HttpApiSchema.NoContent,
+      error: TokenNotFound,
+    }),
+  )
+  .middleware(AdminAuthorization)
+  .prefix("/api/tokens")
+  .annotateMerge(
+    OpenApi.annotations({
+      title: "Tokens",
+      description:
+        "Add, list and revoke the tokens hosts, admins and workers use",
+    }),
+  ) {}
+
 export class SystemGroup extends HttpApiGroup.make("system").add(
   HttpApiEndpoint.get("health", "/api/health", {
     success: HttpApiSchema.NoContent,
@@ -229,5 +305,6 @@ export class Api extends HttpApi.make("triage")
   .add(IngestGroup)
   .add(IssuesGroup)
   .add(WorkGroup)
+  .add(TokensGroup)
   .add(SystemGroup)
   .annotateMerge(OpenApi.annotations({ title: "triage" })) {}

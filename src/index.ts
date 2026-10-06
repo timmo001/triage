@@ -6,6 +6,7 @@ import { Collector } from "./collect/Collector.js";
 import { Journal } from "./journal/Journal.js";
 import { Redactor } from "./redact.js";
 import * as Server from "./server/Server.js";
+import { TokenAdmin } from "./server/TokenAdmin.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
 import { Store, type TokenScope } from "./store/Store.js";
 import { layerAutomatic, LlmProvider, Suggester } from "./triage/Suggester.js";
@@ -517,12 +518,28 @@ const tokenCommands = (options: {
     Argument.withSchema(TokenName),
   );
 
+  const server = Flag.String("server").pipe(
+    Flag.withDescription(
+      "Manage the server at this URL as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
+    Flag.optional,
+  );
+
+  const tokenAdmin = (url: Option.Option<string>) =>
+    Option.match(url, {
+      onNone: () => TokenAdmin.layerLocal.pipe(Layer.provide(tokensLayer)),
+      onSome: TokenAdmin.layerRemote,
+    });
+
   const add = Command.make(
     "add",
-    { name },
+    { name, server },
     Effect.fn(function* (input) {
-      const tokens = yield* Tokens;
-      const token = yield* tokens.issue(options.scope, input.name);
+      const token = yield* Effect.gen(function* () {
+        const tokens = yield* TokenAdmin;
+
+        return yield* tokens.issue(options.scope, input.name);
+      }).pipe(Effect.provide(tokenAdmin(input.server)));
 
       yield* Console.log(
         `Added ${input.name}. Set this as ${options.variable}; it won't be shown again:\n${Redacted.value(token)}`,
@@ -532,10 +549,13 @@ const tokenCommands = (options: {
 
   const list = Command.make(
     "list",
-    { json },
+    { json, server },
     Effect.fn(function* (input) {
-      const tokens = yield* Tokens;
-      const all = yield* tokens.list(options.scope);
+      const all = yield* Effect.gen(function* () {
+        const tokens = yield* TokenAdmin;
+
+        return yield* tokens.list(options.scope);
+      }).pipe(Effect.provide(tokenAdmin(input.server)));
 
       if (input.json) {
         yield* Console.log(JSON.stringify(all));
@@ -553,11 +573,14 @@ const tokenCommands = (options: {
 
   const remove = Command.make(
     "remove",
-    { name },
+    { name, server },
     Effect.fn(function* (input) {
-      const tokens = yield* Tokens;
+      yield* Effect.gen(function* () {
+        const tokens = yield* TokenAdmin;
 
-      yield* tokens.revoke(options.scope, input.name);
+        yield* tokens.revoke(options.scope, input.name);
+      }).pipe(Effect.provide(tokenAdmin(input.server)));
+
       yield* Console.log(`Removed ${input.name}; its token no longer works`);
     }),
   ).pipe(Command.withDescription(`Remove ${options.noun}, revoking its token`));
@@ -565,7 +588,6 @@ const tokenCommands = (options: {
   return Command.make(options.command).pipe(
     Command.withDescription(options.description),
     Command.withSubcommands([add, list, remove]),
-    Command.provide(tokensLayer),
   );
 };
 
@@ -582,7 +604,7 @@ const hosts = tokenCommands({
 const admins = tokenCommands({
   scope: "admin",
   command: "admins",
-  description: "Manage the admins that can read issues",
+  description: "Manage the admins that can read issues and manage tokens",
   noun: "an admin",
   nameDescription: "A name for the admin, such as aidan",
   variable: "TRIAGE_ADMIN_TOKEN wherever you read issues",
