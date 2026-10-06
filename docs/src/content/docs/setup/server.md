@@ -46,7 +46,7 @@ Install the [Home Assistant app](/install#home-assistant), then:
 1. Set **server_admin_token** to a long random value, at least 32 characters, such as from `openssl rand -base64 32`, and start the app.
 2. Add hosts and workers from any machine with `triage` installed, using `--server`, as below.
 
-The app's other options are **trust_proxy**, **decide_daily** and **suggest_daily**, which match the [settings](/configuration#server) of the same name. Decide and suggest are best left to a [worker](/setup/workers): Home Assistant hardware is rarely up to running models.
+The app's other options are **trust_proxy**, **decide_daily** and **suggest_daily**, which match the [settings](/configuration#server) of the same name. Decide and suggest are best left to a [worker](/setup/workers): small Home Assistant boards, such as the Green or Yellow, are rarely up to running models.
 
 The app stops briefly during backups so its database is copied consistently. Hosts keep their events until the server is back.
 
