@@ -61,6 +61,8 @@ export const issue = Atom.family((id: string) =>
 
 export const setStatus = TriageApi.mutation("issues", "setStatus");
 
+export const setLabel = TriageApi.mutation("issues", "setLabel");
+
 export type Route = Data.TaggedEnum<{
   Issues: {};
   Issue: { readonly id: string };

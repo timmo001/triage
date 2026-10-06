@@ -37,7 +37,7 @@ An event later than an issue's resolution reopens it as regressed, and decision 
 
 ## In a browser
 
-The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues, filtered by state, and each issue's hosts and latest events, with buttons to resolve, mute, reopen or unmute it.
+The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues, filtered by state and sortable by how likely the latest decision says they're worth fixing. Each issue's page shows its hosts and latest events, what each decision model made of it, any suggested fixes, and buttons to resolve, mute, reopen or unmute it.
 
 Sign in with an [admin token](/setup/server#tokens). It's kept in that browser until you sign out. In the [Home Assistant app](/setup/server#home-assistant), open **Triage** in Home Assistant's sidebar instead, with no token needed.
 
@@ -51,7 +51,7 @@ triage decide            # decide on the server's new issues now
 
 ## Labels and agreement
 
-Label issues by hand to measure decision models against your own judgement:
+Label issues by hand to measure decision models against your own judgement, with the **Worth fixing** and **Noise** buttons on an issue's page or from the command line:
 
 ```bash
 triage label <issue> worth

@@ -7,7 +7,7 @@ import { customElement, property } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { marked } from "marked";
 import { AtomController, registry } from "./AtomController.js";
-import { homeHref, issue, setStatus } from "./triage.js";
+import { homeHref, issue, setLabel, setStatus } from "./triage.js";
 import {
   ago,
   formatPercent,
@@ -39,6 +39,11 @@ const actions: Record<
   resolved: [["Reopen", "open"]],
   muted: [["Unmute", "open"]],
 };
+
+const labels: ReadonlyArray<readonly [text: string, label: Api.Label]> = [
+  ["Worth fixing", "worth"],
+  ["Noise", "noise"],
+];
 
 const kinds: Record<Issue.Kind, string> = {
   Crash: "Crash",
@@ -78,6 +83,7 @@ export class TriageIssue extends LitElement {
 
       .actions {
         display: flex;
+        align-items: center;
         gap: 0.5rem;
         margin-bottom: 2rem;
       }
@@ -176,6 +182,8 @@ export class TriageIssue extends LitElement {
 
   readonly #setStatus = new AtomController(this, () => setStatus);
 
+  readonly #setLabel = new AtomController(this, () => setLabel);
+
   override render() {
     return html`
       <a class="back" href=${homeHref}>All issues</a>
@@ -221,6 +229,20 @@ export class TriageIssue extends LitElement {
           </div>
           <h2>Decisions</h2>
           ${renderDecisions(value.decisions)}
+          <div class="actions" role="group" aria-label="Your label">
+            <span class="muted-text">Your label</span>
+            ${labels.map(
+              ([text, label]) => html`
+                <button
+                  aria-pressed=${value.label === label}
+                  ?disabled=${this.#setLabel.value.waiting}
+                  @click=${() => this.#changeLabel(value.issue.id, label)}
+                >
+                  ${text}
+                </button>
+              `,
+            )}
+          </div>
           <h2>Suggested fixes</h2>
           ${renderSuggestions(value.suggestions)}
           <h2>Latest events</h2>
@@ -236,6 +258,14 @@ export class TriageIssue extends LitElement {
     registry.set(setStatus, {
       params: { id },
       payload: { status },
+      reactivityKeys: ["issues"],
+    });
+  }
+
+  #changeLabel(id: string, label: Api.Label) {
+    registry.set(setLabel, {
+      params: { id },
+      payload: { label },
       reactivityKeys: ["issues"],
     });
   }
