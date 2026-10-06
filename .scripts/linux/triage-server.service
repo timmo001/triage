@@ -1,0 +1,17 @@
+[Unit]
+Description=triage server, collecting events from enrolled hosts
+Documentation=https://github.com/timmo001/triage
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-%h/.config/triage/server.env
+ExecStart=/usr/bin/triage serve
+# The Effect runtime exits 130 when systemd stops it.
+SuccessExitStatus=130
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

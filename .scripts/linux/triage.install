@@ -1,0 +1,68 @@
+post_install() {
+  _triage_user_systemctl_installing daemon-reload
+
+  cat <<'EOF'
+triage: installed user services triage-agent.service and triage-server.service
+
+Neither is enabled. On each machine to collect from, enrol it on the server
+with `triage hosts add <name>`, then put the server's URL and the printed
+token in ~/.config/triage/agent.env:
+
+  TRIAGE_SERVER=https://triage.example.com
+  TRIAGE_TOKEN=...
+
+and run:
+  systemctl --user enable --now triage-agent.service
+
+On the machine that runs the server, optionally set its options in
+~/.config/triage/server.env, then run:
+  systemctl --user enable --now triage-server.service
+  loginctl enable-linger "$USER"   # keep it running while logged out
+EOF
+}
+
+post_upgrade() {
+  _triage_user_systemctl_installing daemon-reload
+  _triage_user_systemctl_installing try-restart triage-agent.service triage-server.service
+}
+
+pre_remove() {
+  _triage_user_systemctl_installing disable --now triage-agent.service triage-server.service
+}
+
+# The user who ran the install through sudo or pkexec, if not root.
+_triage_installing_user() {
+  local user="${SUDO_USER:-}"
+
+  if [ -z "$user" ] && [ -n "${PKEXEC_UID:-}" ]; then
+    user="$(id -nu "$PKEXEC_UID" 2>/dev/null)" || user=""
+  fi
+
+  if [ -n "$user" ] && [ "$user" != "root" ]; then
+    printf "%s" "$user"
+  fi
+}
+
+# Runs systemctl --user for the installing user, if they have a running user session.
+_triage_user_systemctl_installing() {
+  local user
+  local uid
+  local runtime_dir
+  local bus_path
+
+  user="$(_triage_installing_user)"
+  [ -n "$user" ] || return 0
+
+  uid="$(id -u "$user" 2>/dev/null)" || return 0
+  runtime_dir="/run/user/$uid"
+  bus_path="$runtime_dir/bus"
+
+  if [ ! -S "$bus_path" ]; then
+    return 0
+  fi
+
+  runuser -u "$user" -- env \
+    XDG_RUNTIME_DIR="$runtime_dir" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=$bus_path" \
+    systemctl --user "$@" >/dev/null 2>&1 || true
+}

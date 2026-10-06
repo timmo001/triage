@@ -2,6 +2,27 @@
 
 Capture crashes and errors from your machines, decide which are worth fixing, and suggest fixes.
 
+## Arch Linux
+
+`triage-bin` (each release) and `triage-git` (`main`) are in the [timmo pacman repository](https://github.com/timmo001/arch-repo). Both install the `triage` command and two user services, neither of them enabled.
+
+On the machine that runs the server, set any of the options below in `~/.config/triage/server.env`, then:
+
+```sh
+systemctl --user enable --now triage-server.service
+loginctl enable-linger "$USER" # keep it running while you're logged out
+triage hosts add desktop
+```
+
+On each machine to collect from, put the server's URL and the token `hosts add` printed in `~/.config/triage/agent.env`:
+
+```sh
+TRIAGE_SERVER=https://triage.example.com
+TRIAGE_TOKEN=...
+```
+
+then run `systemctl --user enable --now triage-agent.service`. The agent doesn't start until that file exists.
+
 ## Self-hosting
 
 The server speaks plain HTTP. For HTTPS, run it behind a reverse proxy such as Caddy, Traefik or nginx, or behind Cloudflare, and let that handle TLS.

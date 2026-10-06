@@ -1,0 +1,45 @@
+#!/bin/sh
+# Maintainer: Aidan Timson (Timmo) <aidan@timmo.dev>
+pkgname=triage-git
+pkgver=0.1.0.r1.abc123
+pkgrel=1
+pkgdesc="Capture crashes and errors from your machines, decide which are worth fixing, and suggest fixes (git version)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/timmo001/triage"
+license=('Apache-2.0')
+install=triage.install
+makedepends=('git' 'bun')
+depends=('glibc' 'systemd')
+provides=('triage')
+conflicts=('triage' 'triage-bin')
+options=('!strip')
+source=("$pkgname::git+https://github.com/timmo001/triage.git")
+md5sums=('SKIP')
+
+pkgver() {
+  cd "$pkgname"
+  local base_version
+  base_version=$(bun -e 'const pkg = await Bun.file("package.json").json(); process.stdout.write(pkg.version)')
+  printf "%s.r%s.g%s" "$base_version" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  cd "$pkgname"
+  bun install --frozen-lockfile
+  bun run build
+  local shell
+  for shell in zsh bash fish; do
+    ./dist/triage --completions "$shell" >"triage.$shell"
+  done
+}
+
+package() {
+  cd "$srcdir/$pkgname"
+  install -Dm755 dist/triage "$pkgdir/usr/bin/triage"
+  install -Dm644 .scripts/linux/triage-agent.service "$pkgdir/usr/lib/systemd/user/triage-agent.service"
+  install -Dm644 .scripts/linux/triage-server.service "$pkgdir/usr/lib/systemd/user/triage-server.service"
+  install -Dm644 triage.zsh "$pkgdir/usr/share/zsh/site-functions/_triage"
+  install -Dm644 triage.bash "$pkgdir/usr/share/bash-completion/completions/triage"
+  install -Dm644 triage.fish "$pkgdir/usr/share/fish/vendor_completions.d/triage.fish"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

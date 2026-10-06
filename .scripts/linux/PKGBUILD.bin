@@ -1,0 +1,30 @@
+#!/bin/sh
+# Maintainer: Aidan Timson (Timmo) <aidan@timmo.dev>
+pkgname=triage-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Capture crashes and errors from your machines, decide which are worth fixing, and suggest fixes (prebuilt binary)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/timmo001/triage"
+license=('Apache-2.0')
+install=triage.install
+depends=('glibc' 'systemd')
+provides=('triage')
+conflicts=('triage' 'triage-git')
+options=('!strip')
+source=('triage.bash' 'triage.fish' '_triage' 'triage-agent.service' 'triage-server.service' 'LICENSE')
+source_x86_64=("triage-${pkgver}-linux-${CARCH}.tar.gz::$url/releases/download/${pkgver}/triage-${pkgver}-linux-${CARCH}.tar.gz")
+source_aarch64=("triage-${pkgver}-linux-${CARCH}.tar.gz::$url/releases/download/${pkgver}/triage-${pkgver}-linux-${CARCH}.tar.gz")
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums_x86_64=('SKIP')
+sha256sums_aarch64=('SKIP')
+
+package() {
+  install -Dm755 triage "$pkgdir/usr/bin/triage"
+  install -Dm644 triage-agent.service "$pkgdir/usr/lib/systemd/user/triage-agent.service"
+  install -Dm644 triage-server.service "$pkgdir/usr/lib/systemd/user/triage-server.service"
+  install -Dm644 triage.bash "$pkgdir/usr/share/bash-completion/completions/triage"
+  install -Dm644 triage.fish "$pkgdir/usr/share/fish/vendor_completions.d/triage.fish"
+  install -Dm644 _triage "$pkgdir/usr/share/zsh/site-functions/_triage"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
