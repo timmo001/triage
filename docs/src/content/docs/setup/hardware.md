@@ -34,16 +34,16 @@ A decision model reads each new issue and rates whether it's worth fixing. It ne
 - **A CPU** is slower, but small models keep up easily: the daily limit is 20 issues by default.
 - **A hosted service** needs no hardware at all, at that service's prices.
 
-For a sense of scale, here are Ollaya's own figures for five questions on two of its models, measured on an NVIDIA RTX 4090 and a 24-core x86 CPU:
+For a sense of scale, here are [Ollaya's own figures](https://ollaya.dev/results) for five questions on two of its models, measured on an NVIDIA RTX 4090 and a 24-core x86 CPU:
 
 | Model | GPU | CPU |
 | --- | --- | --- |
-| `laya` (the default) | About 10 ms | 0.2 to 0.4 s |
-| `winnow:e4b` | About 90 ms | About 5 s |
+| [`laya`](https://ollaya.dev/library/laya) (the default) | About 10 ms | 0.2 to 0.4 s |
+| [`winnow:e4b`](https://ollaya.dev/library/winnow:e4b) | About 90 ms | About 5 s |
 
 Ollaya uses NVIDIA GPUs and Apple silicon, and NVIDIA is what it's tested on most. Small models like `laya` run well on a CPU, but larger ones like `winnow:e4b` really want a GPU.
 
-Ollaya is one option among several, local and hosted. See [Choices](/choices#decision-models) for all of them.
+Ollaya is one option among several, local and hosted. Browse [Ollaya's models](https://ollaya.dev/library) and [Ollama's decision models](https://ollama.com/search?c=decision), and see [Choices](/choices#decision-models) for every option.
 
 ## Suggest
 

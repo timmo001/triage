@@ -24,8 +24,8 @@ Decision models decide which issues are worth fixing. Set `TRIAGE_DECISION_PROVI
 
 | Option | Where data goes | Cost |
 | --- | --- | --- |
-| Ollaya, such as `laya` or `winnow` | Your machine | Free |
-| Ollama 0.35 or later, such as `nimble` or `tev1` | Your machine | Free |
+| [Ollaya](https://ollaya.dev/library), such as [`laya`](https://ollaya.dev/library/laya) or [`winnow`](https://ollaya.dev/library/winnow) | Your machine | Free |
+| [Ollama](https://ollama.com/search?c=decision) 0.35 or later, such as [`nimble`](https://ollama.com/library/nimble) or [`tev1`](https://ollama.com/library/tev1) | Your machine | Free |
 | TypeSafe's API | TypeSafe | TypeSafe's pricing |
 | Jev on OpenCode Zen | OpenCode | OpenCode Zen's pricing |
 | Clef on Cloudflare Workers AI | Your Cloudflare account | Workers AI's free daily allowance, then its pricing |
