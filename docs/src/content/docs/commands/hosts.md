@@ -39,7 +39,7 @@ FLAGS
 
 ```text
 DESCRIPTION
-  List each a host, oldest first
+  List the hosts, oldest first
 
 USAGE
   triage hosts list [flags]

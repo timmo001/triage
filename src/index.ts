@@ -643,13 +643,26 @@ const tokenCommands = (options: {
         return;
       }
 
+      if (all.length === 0) {
+        yield* Console.log(
+          Option.match(input.server, {
+            onNone: () =>
+              `No ${options.command} in this machine's server database. To list a server's, add --server <url>.`,
+            onSome: () =>
+              `No ${options.command} yet. Add one with triage ${options.command} add <name>.`,
+          }),
+        );
+
+        return;
+      }
+
       for (const token of all) {
         yield* Console.log(
           `${token.name}  ${new Date(token.createdAt).toISOString()}`,
         );
       }
     }),
-  ).pipe(Command.withDescription(`List each ${options.noun}, oldest first`));
+  ).pipe(Command.withDescription(`List the ${options.command}, oldest first`));
 
   const remove = Command.make(
     "remove",

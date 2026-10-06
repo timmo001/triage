@@ -39,7 +39,7 @@ FLAGS
 
 ```text
 DESCRIPTION
-  List each a worker, oldest first
+  List the workers, oldest first
 
 USAGE
   triage workers list [flags]

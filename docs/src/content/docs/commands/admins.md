@@ -39,7 +39,7 @@ FLAGS
 
 ```text
 DESCRIPTION
-  List each an admin, oldest first
+  List the admins, oldest first
 
 USAGE
   triage admins list [flags]
