@@ -40,7 +40,7 @@ import {
   tableFeatures,
 } from "@tanstack/lit-table";
 import { Api, Issue } from "@timmo001/effect-triage";
-import { Predicate, Schema } from "effect";
+import { Equal, Predicate, Schema } from "effect";
 import { AsyncResult } from "effect/reactivity";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
@@ -756,16 +756,19 @@ export class TriageIssues extends LitElement {
   #update(change: {
     readonly [K in keyof ListSettings]?: string | undefined;
   }) {
-    registry.set(
-      listSettings,
-      decodeSettings(
-        Object.fromEntries(
-          Object.entries({ ...this.#settings.value, ...change }).filter(
-            ([, value]) => value !== undefined && value !== "",
-          ),
+    const next = decodeSettings(
+      Object.fromEntries(
+        Object.entries({ ...this.#settings.value, ...change }).filter(
+          ([, value]) => value !== undefined && value !== "",
         ),
       ),
     );
+
+    if (Equal.equals(next, this.#settings.value)) {
+      return;
+    }
+
+    registry.set(listSettings, next);
     this.rowSelection = {};
   }
 
