@@ -2,6 +2,7 @@
 
 Capture crashes and errors from your machines, decide which are worth fixing, and suggest fixes.
 
+Run it wherever you like, with whichever models you like, local or hosted: see [choices](docs/choices.md). [Privacy](docs/privacy.md) covers what's captured, what's redacted and where it goes.
 ## Arch Linux
 
 `triage-bin` (each release) and `triage-git` (`main`) are in the [timmo pacman repository](https://github.com/timmo001/arch-repo). Both install the `triage` command and three user services, none of them enabled.
