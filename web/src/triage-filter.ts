@@ -67,8 +67,11 @@ export class TriageFilter extends LitElement {
 
       .scroller {
         height: ${shownRows * rowHeight + listPadding * 2}px;
+        margin-inline: calc(-1 * var(--triage-filter-inset, 0rem));
+        padding-inline: var(--triage-filter-inset, 0rem);
         overflow-y: auto;
         scrollbar-width: thin;
+        scrollbar-gutter: stable;
       }
 
       ul {
