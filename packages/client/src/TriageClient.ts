@@ -7,8 +7,9 @@ export interface TriageClientOptions {
   /** The triage server's base URL, such as `https://triage.example.com`. */
   readonly url: string;
   /**
-   * A host token to upload events, or an admin token to read issues. Each is
-   * refused by the other's endpoints.
+   * A host token to upload events, an admin token to read issues, or a
+   * worker token to fetch work and send back answers. Each is refused by the
+   * others' endpoints.
    */
   readonly token: Redacted.Redacted;
 }
@@ -45,6 +46,7 @@ export class TriageClient extends Context.Service<
       Layer.provide([
         HttpApiMiddleware.layerClient(Api.HostAuthorization, bearer),
         HttpApiMiddleware.layerClient(Api.AdminAuthorization, bearer),
+        HttpApiMiddleware.layerClient(Api.WorkerAuthorization, bearer),
       ]),
     );
   };

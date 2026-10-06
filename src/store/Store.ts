@@ -1,5 +1,5 @@
 import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-bun";
-import { Event, Issue } from "@timmo001/effect-triage";
+import { type Api, Event, Issue } from "@timmo001/effect-triage";
 import {
   Clock,
   Config,
@@ -38,8 +38,11 @@ export interface Pending {
   readonly last: number;
 }
 
-/** What a token can do: a host uploads events, an admin reads issues. */
-export const TokenScope = Schema.Literals(["host", "admin"]);
+/**
+ * What a token can do: a host uploads events, an admin reads issues, and a
+ * worker decides on issues or suggests fixes for them.
+ */
+export const TokenScope = Schema.Literals(["host", "admin", "worker"]);
 
 export type TokenScope = typeof TokenScope.Type;
 
@@ -51,32 +54,10 @@ export const Token = Schema.Struct({
 export interface Token extends Schema.Schema.Type<typeof Token> {}
 
 /** What a decision model made of an issue, for comparing models and labels. */
-export interface StoredDecision {
-  readonly issueId: string;
-  readonly model: string;
-  /** How many events the issue had when the model decided. */
-  readonly issueCount: number;
-  /** The probability that the issue is worth fixing. */
-  readonly worth: number;
-  /** The expected severity level, from 0 (none) to 3 (critical). */
-  readonly severity: number;
-  /** The most likely cause. */
-  readonly cause: string;
-  /** Every answer with its probabilities, as JSON. */
-  readonly answers: string;
-}
+export type StoredDecision = Api.Decision;
 
 /** A language model's suggestion for fixing an issue. */
-export interface StoredSuggestion {
-  readonly issueId: string;
-  readonly model: string;
-  /** How many events the issue had when the model wrote it. */
-  readonly issueCount: number;
-  /** The suggestion, in Markdown. */
-  readonly text: string;
-  /** The events the model was given, as JSON `{ host, id }` pairs. */
-  readonly evidence: string;
-}
+export type StoredSuggestion = Api.Suggestion;
 
 /** A model's decision on an issue next to the hand label for it. */
 export const LabelledDecision = Schema.Struct({

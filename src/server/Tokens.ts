@@ -37,8 +37,9 @@ export class TokenNotFound extends Schema.TaggedError<TokenNotFound>()(
 }
 
 /**
- * Issues and checks the server's tokens. Host tokens can only upload events;
- * admin tokens can only read issues.
+ * Issues and checks the server's tokens. Host tokens can only upload events,
+ * admin tokens can only read issues, and worker tokens can only fetch work
+ * and send back answers.
  */
 export class Tokens extends Context.Service<
   Tokens,

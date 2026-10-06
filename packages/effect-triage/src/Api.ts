@@ -23,6 +23,12 @@ export class CurrentAdmin extends Context.Service<
   { readonly name: string }
 >()("@timmo001/effect-triage/Api/CurrentAdmin") {}
 
+/** The worker a request was authenticated as. */
+export class CurrentWorker extends Context.Service<
+  CurrentWorker,
+  { readonly name: string }
+>()("@timmo001/effect-triage/Api/CurrentWorker") {}
+
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
   "Unauthorized",
   { message: Schema.String },
@@ -58,6 +64,20 @@ export class AdminAuthorization extends HttpApiMiddleware.Service<
   error: Unauthorized,
 }) {}
 
+/**
+ * Authenticates a worker by bearer token. Workers are devices that decide on
+ * issues or suggest fixes for the server; they can only fetch that work and
+ * send back the answers.
+ */
+export class WorkerAuthorization extends HttpApiMiddleware.Service<
+  WorkerAuthorization,
+  { provides: CurrentWorker; requires: never }
+>()("@timmo001/effect-triage/Api/WorkerAuthorization", {
+  requiredForClient: true,
+  security: { bearer: HttpApiSecurity.bearer },
+  error: Unauthorized,
+}) {}
+
 /** The most events one ingest request may carry. */
 export const maxBatch = 1000;
 
@@ -75,6 +95,43 @@ export const IssueDetail = Schema.Struct({
 });
 
 export interface IssueDetail extends Schema.Schema.Type<typeof IssueDetail> {}
+
+/** The most issues one request for work returns. */
+export const maxWork = 50;
+
+/** What a decision model made of an issue. */
+export const Decision = Schema.Struct({
+  issueId: Schema.String,
+  /** The model, as `provider/model`. */
+  model: Schema.String,
+  /** How many events the issue had when the model decided. */
+  issueCount: Schema.Int,
+  /** The probability that the issue is worth fixing. */
+  worth: Schema.Finite,
+  /** The expected severity level, from 0 (none) to 3 (critical). */
+  severity: Schema.Finite,
+  /** The most likely cause. */
+  cause: Schema.String,
+  /** Every answer with its probabilities, as JSON. */
+  answers: Schema.String,
+});
+
+export interface Decision extends Schema.Schema.Type<typeof Decision> {}
+
+/** A language model's suggestion for fixing an issue. */
+export const Suggestion = Schema.Struct({
+  issueId: Schema.String,
+  /** The model, as `provider/model`. */
+  model: Schema.String,
+  /** How many events the issue had when the model wrote it. */
+  issueCount: Schema.Int,
+  /** The suggestion, in Markdown. */
+  text: Schema.String,
+  /** The events the model was given, as JSON `{ host, id }` pairs. */
+  evidence: Schema.String,
+});
+
+export interface Suggestion extends Schema.Schema.Type<typeof Suggestion> {}
 
 export class IngestGroup extends HttpApiGroup.make("ingest")
   .add(
@@ -119,6 +176,48 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
     }),
   ) {}
 
+export class WorkGroup extends HttpApiGroup.make("work")
+  .add(
+    HttpApiEndpoint.get("toDecide", "/decide", {
+      query: {
+        model: Schema.String,
+        limit: Schema.optional(Schema.Int),
+      },
+      success: Schema.Array(IssueDetail),
+    }),
+    HttpApiEndpoint.post("saveDecision", "/decisions", {
+      payload: Decision,
+      success: HttpApiSchema.NoContent,
+    }),
+    HttpApiEndpoint.get("toSuggest", "/suggest", {
+      query: {
+        model: Schema.String,
+        decisionModel: Schema.String,
+        worth: Schema.Finite,
+        limit: Schema.optional(Schema.Int),
+      },
+      success: Schema.Array(IssueDetail),
+    }),
+    HttpApiEndpoint.get("issue", "/issues/:id", {
+      params: { id: Schema.String },
+      success: IssueDetail,
+      error: IssueNotFound,
+    }),
+    HttpApiEndpoint.post("saveSuggestion", "/suggestions", {
+      payload: Suggestion,
+      success: HttpApiSchema.NoContent,
+    }),
+  )
+  .middleware(WorkerAuthorization)
+  .prefix("/api/work")
+  .annotateMerge(
+    OpenApi.annotations({
+      title: "Work",
+      description:
+        "Issues for workers to decide on or suggest fixes for, within the server's daily limits, and their answers",
+    }),
+  ) {}
+
 export class SystemGroup extends HttpApiGroup.make("system").add(
   HttpApiEndpoint.get("health", "/api/health", {
     success: HttpApiSchema.NoContent,
@@ -129,5 +228,6 @@ export class SystemGroup extends HttpApiGroup.make("system").add(
 export class Api extends HttpApi.make("triage")
   .add(IngestGroup)
   .add(IssuesGroup)
+  .add(WorkGroup)
   .add(SystemGroup)
   .annotateMerge(OpenApi.annotations({ title: "triage" })) {}

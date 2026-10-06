@@ -398,7 +398,7 @@ const serve = Command.make(
     ),
     decideDaily: Flag.Int("decide-daily").pipe(
       Flag.withDescription(
-        "With --decide, the most issues to decide on in any 24 hours",
+        "The most issues each decision model may decide on in any 24 hours, here with --decide or by workers",
       ),
       Flag.withFallbackConfig(Config.Int("TRIAGE_DECIDE_DAILY")),
       Flag.withDefault(20),
@@ -413,7 +413,7 @@ const serve = Command.make(
     ),
     suggestDaily: Flag.Int("suggest-daily").pipe(
       Flag.withDescription(
-        "With --suggest, the most suggestions to ask for in any 24 hours",
+        "The most suggestions each language model may make in any 24 hours, here with --suggest or by workers",
       ),
       Flag.withFallbackConfig(Config.Int("TRIAGE_SUGGEST_DAILY")),
       Flag.withDefault(5),
@@ -551,6 +551,17 @@ const admins = tokenCommands({
   variable: "TRIAGE_ADMIN_TOKEN wherever you read issues",
 });
 
+const workers = tokenCommands({
+  scope: "worker",
+  command: "workers",
+  description:
+    "Manage the workers that can decide on issues and suggest fixes for this server",
+  noun: "a worker",
+  nameDescription:
+    "A name for the worker that doesn't identify the machine, such as desktop",
+  variable: "TRIAGE_WORKER_TOKEN on the worker",
+});
+
 const triage = Command.make("triage").pipe(
   Command.withDescription(
     "Capture crashes and errors from your machines, decide which are worth fixing, and suggest fixes",
@@ -562,6 +573,7 @@ const triage = Command.make("triage").pipe(
     serve,
     hosts,
     admins,
+    workers,
     decide,
     suggest,
     label,

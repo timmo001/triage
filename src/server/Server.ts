@@ -4,6 +4,7 @@ import { Effect, Layer, Option } from "effect";
 import { HttpMiddleware, HttpRouter } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { Store } from "../store/Store.js";
+import { Work } from "../triage/Work.js";
 import { Tokens } from "./Tokens.js";
 
 const defaultIssues = 50;
@@ -62,6 +63,35 @@ const AdminAuthorizationLayer = Layer.effect(
   }),
 );
 
+const WorkerAuthorizationLayer = Layer.effect(
+  Api.WorkerAuthorization,
+  Effect.gen(function* () {
+    const tokens = yield* Tokens;
+
+    return Api.WorkerAuthorization.of({
+      bearer: Effect.fn(function* (httpEffect, { credential }) {
+        const worker = yield* tokens
+          .authenticate("worker", credential)
+          .pipe(Effect.orDie, Effect.map(Option.getOrUndefined));
+
+        if (worker === undefined) {
+          return yield* new Api.Unauthorized({
+            message: "Missing or unknown worker token",
+          });
+        }
+
+        return yield* Effect.provideService(httpEffect, Api.CurrentWorker, {
+          name: worker,
+        });
+      }),
+    });
+  }),
+);
+
+/** A requested number of issues, between 1 and `max`. */
+const bounded = (limit: number | undefined, fallback: number, max: number) =>
+  Math.min(Math.max(limit ?? fallback, 1), max);
+
 const IngestHandlers = HttpApiBuilder.group(
   Api.Api,
   "ingest",
@@ -92,12 +122,7 @@ const IssuesHandlers = HttpApiBuilder.group(
     return handlers.handleAll({
       list: ({ query }) =>
         store
-          .issues({
-            limit: Math.min(
-              Math.max(query.limit ?? defaultIssues, 1),
-              maxIssues,
-            ),
-          })
+          .issues({ limit: bounded(query.limit, defaultIssues, maxIssues) })
           .pipe(Effect.orDie),
       get: Effect.fn(function* ({ params }) {
         const detail = yield* store
@@ -114,6 +139,43 @@ const IssuesHandlers = HttpApiBuilder.group(
   }),
 );
 
+const WorkHandlers = HttpApiBuilder.group(
+  Api.Api,
+  "work",
+  Effect.fn(function* (handlers) {
+    const work = yield* Work;
+
+    return handlers.handleAll({
+      toDecide: ({ query }) =>
+        work
+          .toDecide(query.model, bounded(query.limit, Api.maxWork, Api.maxWork))
+          .pipe(Effect.orDie),
+      saveDecision: ({ payload }) =>
+        work.saveDecision(payload).pipe(Effect.orDie),
+      toSuggest: ({ query }) =>
+        work
+          .toSuggest({
+            model: query.model,
+            decisionModel: query.decisionModel,
+            worth: query.worth,
+            limit: bounded(query.limit, Api.maxWork, Api.maxWork),
+          })
+          .pipe(Effect.orDie),
+      issue: Effect.fn(function* ({ params }) {
+        const detail = yield* work.issue(params.id).pipe(Effect.orDie);
+
+        if (Option.isNone(detail)) {
+          return yield* new Api.IssueNotFound({ id: params.id });
+        }
+
+        return detail.value;
+      }),
+      saveSuggestion: ({ payload }) =>
+        work.saveSuggestion(payload).pipe(Effect.orDie),
+    });
+  }),
+);
+
 const SystemHandlers = HttpApiBuilder.group(Api.Api, "system", (handlers) =>
   Effect.succeed(
     handlers.handleAll({
@@ -122,12 +184,16 @@ const SystemHandlers = HttpApiBuilder.group(Api.Api, "system", (handlers) =>
   ),
 );
 
-/** The triage API's routes, needing a `Store` and `Tokens`. */
+/** The triage API's routes, needing a `Store`, `Tokens` and the local `Work`. */
 export const routes = HttpApiBuilder.layer(Api.Api, {
   openapiPath: "/api/openapi.json",
 }).pipe(
-  Layer.provide([IngestHandlers, IssuesHandlers, SystemHandlers]),
-  Layer.provide([HostAuthorizationLayer, AdminAuthorizationLayer]),
+  Layer.provide([IngestHandlers, IssuesHandlers, WorkHandlers, SystemHandlers]),
+  Layer.provide([
+    HostAuthorizationLayer,
+    AdminAuthorizationLayer,
+    WorkerAuthorizationLayer,
+  ]),
 );
 
 export interface ServeOptions {
