@@ -106,3 +106,7 @@ AI only runs when you ask for it. `TRIAGE_DECIDE` and `TRIAGE_SUGGEST` are off u
 Decision models only see what's stored, which is redacted when it's captured. `triage label <issue> worth|noise` labels issues by hand, and `triage agreement` shows how often each model is sure and right against those labels.
 
 `triage suggest <issue>...` asks a language model how to fix issues and stores its answers. It sends the same trimmed, redacted description decision models get, and caps each response at 4,096 tokens, thinking included.
+
+## Issue states
+
+Issues are new for a week after they're first seen, then ongoing. `triage resolve <issue>...` resolves issues once they're fixed; if one happens again after that, it opens as regressed for a week, and decision models look at it again. `triage mute <issue>...` hides an issue from decision and language models however often it happens, and `triage reopen <issue>...` undoes either. Add `--server <url>` to change a remote server's issues as the admin in `TRIAGE_ADMIN_TOKEN`.

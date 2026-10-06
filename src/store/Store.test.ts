@@ -46,4 +46,64 @@ describe("Store", () => {
       count: 3,
     });
   });
+
+  test("reopens resolved issues as regressed, to decide on again", async () => {
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+      const now = Date.now();
+
+      const state = Effect.map(
+        store.issues({ limit: 1 }),
+        (issues) => issues[0]?.state,
+      );
+
+      yield* store.add([log("1", now - 1000)]);
+
+      const [issue] = yield* store.issues({ limit: 1 });
+      const id = issue?.id ?? "";
+      const fresh = yield* state;
+
+      yield* store.saveDecision({
+        issueId: id,
+        model: "m",
+        issueCount: 1,
+        worth: 0.9,
+        severity: 1,
+        cause: "application",
+        answers: "{}",
+      });
+      const decided = yield* store.undecided("m", 10);
+
+      yield* store.setStatus(id, "resolved");
+      yield* store.add([log("2", now - 500)]);
+      const late = yield* state;
+
+      yield* store.add([log("3", now + 60_000)]);
+      const regressed = yield* state;
+      const redecide = yield* store.undecided("m", 10);
+
+      yield* store.setStatus(id, "muted");
+      yield* store.add([log("4", now + 120_000)]);
+      const muted = yield* state;
+      const mutedUndecided = yield* store.undecided("m", 10);
+
+      return {
+        fresh,
+        decided,
+        late,
+        regressed,
+        redecide,
+        muted,
+        mutedUndecided,
+      };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.fresh).toBe("new");
+    expect(result.decided).toHaveLength(0);
+    expect(result.late).toBe("resolved");
+    expect(result.regressed).toBe("regressed");
+    expect(result.redecide).toHaveLength(1);
+    expect(result.muted).toBe("muted");
+    expect(result.mutedUndecided).toHaveLength(0);
+  });
 });

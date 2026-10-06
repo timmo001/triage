@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { Event } from "./Event.js";
 import { fingerprint, issueId, template, unitTemplate } from "./Fingerprint.js";
 
@@ -11,6 +11,31 @@ export const Kind = Schema.Literals([
 ]);
 
 export type Kind = typeof Kind.Type;
+
+/**
+ * What someone set an issue to. A resolved issue opens again as regressed
+ * when it happens after it was resolved; a muted one stays muted.
+ */
+export const Status = Schema.Literals(["open", "resolved", "muted"]);
+
+export type Status = typeof Status.Type;
+
+/**
+ * Where an issue stands. Open issues are new for a week after they're first
+ * seen, regressed for a week after they come back, and ongoing otherwise.
+ */
+export const State = Schema.Literals([
+  "new",
+  "ongoing",
+  "regressed",
+  "resolved",
+  "muted",
+]);
+
+export type State = typeof State.Type;
+
+/** How long an issue stays new or regressed, in milliseconds. */
+export const recentMillis = 7 * 24 * 60 * 60 * 1000;
 
 /** Events grouped by fingerprint, across every host they happened on. */
 export const Issue = Schema.Struct({
@@ -25,6 +50,10 @@ export const Issue = Schema.Struct({
   lastSeen: Schema.Finite,
   /** How many events the issue has. */
   count: Schema.Int,
+  /** Older servers don't send this. */
+  state: State.pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed("ongoing")),
+  ),
 });
 
 export interface Issue extends Schema.Schema.Type<typeof Issue> {}
@@ -56,5 +85,6 @@ export const fromEvent = (event: Event): Issue => {
     firstSeen: event.timestamp,
     lastSeen: event.timestamp,
     count: 1,
+    state: "new",
   };
 };

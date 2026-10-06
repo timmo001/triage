@@ -46,8 +46,9 @@ export class Work extends Context.Service<
   Work,
   {
     /**
-     * Issues `model` hasn't decided on yet, with their latest events, most
-     * recently seen first. Fewer than `limit` once the daily limit is near.
+     * Open issues `model` hasn't decided on since they were first seen or
+     * last regressed, with their latest events, most recently seen first.
+     * Fewer than `limit` once the daily limit is near.
      */
     toDecide(
       model: string,

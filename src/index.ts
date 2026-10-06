@@ -1,4 +1,5 @@
 import { BunRuntime, BunServices } from "@effect/platform-bun";
+import type { Issue } from "@timmo001/effect-triage";
 import { Config, Console, Effect, Layer, Option, Redacted } from "effect";
 import { Argument, CliError, Command, Flag } from "effect/cli";
 import packageJson from "../package.json" with { type: "json" };
@@ -6,6 +7,7 @@ import { Collector } from "./collect/Collector.js";
 import { Journal } from "./journal/Journal.js";
 import { layerOptions } from "./options.js";
 import { Redactor } from "./redact.js";
+import { IssueAdmin } from "./server/IssueAdmin.js";
 import * as Server from "./server/Server.js";
 import { TokenAdmin } from "./server/TokenAdmin.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
@@ -136,7 +138,7 @@ const issues = Command.make(
 
     for (const issue of list) {
       yield* Console.log(
-        `${issue.id}  ${String(issue.count).padStart(6)}  ${new Date(issue.lastSeen).toISOString()}  ${issue.title}`,
+        `${issue.id}  ${issue.state.padEnd(9)}  ${String(issue.count).padStart(6)}  ${new Date(issue.lastSeen).toISOString()}  ${issue.title}`,
       );
     }
   }),
@@ -343,6 +345,69 @@ const label = Command.make(
   ),
   Command.provide(Store.layerServer),
 );
+
+const statusCommand = (options: {
+  readonly command: string;
+  readonly status: Issue.Status;
+  readonly done: string;
+  readonly description: string;
+}) =>
+  Command.make(
+    options.command,
+    {
+      issues: Argument.String("issue").pipe(
+        Argument.withDescription("The IDs of the issues"),
+        Argument.atLeast(1),
+      ),
+      server: Flag.String("server").pipe(
+        Flag.withDescription(
+          "Change the issues on the server at this URL as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+        ),
+        Flag.optional,
+      ),
+    },
+    Effect.fn(function* (input) {
+      yield* Effect.gen(function* () {
+        const admin = yield* IssueAdmin;
+
+        for (const id of input.issues) {
+          yield* admin.setStatus(id, options.status);
+          yield* Console.log(`${options.done} ${id}`);
+        }
+      }).pipe(
+        Effect.provide(
+          Option.match(input.server, {
+            onNone: () =>
+              IssueAdmin.layerLocal.pipe(Layer.provide(Store.layerServer)),
+            onSome: IssueAdmin.layerRemote,
+          }),
+        ),
+      );
+    }),
+  ).pipe(Command.withDescription(options.description));
+
+const resolve = statusCommand({
+  command: "resolve",
+  status: "resolved",
+  done: "Resolved",
+  description:
+    "Resolve issues once they're fixed. One that happens again opens as regressed, and is decided on again",
+});
+
+const mute = statusCommand({
+  command: "mute",
+  status: "muted",
+  done: "Muted",
+  description:
+    "Mute issues, so they're never decided on or suggested fixes for, however often they happen",
+});
+
+const reopen = statusCommand({
+  command: "reopen",
+  status: "open",
+  done: "Reopened",
+  description: "Reopen resolved or muted issues",
+});
 
 const agreementCommand = Command.make(
   "agreement",
@@ -638,6 +703,9 @@ const triage = Command.make("triage").pipe(
     decide,
     suggest,
     label,
+    resolve,
+    mute,
+    reopen,
     agreementCommand,
   ]),
 );

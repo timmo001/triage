@@ -9,7 +9,7 @@ import {
   OpenApi,
 } from "effect/http-api";
 import { Event } from "./Event.js";
-import { Issue } from "./Issue.js";
+import { Issue, Status } from "./Issue.js";
 
 /** The enrolled host a request was authenticated as. */
 export class CurrentHost extends Context.Service<
@@ -39,7 +39,11 @@ export class IssueNotFound extends Schema.TaggedError<IssueNotFound>()(
   "IssueNotFound",
   { id: Schema.String },
   { httpApiStatus: 404 },
-) {}
+) {
+  override get message() {
+    return `There's no issue ${this.id}`;
+  }
+}
 
 /**
  * What a token can do: a host uploads events, an admin reads issues and
@@ -211,13 +215,20 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
       success: IssueDetail,
       error: IssueNotFound,
     }),
+    HttpApiEndpoint.put("setStatus", "/:id/status", {
+      params: { id: Schema.String },
+      payload: Schema.Struct({ status: Status }),
+      success: HttpApiSchema.NoContent,
+      error: IssueNotFound,
+    }),
   )
   .middleware(AdminAuthorization)
   .prefix("/api/issues")
   .annotateMerge(
     OpenApi.annotations({
       title: "Issues",
-      description: "Events grouped by fingerprint",
+      description:
+        "Events grouped by fingerprint, and resolving or muting them",
     }),
   ) {}
 

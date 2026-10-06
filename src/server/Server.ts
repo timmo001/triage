@@ -135,6 +135,14 @@ const IssuesHandlers = HttpApiBuilder.group(
 
         return detail.value;
       }),
+      setStatus: ({ params, payload }) =>
+        store.setStatus(params.id, payload.status).pipe(
+          Effect.catchTags({
+            IssueNotFound: () =>
+              Effect.fail(new Api.IssueNotFound({ id: params.id })),
+            StoreError: Effect.die,
+          }),
+        ),
     });
   }),
 );

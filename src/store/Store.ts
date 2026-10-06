@@ -77,9 +77,26 @@ const IssueRow = Schema.Struct({
   first_seen: Schema.Finite,
   last_seen: Schema.Finite,
   count: Schema.Int,
+  status: Issue.Status,
+  regressed_at: Schema.NullOr(Schema.Finite),
 });
 
-const toIssue = (row: typeof IssueRow.Type): Issue.Issue => ({
+const state = (row: typeof IssueRow.Type, now: number): Issue.State => {
+  if (row.status !== "open") {
+    return row.status;
+  }
+
+  if (
+    row.regressed_at !== null &&
+    now - row.regressed_at < Issue.recentMillis
+  ) {
+    return "regressed";
+  }
+
+  return now - row.first_seen < Issue.recentMillis ? "new" : "ongoing";
+};
+
+const toIssue = (row: typeof IssueRow.Type, now: number): Issue.Issue => ({
   id: row.id,
   fingerprint: row.fingerprint,
   kind: row.kind,
@@ -87,6 +104,7 @@ const toIssue = (row: typeof IssueRow.Type): Issue.Issue => ({
   firstSeen: row.first_seen,
   lastSeen: row.last_seen,
   count: row.count,
+  state: state(row, now),
 });
 
 const migrations = SqliteMigrator.fromRecord({
@@ -212,6 +230,13 @@ const migrations = SqliteMigrator.fromRecord({
       ALTER TABLE suggestions ADD COLUMN evidence TEXT NOT NULL DEFAULT '[]'
     `;
   }),
+  "0008_issue_states": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`ALTER TABLE issues ADD COLUMN status TEXT NOT NULL DEFAULT 'open'`;
+    yield* sql`ALTER TABLE issues ADD COLUMN resolved_at INTEGER`;
+    yield* sql`ALTER TABLE issues ADD COLUMN regressed_at INTEGER`;
+  }),
 });
 
 /**
@@ -270,7 +295,10 @@ export class Store extends Context.Service<
     pending(target: string, limit: number): Effect.Effect<Pending, StoreError>;
     /** Mark events up to `last` as uploaded to a server. */
     uploaded(target: string, last: number): Effect.Effect<void, StoreError>;
-    /** Issues a model hasn't decided on yet, most recently seen first. */
+    /**
+     * Open issues a model hasn't decided on since they were first seen or
+     * last regressed, most recently seen first.
+     */
     undecided(
       model: string,
       limit: number,
@@ -287,13 +315,18 @@ export class Store extends Context.Service<
       issueId: string,
       worth: boolean,
     ): Effect.Effect<void, IssueNotFound | StoreError>;
+    /** Resolve, mute or reopen an issue. */
+    setStatus(
+      issueId: string,
+      status: Issue.Status,
+    ): Effect.Effect<void, IssueNotFound | StoreError>;
     /** Every decision on a labelled issue. */
     labelledDecisions: Effect.Effect<
       ReadonlyArray<LabelledDecision>,
       StoreError
     >;
     /**
-     * Issues `decisionModel` rated at least `worth` that `model` hasn't
+     * Open issues `decisionModel` rated at least `worth` that `model` hasn't
      * suggested a fix for yet, most recently seen first.
      */
     unsuggested(options: {
@@ -367,6 +400,17 @@ export class Store extends Context.Service<
         WHERE id = ${issue.id}
       `;
 
+      // Events from before an issue was resolved, sent late, don't reopen it.
+      yield* sql`
+        UPDATE issues SET
+          status = 'open',
+          resolved_at = NULL,
+          regressed_at = ${yield* Clock.currentTimeMillis}
+        WHERE id = ${issue.id}
+          AND status = 'resolved'
+          AND resolved_at < ${event.timestamp}
+      `;
+
       return 1;
     });
 
@@ -409,8 +453,9 @@ export class Store extends Context.Service<
     const issues = Effect.fn("Store.issues")(
       function* (options: ListOptions) {
         const rows = yield* listIssues(options.limit);
+        const now = yield* Clock.currentTimeMillis;
 
-        return rows.map(toIssue);
+        return rows.map((row) => toIssue(row, now));
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -439,7 +484,7 @@ export class Store extends Context.Service<
         const rows = yield* issueEvents({ id, limit });
 
         return Option.some({
-          issue: toIssue(row.value),
+          issue: toIssue(row.value, yield* Clock.currentTimeMillis),
           events: rows.map((event) => event.data),
         });
       },
@@ -547,8 +592,11 @@ export class Store extends Context.Service<
       Result: IssueRow,
       execute: ({ model, limit }) => sql`
         SELECT * FROM issues
-        WHERE count > 0 AND id NOT IN (
-          SELECT issue_id FROM decisions WHERE model = ${model}
+        WHERE count > 0 AND status = 'open' AND NOT EXISTS (
+          SELECT 1 FROM decisions
+          WHERE decisions.issue_id = issues.id
+            AND decisions.model = ${model}
+            AND decisions.decided_at > coalesce(issues.regressed_at, 0)
         )
         ORDER BY last_seen DESC
         LIMIT ${limit}
@@ -558,8 +606,9 @@ export class Store extends Context.Service<
     const undecided = Effect.fn("Store.undecided")(
       function* (model: string, limit: number) {
         const rows = yield* listUndecided({ model, limit });
+        const now = yield* Clock.currentTimeMillis;
 
-        return rows.map(toIssue);
+        return rows.map((row) => toIssue(row, now));
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -601,6 +650,24 @@ export class Store extends Context.Service<
             worth = excluded.worth,
             labelled_at = excluded.labelled_at
           RETURNING issue_id
+        `.pipe(Effect.mapError((cause) => new StoreError({ cause })));
+
+      if (rows.length === 0) {
+        return yield* new IssueNotFound({ issueId });
+      }
+    });
+
+    const setStatus = Effect.fn("Store.setStatus")(function* (
+      issueId: string,
+      status: Issue.Status,
+    ) {
+      const rows = yield* sql`
+          UPDATE issues SET
+            status = ${status},
+            resolved_at = ${status === "resolved" ? yield* Clock.currentTimeMillis : null},
+            regressed_at = NULL
+          WHERE id = ${issueId} AND count > 0
+          RETURNING id
         `.pipe(Effect.mapError((cause) => new StoreError({ cause })));
 
       if (rows.length === 0) {
@@ -650,6 +717,7 @@ export class Store extends Context.Service<
         WHERE decisions.model = ${decisionModel}
           AND decisions.worth >= ${worth}
           AND issues.count > 0
+          AND issues.status = 'open'
           AND issues.id NOT IN (
             SELECT issue_id FROM suggestions WHERE model = ${model}
           )
@@ -666,8 +734,9 @@ export class Store extends Context.Service<
         readonly limit: number;
       }) {
         const rows = yield* listUnsuggested(options);
+        const now = yield* Clock.currentTimeMillis;
 
-        return rows.map(toIssue);
+        return rows.map((row) => toIssue(row, now));
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -709,6 +778,7 @@ export class Store extends Context.Service<
       decidedSince,
       saveDecision,
       label,
+      setStatus,
       labelledDecisions,
       unsuggested,
       suggestedSince,
