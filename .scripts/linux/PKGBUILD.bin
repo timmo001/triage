@@ -12,10 +12,10 @@ depends=('glibc' 'systemd')
 provides=('triage')
 conflicts=('triage' 'triage-git')
 options=('!strip')
-source=('triage.bash' 'triage.fish' '_triage' 'triage-agent.service' 'triage-server.service' 'LICENSE')
+source=('triage.bash' 'triage.fish' '_triage' 'triage-agent.service' 'triage-server.service' 'triage-worker.service' 'LICENSE')
 source_x86_64=("triage-${pkgver}-linux-${CARCH}.tar.gz::$url/releases/download/${pkgver}/triage-${pkgver}-linux-${CARCH}.tar.gz")
 source_aarch64=("triage-${pkgver}-linux-${CARCH}.tar.gz::$url/releases/download/${pkgver}/triage-${pkgver}-linux-${CARCH}.tar.gz")
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 sha256sums_x86_64=('SKIP')
 sha256sums_aarch64=('SKIP')
 
@@ -23,6 +23,7 @@ package() {
   install -Dm755 triage "$pkgdir/usr/bin/triage"
   install -Dm644 triage-agent.service "$pkgdir/usr/lib/systemd/user/triage-agent.service"
   install -Dm644 triage-server.service "$pkgdir/usr/lib/systemd/user/triage-server.service"
+  install -Dm644 triage-worker.service "$pkgdir/usr/lib/systemd/user/triage-worker.service"
   install -Dm644 triage.bash "$pkgdir/usr/share/bash-completion/completions/triage"
   install -Dm644 triage.fish "$pkgdir/usr/share/fish/vendor_completions.d/triage.fish"
   install -Dm644 _triage "$pkgdir/usr/share/zsh/site-functions/_triage"

@@ -144,6 +144,7 @@ jobs:
             LICENSE
             .scripts/linux/triage-agent.service
             .scripts/linux/triage-server.service
+            .scripts/linux/triage-worker.service
             .scripts/linux/triage.install
 
       - name: Upload package files

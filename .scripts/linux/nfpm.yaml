@@ -29,6 +29,8 @@ contents:
     dst: /usr/lib/systemd/user/triage-agent.service
   - src: .scripts/linux/triage-server.service
     dst: /usr/lib/systemd/user/triage-server.service
+  - src: .scripts/linux/triage-worker.service
+    dst: /usr/lib/systemd/user/triage-worker.service
   - src: .scripts/linux/completions/triage.bash
     dst: /usr/share/bash-completion/completions/triage
   - src: .scripts/linux/completions/triage.fish

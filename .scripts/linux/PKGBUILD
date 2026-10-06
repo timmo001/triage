@@ -38,6 +38,7 @@ package() {
   install -Dm755 dist/triage "$pkgdir/usr/bin/triage"
   install -Dm644 .scripts/linux/triage-agent.service "$pkgdir/usr/lib/systemd/user/triage-agent.service"
   install -Dm644 .scripts/linux/triage-server.service "$pkgdir/usr/lib/systemd/user/triage-server.service"
+  install -Dm644 .scripts/linux/triage-worker.service "$pkgdir/usr/lib/systemd/user/triage-worker.service"
   install -Dm644 triage.zsh "$pkgdir/usr/share/zsh/site-functions/_triage"
   install -Dm644 triage.bash "$pkgdir/usr/share/bash-completion/completions/triage"
   install -Dm644 triage.fish "$pkgdir/usr/share/fish/vendor_completions.d/triage.fish"

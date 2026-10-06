@@ -2,9 +2,10 @@ post_install() {
   _triage_user_systemctl_installing daemon-reload
 
   cat <<'EOF'
-triage: installed user services triage-agent.service and triage-server.service
+triage: installed user services triage-agent.service, triage-server.service
+and triage-worker.service
 
-Neither is enabled. On each machine to collect from, enrol it on the server
+None is enabled. On each machine to collect from, enrol it on the server
 with `triage hosts add <name>`, then put the server's URL and the printed
 token in ~/.config/triage/agent.env:
 
@@ -18,16 +19,27 @@ On the machine that runs the server, optionally set its options in
 ~/.config/triage/server.env, then run:
   systemctl --user enable --now triage-server.service
   loginctl enable-linger "$USER"   # keep it running while logged out
+
+On a machine with models to decide and suggest for the server, add it with
+`triage workers add <name>` on the server, then put the server's URL, the
+printed token and the models in ~/.config/triage/worker.env:
+
+  TRIAGE_SERVER=https://triage.example.com
+  TRIAGE_WORKER_TOKEN=...
+  TRIAGE_DECIDE=true
+
+and run:
+  systemctl --user enable --now triage-worker.service
 EOF
 }
 
 post_upgrade() {
   _triage_user_systemctl_installing daemon-reload
-  _triage_user_systemctl_installing try-restart triage-agent.service triage-server.service
+  _triage_user_systemctl_installing try-restart triage-agent.service triage-server.service triage-worker.service
 }
 
 pre_remove() {
-  _triage_user_systemctl_installing disable --now triage-agent.service triage-server.service
+  _triage_user_systemctl_installing disable --now triage-agent.service triage-server.service triage-worker.service
 }
 
 # The user who ran the install through sudo or pkexec, if not root.

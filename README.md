@@ -4,7 +4,7 @@ Capture crashes and errors from your machines, decide which are worth fixing, an
 
 ## Arch Linux
 
-`triage-bin` (each release) and `triage-git` (`main`) are in the [timmo pacman repository](https://github.com/timmo001/arch-repo). Both install the `triage` command and two user services, neither of them enabled.
+`triage-bin` (each release) and `triage-git` (`main`) are in the [timmo pacman repository](https://github.com/timmo001/arch-repo). Both install the `triage` command and three user services, none of them enabled.
 
 On the machine that runs the server, set any of the options below in `~/.config/triage/server.env`, then:
 
@@ -22,6 +22,17 @@ TRIAGE_TOKEN=...
 ```
 
 then run `systemctl --user enable --now triage-agent.service`. The agent doesn't start until that file exists.
+
+The models don't have to run on the server. On a machine that has them, add it as a worker with `triage workers add desktop` on the server, and put the server's URL, the printed token and the model settings below in `~/.config/triage/worker.env`:
+
+```sh
+TRIAGE_SERVER=https://triage.example.com
+TRIAGE_WORKER_TOKEN=...
+TRIAGE_DECIDE=true
+TRIAGE_DECISION_MODEL=winnow
+```
+
+then run `systemctl --user enable --now triage-worker.service`. The worker fetches issues from the server and sends back its answers, so the models only need to be reachable from the worker. The server's daily limits apply to every worker together, and nothing queues up while a worker is off.
 
 ## Self-hosting
 
@@ -50,7 +61,7 @@ The server always listens on `7171` inside the container, so proxies and tunnels
 
 Hosts redact everything they collect before storing or sending it, including their own user and host names. Set `TRIAGE_REDACT_NAMES` on a host to other names to hide, comma-separated, such as your GitHub account, which shows up in repository URLs. For failures and crashes, hosts also keep the last 10 lines the unit logged, redacted the same way, to give suggestions something to go on.
 
-Host tokens can only send events. To read issues from the API, add an admin with `triage admins add <name>` and use its token. `hosts list` and `admins list` show who has a token, and `hosts remove` and `admins remove` revoke one.
+Host tokens can only send events. To read issues from the API, add an admin with `triage admins add <name>` and use its token. Worker tokens, from `triage workers add <name>`, can only fetch work and send back answers. `hosts list`, `admins list` and `workers list` show who has a token, and `remove` on each revokes one.
 
 | Variable | Default | |
 | --- | --- | --- |
@@ -59,7 +70,7 @@ Host tokens can only send events. To read issues from the API, add an admin with
 | `TRIAGE_SERVER_DB` | `$XDG_STATE_HOME/triage/server.db` (`/data/server.db` in the container) | Server database |
 | `TRIAGE_TRUST_PROXY` | `false` | Trust `X-Forwarded-Host` and `X-Forwarded-For`. Only turn this on when the proxy is the only way to reach the server |
 | `TRIAGE_DECIDE` | `false` | Ask a decision model about new issues every 5 minutes. The answers are only stored for now, to compare models |
-| `TRIAGE_DECIDE_DAILY` | `20` | With `TRIAGE_DECIDE`, the most issues to decide on in any 24 hours |
+| `TRIAGE_DECIDE_DAILY` | `20` | The most issues each decision model may decide on in any 24 hours, by the server with `TRIAGE_DECIDE` and by its workers together |
 | `TRIAGE_DECISION_PROVIDER` | `typesafe` | `typesafe` for any TypeSafe System One API, such as Ollaya or Ollama 0.35+ locally, or `cloudflare` for Clef on Workers AI with `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` |
 | `TRIAGE_DECISION_URL` | `http://127.0.0.1:11435/v1` (Ollaya) | The System One API, such as `http://127.0.0.1:11434/v1` for Ollama |
 | `TRIAGE_DECISION_API_KEY` | none | Key for a hosted System One API, such as TypeSafe or OpenCode Zen |
@@ -69,9 +80,9 @@ Host tokens can only send events. To read issues from the API, add an admin with
 | `TRIAGE_LLM_API_KEY` | none | Key for the API, when it needs one |
 | `TRIAGE_LLM_MODEL` | none | Language model for fix suggestions, such as `@cf/google/gemma-4-26b-a4b-it` on Workers AI |
 | `TRIAGE_SUGGEST` | `false` | Suggest fixes every 15 minutes for issues the decision model rates worth fixing with at least 0.8 probability. Needs `TRIAGE_LLM_MODEL` |
-| `TRIAGE_SUGGEST_DAILY` | `5` | With `TRIAGE_SUGGEST`, the most suggestions to ask for in any 24 hours |
+| `TRIAGE_SUGGEST_DAILY` | `5` | The most suggestions each language model may make in any 24 hours, by the server with `TRIAGE_SUGGEST` and by its workers together |
 
-AI only runs when you ask for it. `TRIAGE_DECIDE` and `TRIAGE_SUGGEST` are off unless you turn them on, and each stops at its daily limit. On the `serve` command line, the language model settings are `--llm-provider`, `--llm-url` and `--llm-model`, since `--provider`, `--url` and `--model` are the decision model's.
+AI only runs when you ask for it. `TRIAGE_DECIDE` and `TRIAGE_SUGGEST` are off unless you turn them on, and each stops at its daily limit. On the `serve` and `work` command lines, the language model settings are `--llm-provider`, `--llm-url` and `--llm-model`, since `--provider`, `--url` and `--model` are the decision model's.
 
 Decision models only see what's stored, which is redacted when it's captured. `triage label <issue> worth|noise` labels issues by hand, and `triage agreement` shows how often each model is sure and right against those labels.
 

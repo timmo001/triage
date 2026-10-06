@@ -18,6 +18,7 @@ on:
       - .scripts/linux/triage.install
       - .scripts/linux/triage-agent.service
       - .scripts/linux/triage-server.service
+      - .scripts/linux/triage-worker.service
       - .github/workflows/publish-arch-git.yml
   workflow_dispatch: {}
 
