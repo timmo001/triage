@@ -6,6 +6,7 @@ import {
 import { VirtualizerController } from "@tanstack/lit-virtual";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
+import { classMap } from "lit/directives/class-map.js";
 import { icon, shared } from "./ui.js";
 import "./triage-skeleton.js";
 
@@ -80,14 +81,19 @@ export class TriageFilter extends LitElement {
       }
 
       .badge {
-        min-width: 1.25rem;
-        padding: 0 0.35rem;
-        font-size: 0.75rem;
+        min-width: 1.5rem;
+        padding: 0.1rem 0.5rem;
+        font-size: 0.85rem;
         font-weight: normal;
+        font-variant-numeric: tabular-nums;
         text-align: center;
         color: var(--triage-bg);
-        background: var(--triage-accent);
+        background: color-mix(in srgb, var(--triage-muted) 60%, transparent);
         border-radius: 999px;
+      }
+
+      .badge.filtering {
+        background: var(--triage-accent);
       }
 
       .scroller {
@@ -273,6 +279,8 @@ export class TriageFilter extends LitElement {
   }
 
   override render() {
+    const shown = this.value.length || this.options.length;
+
     return html`
       <div class="header">
         <button
@@ -287,12 +295,15 @@ export class TriageFilter extends LitElement {
           ${icon(this.expanded ? mdiChevronDown : mdiChevronRight)}
           ${this.path === "" ? nothing : icon(this.path)} ${this.label}
           ${
-            this.value.length === 0
+            this.loading || this.options.length === 0
               ? nothing
               : html`<span
-                  class="badge"
-                  title="${this.value.length} of ${this.options.length} shown"
-                  >${this.value.length}/${this.options.length}</span
+                  class=${classMap({
+                    badge: true,
+                    filtering: this.value.length > 0,
+                  })}
+                  title="${shown} of ${this.options.length} shown"
+                  >${shown}/${this.options.length}</span
                 >`
           }
         </button>
