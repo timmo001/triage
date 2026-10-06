@@ -17,6 +17,8 @@ The full documentation is at [triage.timmo.dev](https://triage.timmo.dev), inclu
 
 3. Put the server's URL and each printed token in `~/.config/triage/agent.env` or `worker.env` on that machine, as the docs for [hosts](https://triage.timmo.dev/setup/hosts) and [workers](https://triage.timmo.dev/setup/workers) describe.
 
+Open **Triage** in the sidebar to browse issues and resolve or mute them. It's for Home Assistant's admins, and needs no admin token.
+
 The server speaks plain HTTP on port 7171, so tokens are only as private as your network. To reach it from outside, put it behind a reverse proxy or a Cloudflare tunnel for HTTPS, and turn on **trust_proxy** only if that's the only way in.
 
 ## Options

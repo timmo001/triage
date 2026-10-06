@@ -22,6 +22,8 @@ FLAGS
   --hostname string          The address to listen on
   --port, -p integer         The port to listen on
   --trust-proxy              Trust X-Forwarded-Host and X-Forwarded-For from a reverse proxy; only when the proxy is the sole way in
+  --ingress-port integer     A second port for Home Assistant ingress, which only answers --ingress-from and needs no admin token
+  --ingress-from string      The only address the ingress port answers, Home Assistant's Supervisor
   --decide-daily integer     The most issues each decision model may decide on in any 24 hours, here with --decide or by workers
   --suggest-daily integer    The most suggestions each language model may make in any 24 hours, here with --suggest or by workers
   --decide                   Ask a decision model about new issues every few minutes, keeping the answers without acting on them. Off unless set

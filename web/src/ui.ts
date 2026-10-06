@@ -104,13 +104,19 @@ export const formatTime = (millis: number) => dateTime.format(millis);
 
 const signOut = () => registry.set(token, "");
 
-/** A request's error, with a way to sign out when the token was refused. */
+/**
+ * A request's error. A refusal asks for an admin token, unless one was
+ * already given, when it offers to sign out instead. Behind Home Assistant
+ * ingress the server never refuses, so no token is needed.
+ */
 export const renderError = (error: { readonly _tag: string }) => {
   if (Predicate.isTagged(error, "Unauthorized")) {
-    return html`<p class="message">
-      The server didn't accept this admin token.
-      <button @click=${signOut}>Sign out</button>
-    </p>`;
+    return registry.get(token) === ""
+      ? html`<triage-sign-in></triage-sign-in>`
+      : html`<p class="message">
+          The server didn't accept this admin token.
+          <button @click=${signOut}>Sign out</button>
+        </p>`;
   }
 
   if (Predicate.isTagged(error, "IssueNotFound")) {

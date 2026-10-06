@@ -13,8 +13,14 @@ ports:
 ports_description:
   7171/tcp: The triage server's API, for hosts, workers and admins
 watchdog: http://[HOST]:[PORT:7171]/api/health
+# Home Assistant signs the user in, so the ingress port treats them as an
+# admin. It only answers the Supervisor, and the panel is for admins only.
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:clipboard-pulse-outline
 environment:
   TRIAGE_OPTIONS: /data/options.json
+  TRIAGE_INGRESS_PORT: "8099"
 # Stopped during backups so the SQLite database is copied in a consistent
 # state. Agents keep events until the server is back.
 backup: cold

@@ -1,7 +1,12 @@
 import { BunHttpServer } from "@effect/platform-bun";
 import { Api } from "@timmo001/effect-triage";
 import { Effect, Layer, Option, Redacted } from "effect";
-import { HttpMiddleware, HttpRouter, HttpServerResponse } from "effect/http";
+import {
+  HttpMiddleware,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { Store } from "../store/Store.js";
 import { Work } from "../triage/Work.js";
@@ -214,23 +219,57 @@ const SystemHandlers = HttpApiBuilder.group(Api.Api, "system", (handlers) =>
   ),
 );
 
+const apiRoutes = (
+  adminAuthorization: Layer.Layer<Api.AdminAuthorization, never, Tokens>,
+) =>
+  HttpApiBuilder.layer(Api.Api, {
+    openapiPath: "/api/openapi.json",
+  }).pipe(
+    Layer.provide([
+      IngestHandlers,
+      IssuesHandlers,
+      WorkHandlers,
+      TokensHandlers,
+      SystemHandlers,
+    ]),
+    Layer.provide([
+      HostAuthorizationLayer,
+      adminAuthorization,
+      WorkerAuthorizationLayer,
+    ]),
+  );
+
 /** The triage API's routes, needing a `Store`, `Tokens` and the local `Work`. */
-export const routes = HttpApiBuilder.layer(Api.Api, {
-  openapiPath: "/api/openapi.json",
-}).pipe(
-  Layer.provide([
-    IngestHandlers,
-    IssuesHandlers,
-    WorkHandlers,
-    TokensHandlers,
-    SystemHandlers,
-  ]),
-  Layer.provide([
-    HostAuthorizationLayer,
-    AdminAuthorizationLayer,
-    WorkerAuthorizationLayer,
-  ]),
+export const routes = apiRoutes(AdminAuthorizationLayer);
+
+/**
+ * Admin access for Home Assistant ingress, where Home Assistant has already
+ * signed the user in. Only safe behind `onlyFrom`.
+ */
+const IngressAdminAuthorizationLayer = Layer.succeed(
+  Api.AdminAuthorization,
+  Api.AdminAuthorization.of({
+    bearer: (httpEffect) =>
+      Effect.provideService(httpEffect, Api.CurrentAdmin, {
+        name: "home-assistant",
+      }),
+  }),
 );
+
+/** Refuses every request that doesn't come from `address`. */
+const onlyFrom =
+  (address: string) =>
+  <E, R>(
+    httpEffect: Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>,
+  ) =>
+    Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) =>
+      Option.exists(
+        request.remoteAddress,
+        (remote) => remote === address || remote === `::ffff:${address}`,
+      )
+        ? httpEffect
+        : Effect.succeed(HttpServerResponse.empty({ status: 403 })),
+    );
 
 const contentTypes = new Map([
   ["html", "text/html; charset=utf-8"],
@@ -277,6 +316,14 @@ export interface ServeOptions {
    * clients can otherwise send these headers themselves.
    */
   readonly trustProxy: boolean;
+  /**
+   * A second port for Home Assistant ingress, which only answers `ingressFrom`
+   * and treats every request as an admin's, since Home Assistant has already
+   * signed the user in.
+   */
+  readonly ingressPort: Option.Option<number>;
+  /** The address ingress requests come from: the Supervisor's. */
+  readonly ingressFrom: string;
 }
 
 /**
@@ -284,11 +331,27 @@ export interface ServeOptions {
  * proxy or Cloudflare, which handle TLS.
  */
 export const layer = (options: ServeOptions) =>
-  HttpRouter.serve(
-    Layer.merge(routes, web),
-    options.trustProxy ? { middleware: HttpMiddleware.xForwardedHeaders } : {},
-  ).pipe(
-    Layer.provide(
-      BunHttpServer.layer({ hostname: options.hostname, port: options.port }),
+  Layer.mergeAll(
+    HttpRouter.serve(
+      Layer.merge(routes, web),
+      options.trustProxy
+        ? { middleware: HttpMiddleware.xForwardedHeaders }
+        : {},
+    ).pipe(
+      Layer.provide(
+        BunHttpServer.layer({ hostname: options.hostname, port: options.port }),
+      ),
     ),
+    Option.match(options.ingressPort, {
+      onNone: () => Layer.empty,
+      onSome: (port) =>
+        HttpRouter.serve(
+          Layer.merge(apiRoutes(IngressAdminAuthorizationLayer), web),
+          { middleware: onlyFrom(options.ingressFrom) },
+        ).pipe(
+          Layer.provide(
+            BunHttpServer.layer({ hostname: options.hostname, port }),
+          ),
+        ),
+    }),
   );

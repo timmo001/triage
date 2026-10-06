@@ -52,8 +52,6 @@ export class TriageApp extends LitElement {
   readonly #route = new AtomController(this, () => route);
 
   override render() {
-    const signedIn = this.#token.value !== "";
-
     return html`
       <header>
         <a href="#/">
@@ -79,21 +77,16 @@ export class TriageApp extends LitElement {
           Triage
         </a>
         ${
-          signedIn
-            ? html`<button @click=${this.#signOut}>Sign out</button>`
-            : null
+          this.#token.value === ""
+            ? null
+            : html`<button @click=${this.#signOut}>Sign out</button>`
         }
       </header>
       <main>
-        ${
-          signedIn
-            ? Route.$match(this.#route.value, {
-                Issues: () => html`<triage-issues></triage-issues>`,
-                Issue: ({ id }) =>
-                  html`<triage-issue .issueId=${id}></triage-issue>`,
-              })
-            : html`<triage-sign-in></triage-sign-in>`
-        }
+        ${Route.$match(this.#route.value, {
+          Issues: () => html`<triage-issues></triage-issues>`,
+          Issue: ({ id }) => html`<triage-issue .issueId=${id}></triage-issue>`,
+        })}
       </main>
     `;
   }

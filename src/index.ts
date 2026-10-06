@@ -518,6 +518,20 @@ const serve = Command.make(
       Flag.withFallbackConfig(Config.Boolean("TRIAGE_TRUST_PROXY")),
       Flag.withDefault(false),
     ),
+    ingressPort: Flag.Int("ingress-port").pipe(
+      Flag.withDescription(
+        "A second port for Home Assistant ingress, which only answers --ingress-from and needs no admin token",
+      ),
+      Flag.withFallbackConfig(Config.Int("TRIAGE_INGRESS_PORT")),
+      Flag.optional,
+    ),
+    ingressFrom: Flag.String("ingress-from").pipe(
+      Flag.withDescription(
+        "The only address the ingress port answers, Home Assistant's Supervisor",
+      ),
+      Flag.withFallbackConfig(Config.String("TRIAGE_INGRESS_FROM")),
+      Flag.withDefault("172.30.32.2"),
+    ),
     decideDaily: Flag.Int("decide-daily").pipe(
       Flag.withDescription(
         "The most issues each decision model may decide on in any 24 hours, here with --decide or by workers",
