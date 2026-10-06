@@ -11,8 +11,8 @@ Triage has four parts, and each one can run on whichever machine suits it. They 
 | --- | --- | --- | --- |
 | Collect | Every Linux machine you want to watch | systemd's journal, and very little CPU or memory | Each machine itself |
 | Serve | One machine every host can reach | Little CPU or memory, a small SQLite database, and to stay on | A small always-on box, such as a Home Assistant Green, a home server or a VPS |
-| Decide | The server or a worker | A decision model, which runs on a CPU, faster on an NVIDIA GPU, or hosted | A machine with an NVIDIA GPU, or Clef on Workers AI |
-| Suggest | The server or a worker | A language model, on a GPU with plenty of memory or hosted | A hosted model, or a machine with a large GPU |
+| Decide | The server or a worker | A decision model, on whatever's available: a CPU, a GPU or a hosted service | A machine with an NVIDIA GPU, or Clef on Workers AI |
+| Suggest | The server or a worker | A language model, on a GPU with plenty of memory or a hosted service | A hosted model, or a machine with a large GPU |
 
 Decide and suggest are optional, and off until you turn them on. Collect and serve on their own already group everything into issues.
 
