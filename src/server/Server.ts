@@ -129,10 +129,12 @@ const IssuesHandlers = HttpApiBuilder.group(
       list: ({ query }) =>
         store
           .issues({
+            ...query,
             limit: bounded(query.limit, defaultIssues, maxIssues),
-            host: query.host,
+            offset: Math.max(query.offset ?? 0, 0),
           })
           .pipe(Effect.orDie),
+      counts: ({ query }) => store.issueCounts(query).pipe(Effect.orDie),
       get: Effect.fn(function* ({ params }) {
         const review = yield* store
           .review(params.id, issueEvents)

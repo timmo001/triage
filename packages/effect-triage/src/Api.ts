@@ -9,7 +9,7 @@ import {
   OpenApi,
 } from "effect/http-api";
 import { Event } from "./Event.js";
-import { Issue, Status } from "./Issue.js";
+import { Issue, Kind, State, Status } from "./Issue.js";
 
 /** The enrolled host a request was authenticated as. */
 export class CurrentHost extends Context.Service<
@@ -158,11 +158,21 @@ export const HostCount = Schema.Struct({
 
 export interface HostCount extends Schema.Schema.Type<typeof HostCount> {}
 
+/**
+ * A person's verdict on an issue: worth fixing, or noise. Decision models are
+ * measured against these.
+ */
+export const Label = Schema.Literals(["worth", "noise"]);
+
+export type Label = typeof Label.Type;
+
 /** An issue in a list, with the latest decision's worth when there is one. */
 export const IssueSummary = Schema.Struct({
   ...Issue.fields,
   /** The probability the latest decision gave that it's worth fixing. */
   worth: Schema.optional(Schema.Finite),
+  /** The hand label, when someone has given one. Older servers don't send this. */
+  label: Schema.optional(Label),
   /** The hosts it happened on, by name. Older servers don't send this. */
   hosts: Schema.Array(Schema.String).pipe(
     Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
@@ -170,6 +180,51 @@ export const IssueSummary = Schema.Struct({
 });
 
 export interface IssueSummary extends Schema.Schema.Type<typeof IssueSummary> {}
+
+/** What an issue list can be sorted by. */
+export const IssueSort = Schema.Literals([
+  "lastSeen",
+  "firstSeen",
+  "worth",
+  "count",
+  "title",
+]);
+
+export type IssueSort = typeof IssueSort.Type;
+
+export const SortOrder = Schema.Literals(["asc", "desc"]);
+
+export type SortOrder = typeof SortOrder.Type;
+
+/** What an issue list can keep together. */
+export const IssueGrouping = Schema.Literals(["state", "kind", "label"]);
+
+export type IssueGrouping = typeof IssueGrouping.Type;
+
+/** Issues with this label, or `none` for those without one. */
+export const LabelFilter = Schema.Literals(["worth", "noise", "none"]);
+
+export type LabelFilter = typeof LabelFilter.Type;
+
+/** Filters shared by an issue list and its counts. */
+export const IssueFilters = Schema.Struct({
+  /** Only issues that happened on this host. */
+  host: Schema.optional(Schema.String),
+  kind: Schema.optional(Kind),
+  label: Schema.optional(LabelFilter),
+  /** Only issues whose title contains this, ignoring case. */
+  search: Schema.optional(Schema.String),
+});
+
+export interface IssueFilters extends Schema.Schema.Type<typeof IssueFilters> {}
+
+/** How many issues match the filters, in all and in each state. */
+export const IssueCounts = Schema.Struct({
+  total: Schema.Int,
+  states: Schema.Record(State, Schema.Int),
+});
+
+export interface IssueCounts extends Schema.Schema.Type<typeof IssueCounts> {}
 
 /** A host that has sent events, and how much. */
 export const HostSummary = Schema.Struct({
@@ -230,14 +285,6 @@ export const IssueSuggestion = Schema.Struct({
 export interface IssueSuggestion extends Schema.Schema.Type<
   typeof IssueSuggestion
 > {}
-
-/**
- * A person's verdict on an issue: worth fixing, or noise. Decision models are
- * measured against these.
- */
-export const Label = Schema.Literals(["worth", "noise"]);
-
-export type Label = typeof Label.Type;
 
 /** An issue with its latest events and what the models made of it. */
 export const IssueReview = Schema.Struct({
@@ -321,10 +368,22 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
     HttpApiEndpoint.get("list", "/", {
       query: {
         limit: Schema.optional(Schema.Int),
-        /** Only issues that happened on this host. */
-        host: Schema.optional(Schema.String),
+        /** How many issues to skip, for fetching the next page. */
+        offset: Schema.optional(Schema.Int),
+        ...IssueFilters.fields,
+        /** Only issues in this state. */
+        state: Schema.optional(State),
+        /** What to sort by. The latest seen first by default. */
+        sort: Schema.optional(IssueSort),
+        order: Schema.optional(SortOrder),
+        /** Keep issues with the same value together, before sorting. */
+        group: Schema.optional(IssueGrouping),
       },
       success: Schema.Array(IssueSummary),
+    }),
+    HttpApiEndpoint.get("counts", "/counts", {
+      query: IssueFilters.fields,
+      success: IssueCounts,
     }),
     HttpApiEndpoint.get("get", "/:id", {
       params: { id: Schema.String },

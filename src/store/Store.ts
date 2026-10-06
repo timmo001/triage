@@ -26,11 +26,17 @@ export class IssueNotFound extends Schema.TaggedError<IssueNotFound>()(
   }
 }
 
-export interface ListOptions {
-  /** The most issues to return, most recently seen first. */
+export interface ListOptions extends Api.IssueFilters {
+  /** The most issues to return. */
   readonly limit: number;
-  /** Only issues that happened on this host. */
-  readonly host?: string | undefined;
+  /** How many issues to skip first. */
+  readonly offset?: number | undefined;
+  readonly state?: Issue.State | undefined;
+  /** What to sort by, the latest seen first by default. */
+  readonly sort?: Api.IssueSort | undefined;
+  readonly order?: Api.SortOrder | undefined;
+  /** Keep issues with the same value together, before sorting. */
+  readonly group?: Api.IssueGrouping | undefined;
 }
 
 export interface Pending {
@@ -112,6 +118,7 @@ const toIssue = (row: typeof IssueRow.Type, now: number): Issue.Issue => ({
 const SummaryRow = Schema.Struct({
   ...IssueRow.fields,
   worth: Schema.NullOr(Schema.Finite),
+  label: Schema.NullOr(Schema.BooleanFromBit),
   hosts: Schema.fromJsonString(Schema.Array(Schema.String)),
 });
 
@@ -365,6 +372,10 @@ export class Store extends Context.Service<
     issues(
       options: ListOptions,
     ): Effect.Effect<ReadonlyArray<Api.IssueSummary>, StoreError>;
+    /** How many issues match the filters, in all and in each state. */
+    issueCounts(
+      filters: Api.IssueFilters,
+    ): Effect.Effect<Api.IssueCounts, StoreError>;
     /** Every host that has sent events, most recently seen first. */
     readonly hosts: Effect.Effect<ReadonlyArray<Api.HostSummary>, StoreError>;
     /** An issue with its latest events, newest first. */
@@ -563,47 +574,147 @@ export class Store extends Context.Service<
       Effect.mapError((cause) => new StoreError({ cause })),
     );
 
-    const listIssues = SqlSchema.findAll({
-      Request: Schema.Struct({
-        limit: Schema.Int,
-        host: Schema.NullOr(Schema.String),
-      }),
-      Result: SummaryRow,
-      execute: ({ limit, host }) => sql`
+    /** Issues as summaries, with each one's state worked out as of `now`. */
+    const summaries = (filters: Api.IssueFilters, now: number) => {
+      const where = [
+        sql`count > 0`,
+        ...(filters.host === undefined
+          ? []
+          : [
+              sql`EXISTS (
+                SELECT 1 FROM events
+                WHERE events.issue_id = issues.id AND events.host = ${filters.host}
+              )`,
+            ]),
+        ...(filters.kind === undefined ? [] : [sql`kind = ${filters.kind}`]),
+        ...(filters.search === undefined || filters.search === ""
+          ? []
+          : [sql`instr(lower(title), lower(${filters.search})) > 0`]),
+      ];
+
+      return sql`
         SELECT issues.*, (
           SELECT worth FROM decisions
           WHERE decisions.issue_id = issues.id
           ORDER BY decided_at DESC
           LIMIT 1
         ) AS worth, (
+          SELECT worth FROM labels WHERE labels.issue_id = issues.id
+        ) AS label, (
           SELECT json_group_array(DISTINCT host) FROM events
           WHERE events.issue_id = issues.id
-        ) AS hosts
+        ) AS hosts, CASE
+          WHEN status != 'open' THEN status
+          WHEN regressed_at IS NOT NULL
+            AND ${now} - regressed_at < ${Issue.recentMillis} THEN 'regressed'
+          WHEN ${now} - first_seen < ${Issue.recentMillis} THEN 'new'
+          ELSE 'ongoing'
+        END AS state
         FROM issues
-        WHERE count > 0 AND (${host} IS NULL OR EXISTS (
-          SELECT 1 FROM events
-          WHERE events.issue_id = issues.id AND events.host = ${host}
-        ))
-        ORDER BY last_seen DESC LIMIT ${limit}
-      `,
-    });
+        WHERE ${sql.and(where)}
+      `;
+    };
+
+    const labelled = (label: Api.LabelFilter | undefined) => {
+      switch (label) {
+        case undefined:
+          return sql`1`;
+        case "none":
+          return sql`label IS NULL`;
+        case "worth":
+          return sql`label = 1`;
+        case "noise":
+          return sql`label = 0`;
+      }
+    };
+
+    const sortColumns: Record<Api.IssueSort, string> = {
+      lastSeen: "last_seen",
+      firstSeen: "first_seen",
+      worth: "worth",
+      count: "count",
+      title: "title COLLATE NOCASE",
+    };
+
+    const groupColumns: Record<Api.IssueGrouping, string> = {
+      state: `CASE state WHEN 'regressed' THEN 0 WHEN 'new' THEN 1
+        WHEN 'ongoing' THEN 2 WHEN 'resolved' THEN 3 ELSE 4 END`,
+      kind: "kind",
+      label: "CASE label WHEN 1 THEN 0 WHEN 0 THEN 1 ELSE 2 END",
+    };
+
+    const decodeSummaries = Schema.decodeUnknownEffect(
+      Schema.Array(SummaryRow),
+    );
+
+    const decodeCounts = Schema.decodeUnknownEffect(
+      Schema.Array(Schema.Struct({ state: Issue.State, count: Schema.Int })),
+    );
 
     const issues = Effect.fn("Store.issues")(
       function* (options: ListOptions) {
-        const rows = yield* listIssues({
-          limit: options.limit,
-          host: options.host ?? null,
-        });
-
         const now = yield* Clock.currentTimeMillis;
+        const sort = options.sort ?? "lastSeen";
+
+        const orderBy = [
+          ...(options.group === undefined ? [] : [groupColumns[options.group]]),
+          ...(sort === "worth" ? ["worth IS NULL"] : []),
+          `${sortColumns[sort]} ${options.order === "asc" ? "ASC" : "DESC"}`,
+          "id",
+        ].join(", ");
+
+        const rows = yield* decodeSummaries(
+          yield* sql`
+            SELECT * FROM (${summaries(options, now)})
+            WHERE ${sql.and([
+              labelled(options.label),
+              ...(options.state === undefined
+                ? []
+                : [sql`state = ${options.state}`]),
+            ])}
+            ORDER BY ${sql.literal(orderBy)}
+            LIMIT ${options.limit} OFFSET ${options.offset ?? 0}
+          `,
+        );
 
         return rows.map((row): Api.IssueSummary =>
           Object.assign(
             toIssue(row, now),
             { hosts: row.hosts },
             row.worth === null ? {} : { worth: row.worth },
+            row.label === null
+              ? {}
+              : { label: row.label ? ("worth" as const) : ("noise" as const) },
           ),
         );
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const issueCounts = Effect.fn("Store.issueCounts")(
+      function* (filters: Api.IssueFilters) {
+        const now = yield* Clock.currentTimeMillis;
+
+        const rows = yield* decodeCounts(
+          yield* sql`
+            SELECT state, COUNT(*) AS count FROM (${summaries(filters, now)})
+            WHERE ${labelled(filters.label)}
+            GROUP BY state
+          `,
+        );
+
+        const counts = new Map(rows.map((row) => [row.state, row.count]));
+
+        return {
+          total: rows.reduce((total, row) => total + row.count, 0),
+          states: {
+            new: counts.get("new") ?? 0,
+            ongoing: counts.get("ongoing") ?? 0,
+            regressed: counts.get("regressed") ?? 0,
+            resolved: counts.get("resolved") ?? 0,
+            muted: counts.get("muted") ?? 0,
+          },
+        };
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -1025,6 +1136,7 @@ export class Store extends Context.Service<
       record,
       add,
       issues,
+      issueCounts,
       hosts,
       issue,
       review,

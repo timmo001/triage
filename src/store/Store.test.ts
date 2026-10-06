@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Event } from "@timmo001/effect-triage";
 import { Effect, Option } from "effect";
-import { Store } from "./Store.js";
+import { type ListOptions, Store } from "./Store.js";
 
 const log = (id: string, timestamp: number) =>
   Event.Event.cases.LogError.make({
@@ -109,5 +109,89 @@ describe("Store", () => {
     expect(result.redecide).toHaveLength(1);
     expect(result.muted).toBe("muted");
     expect(result.mutedUndecided).toHaveLength(0);
+  });
+
+  test("filters, sorts, groups and pages issues, and counts them", async () => {
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+      const now = Date.now();
+
+      const event = (identifier: string, host: string, ago: number) =>
+        Event.Event.cases.LogError.make({
+          id: `${identifier}-${ago}`,
+          host,
+          source: "journal",
+          timestamp: now - ago,
+          severity: "err",
+          identifier,
+          message: "failed",
+        });
+
+      yield* store.add([
+        event("bluetoothd", "desktop", 3000),
+        event("wireplumber", "laptop", 1000),
+        event("wireplumber", "laptop", 1500),
+        event("dbus", "desktop", 2000),
+      ]);
+
+      const all = yield* store.issues({ limit: 10 });
+
+      const id = (name: string) =>
+        all.find((issue) => issue.title.startsWith(name))?.id ?? "";
+
+      yield* store.label(id("bluetoothd"), false);
+      yield* store.setStatus(id("dbus"), "resolved");
+      yield* store.saveDecision(
+        {
+          issueId: id("wireplumber"),
+          model: "m",
+          issueCount: 2,
+          worth: 0.9,
+          severity: 1,
+          cause: "application",
+          answers: "{}",
+        },
+        "cli",
+      );
+
+      const titles = (options: Partial<ListOptions>) =>
+        Effect.map(store.issues({ limit: 10, ...options }), (issues) =>
+          issues.map((issue) => issue.title.split(":")[0]),
+        );
+
+      return {
+        latest: yield* titles({}),
+        page: yield* titles({ offset: 1, limit: 1 }),
+        byTitle: yield* titles({ sort: "title", order: "asc" }),
+        byWorth: yield* titles({ sort: "worth" }),
+        unlabelled: yield* titles({ label: "none" }),
+        noise: yield* titles({ label: "noise" }),
+        resolved: yield* titles({ state: "resolved" }),
+        search: yield* titles({ search: "WIRE" }),
+        laptop: yield* titles({ host: "laptop" }),
+        grouped: yield* titles({ group: "state", order: "asc" }),
+        labelled: (yield* store.issues({ limit: 10, label: "noise" }))[0]
+          ?.label,
+        counts: yield* store.issueCounts({}),
+        unlabelledCounts: yield* store.issueCounts({ label: "none" }),
+      };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.latest).toEqual(["wireplumber", "dbus", "bluetoothd"]);
+    expect(result.page).toEqual(["dbus"]);
+    expect(result.byTitle).toEqual(["bluetoothd", "dbus", "wireplumber"]);
+    expect(result.byWorth[0]).toBe("wireplumber");
+    expect(result.unlabelled).toEqual(["wireplumber", "dbus"]);
+    expect(result.noise).toEqual(["bluetoothd"]);
+    expect(result.resolved).toEqual(["dbus"]);
+    expect(result.search).toEqual(["wireplumber"]);
+    expect(result.laptop).toEqual(["wireplumber"]);
+    expect(result.grouped).toEqual(["bluetoothd", "wireplumber", "dbus"]);
+    expect(result.labelled).toBe("noise");
+    expect(result.counts).toEqual({
+      total: 3,
+      states: { new: 2, ongoing: 0, regressed: 0, resolved: 1, muted: 0 },
+    });
+    expect(result.unlabelledCounts.total).toBe(2);
   });
 });
