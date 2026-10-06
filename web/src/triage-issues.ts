@@ -41,9 +41,9 @@ import {
   tableFeatures,
 } from "@tanstack/lit-table";
 import { Api, Issue } from "@timmo001/effect-triage";
-import { Equal, Predicate, Schema } from "effect";
+import { Equal, Option, Predicate, Schema } from "effect";
 import { AsyncResult } from "effect/reactivity";
-import { css, html, LitElement, nothing } from "lit";
+import { css, html, LitElement, nothing, type TemplateResult } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { join } from "lit/directives/join.js";
 import { ref } from "lit/directives/ref.js";
@@ -448,6 +448,13 @@ export class TriageIssues extends LitElement {
         margin-top: 0.75rem;
       }
 
+      .load-failed {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+      }
+
       .options:popover-open,
       .menu:popover-open {
         box-sizing: border-box;
@@ -651,10 +658,6 @@ export class TriageIssues extends LitElement {
       .skeleton .row {
         box-sizing: border-box;
         overflow: hidden;
-      }
-
-      .skeleton.more {
-        margin-top: 0.75rem;
       }
 
       @keyframes fade-in {
@@ -870,7 +873,7 @@ export class TriageIssues extends LitElement {
   }
 
   /** The skeleton filling the window while a fresh list loads. */
-  @query(".skeleton:not(.more)") accessor skeleton: HTMLElement | null = null;
+  @query(".list.skeleton") accessor skeleton: HTMLElement | null = null;
 
   @query("#sort-menu") accessor sortMenu: HTMLElement | null = null;
 
@@ -920,7 +923,7 @@ export class TriageIssues extends LitElement {
 
     return html`
       <div
-        class="list skeleton ${count === undefined ? "" : "more"}"
+        class=${count === undefined ? "list skeleton" : "skeleton"}
         role="progressbar"
         aria-label=${
           count === undefined ? "Loading issues" : "Loading more issues"
@@ -1310,7 +1313,11 @@ export class TriageIssues extends LitElement {
     );
   }
 
-  #renderList(issues: Array<Api.IssueSummary>, done: boolean) {
+  /** `end` closes the table: skeletons while more load, or an error. */
+  #renderList(
+    issues: Array<Api.IssueSummary>,
+    end: TemplateResult | typeof nothing,
+  ) {
     const settings = this.#settings.value;
     const collapsed = this.#collapsed.value;
 
@@ -1413,9 +1420,32 @@ export class TriageIssues extends LitElement {
             )}
           </div>
         </div>
+        ${end}
       </div>
-      ${done ? nothing : this.#renderSkeleton(3)}
     `;
+  }
+
+  /** Keeps the issues already loaded when a later page fails. */
+  #renderFailure(failure: TemplateResult) {
+    const result = this.#issues.value;
+
+    if (!AsyncResult.isFailure(result)) {
+      return failure;
+    }
+
+    return Option.match(result.previousSuccess, {
+      onNone: () => failure,
+      onSome: ({ value }) =>
+        this.#renderList(
+          value.items,
+          html`<p class="message load-failed">
+            Couldn't load more issues.
+            <button @click=${() => this.#refresh()}>
+              ${icon(mdiRefresh)} Retry
+            </button>
+          </p>`,
+        ),
+    });
   }
 
   override render() {
@@ -1444,10 +1474,13 @@ export class TriageIssues extends LitElement {
               onError: (error) =>
                 Predicate.isTagged(error, "NoSuchElementError")
                   ? html`<p class="message">No issues here.</p>`
-                  : renderError(error),
-              onDefect: renderDefect,
+                  : this.#renderFailure(renderError(error)),
+              onDefect: () => this.#renderFailure(renderDefect()),
               onSuccess: ({ value }) =>
-                this.#renderList(value.items, value.done),
+                this.#renderList(
+                  value.items,
+                  value.done ? nothing : this.#renderSkeleton(3),
+                ),
             })
       }
     `;
