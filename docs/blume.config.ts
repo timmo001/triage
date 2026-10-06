@@ -53,8 +53,8 @@ export default defineConfig({
   },
   theme: {
     accent: {
-      light: "#b45309",
-      dark: "#f59e0b",
+      light: "#a0661c",
+      dark: "#e6ad55",
     },
   },
   ai: {

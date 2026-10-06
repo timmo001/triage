@@ -4,7 +4,7 @@
   --triage-text: #18181b;
   --triage-muted: #71717a;
   --triage-border: #e4e4e7;
-  --triage-accent: #b45309;
+  --triage-accent: #a0661c;
   --triage-new: #2563eb;
   --triage-regressed: #dc2626;
   --triage-ongoing: #d97706;
@@ -29,7 +29,7 @@
     --triage-text: #f4f4f5;
     --triage-muted: #a1a1aa;
     --triage-border: #2e2e33;
-    --triage-accent: #f59e0b;
+    --triage-accent: #e6ad55;
     --triage-new: #60a5fa;
     --triage-regressed: #f87171;
     --triage-ongoing: #fbbf24;
