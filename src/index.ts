@@ -4,6 +4,7 @@ import { Argument, CliError, Command, Flag } from "effect/cli";
 import packageJson from "../package.json" with { type: "json" };
 import { Collector } from "./collect/Collector.js";
 import { Journal } from "./journal/Journal.js";
+import { layerOptions } from "./options.js";
 import { Redactor } from "./redact.js";
 import * as Server from "./server/Server.js";
 import { TokenAdmin } from "./server/TokenAdmin.js";
@@ -643,6 +644,11 @@ const triage = Command.make("triage").pipe(
 
 triage.pipe(
   Command.run({ version: packageJson.version }),
-  Effect.provide(BunServices.layer),
+  Effect.provide(
+    Layer.mergeAll(
+      BunServices.layer,
+      layerOptions.pipe(Layer.provide(BunServices.layer)),
+    ),
+  ),
   BunRuntime.runMain,
 );

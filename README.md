@@ -91,6 +91,8 @@ TRIAGE_ADMIN_TOKEN=<the same value> triage hosts add laptop --server https://tri
 | `TRIAGE_SUGGEST` | `false` | Suggest fixes every 15 minutes for issues the decision model rates worth fixing with at least 0.8 probability. Needs `TRIAGE_LLM_MODEL` |
 | `TRIAGE_SUGGEST_DAILY` | `5` | The most suggestions each language model may make in any 24 hours, by the server with `TRIAGE_SUGGEST` and by its workers together |
 
+Any of these can also come from a JSON file at `TRIAGE_OPTIONS`, with lowercase keys and no `TRIAGE_` prefix, such as `{ "decide": true, "decide_daily": 10, "cloudflare_api_token": "..." }`. Environment variables win over the file. The Home Assistant app uses this for its options.
+
 AI only runs when you ask for it. `TRIAGE_DECIDE` and `TRIAGE_SUGGEST` are off unless you turn them on, and each stops at its daily limit. On the `serve` and `work` command lines, the language model settings are `--llm-provider`, `--llm-url` and `--llm-model`, since `--provider`, `--url` and `--model` are the decision model's.
 
 Decision models only see what's stored, which is redacted when it's captured. `triage label <issue> worth|noise` labels issues by hand, and `triage agreement` shows how often each model is sure and right against those labels.
