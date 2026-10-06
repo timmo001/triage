@@ -744,6 +744,10 @@ export class TriageIssues extends LitElement {
         font-size: 0.85rem;
       }
 
+      .head .small {
+        font-size: inherit;
+      }
+
       .when {
         white-space: nowrap;
       }
@@ -1156,7 +1160,10 @@ export class TriageIssues extends LitElement {
       state: {
         ...tableStateOf(settings),
         rowSelection: this.rowSelection,
-        expanded: Object.fromEntries(collapsed.map((id) => [id, false])),
+        expanded:
+          collapsed.length === 0
+            ? true
+            : Object.fromEntries(collapsed.map((id) => [id, false])),
         columnVisibility,
       },
       getIsRowExpanded: (row) => !collapsed.includes(row.id),
