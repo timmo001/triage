@@ -23,6 +23,12 @@
 - Start a local server from source with `mise run serve:server`, which runs it through Pitchfork in the background in watch mode and restarts it if it stops responding. Do not run `triage serve` in the foreground from an agent.
 - Use `mise run serve:server:status`, `serve:server:logs`, `serve:server:restart` and `serve:server:stop` to manage it, and `mise run serve:server:enrol <name>` to enrol a host with it.
 - The daemon is configured in `pitchfork.toml`. It serves `http://127.0.0.1:7172/` from `dev-server.db`, so it never touches a real server's port or database. If 7172 is taken it moves to the next free port; `mise run serve:server:status` shows which. With the Pitchfork proxy enabled it's always at `https://server.triage.localhost`.
+- Start the docs dev server with `mise run serve:docs:dev`, which runs it through Pitchfork in the background and restarts it if it exits or stops responding. Do not run `mise run docs:dev` or `blume dev` in the foreground from an agent. Manage it with the matching `serve:docs:status`, `serve:docs:logs`, `serve:docs:restart` and `serve:docs:stop` tasks. It serves `http://localhost:4321/`.
+
+## Docs
+
+- The docs site in `docs/` is built with Blume and deploys to `https://triage.timmo.dev`. Keep the README short and put the detail there.
+- `mise run docs:gen` regenerates the command reference from the CLI's help. Run it once, at the end of a change that touches commands, flags, arguments or their descriptions. CI fails when the reference is out of date.
 
 ## Validation
 

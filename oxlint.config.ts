@@ -7,5 +7,5 @@ export default defineConfig({
     typeAware: true,
     maxWarnings: 0,
   },
-  ignorePatterns: [".agents/**", ".opencode/**", "dist/**"],
+  ignorePatterns: [".agents/**", ".opencode/**", "dist/**", "docs/**"],
 });

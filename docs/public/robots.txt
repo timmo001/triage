@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://triage.timmo.dev/sitemap-index.xml

@@ -1,0 +1,18 @@
+[
+  "/commands",
+  "/commands/collect",
+  "/commands/issues",
+  "/commands/upload",
+  "/commands/serve",
+  "/commands/work",
+  "/commands/hosts",
+  "/commands/admins",
+  "/commands/workers",
+  "/commands/decide",
+  "/commands/suggest",
+  "/commands/label",
+  "/commands/resolve",
+  "/commands/mute",
+  "/commands/reopen",
+  "/commands/agreement"
+]

@@ -1,6 +1,9 @@
-# Privacy
+---
+title: Privacy
+description: What triage captures, what it redacts and where anything goes.
+---
 
-Triage reads your system journal, which holds a lot of personal detail. This explains what it keeps, what it removes and where anything goes.
+Triage reads your system journal, which holds a lot of personal detail. This explains what it keeps, what it removes and where anything goes. There's no triage service or account: everything runs on machines and services you choose, and nothing is sent to the developer.
 
 ## What's captured
 
@@ -46,7 +49,7 @@ Redaction is pattern based, so it can miss something unusual. Run `triage collec
 
 The description an issue sends is its kind, title and event count, up to 3 distinct messages and, for crashes, the top 5 stack frames. Messages and logged lines are cut at 300 characters. It never includes host names, event IDs or timestamps.
 
-Nothing leaves the server for a model unless you turn decide or suggest on, or run `triage suggest` yourself, and each stops at its daily limit. With models on your own network, such as Ollaya or Ollama on a worker, nothing leaves your network at all.
+Nothing is sent to a model unless you turn decide or suggest on, or run `triage decide` or `triage suggest` yourself, and the automatic runs stop at their daily limits. With models on your own network, such as Ollaya or Ollama on a [worker](/setup/workers), nothing leaves your network at all. See [Choices](/choices) for where each option sends data.
 
 ## What the server stores
 

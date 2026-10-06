@@ -1,8 +1,11 @@
-# Choices
+---
+title: Choices
+description: Host triage and run its models wherever you like, local or hosted, with no vendor lock-in.
+---
 
 Triage doesn't tie you to any vendor. Every part can run on your own hardware or on a service you pick, and none of them is the intended one with the rest as fallbacks. Mix them however suits you: the server on one machine, decision models on another, and a hosted language model, or everything on one box with nothing leaving your network.
 
-See [privacy](privacy.md) for exactly what each of them is sent.
+See [Privacy](/privacy) for exactly what each of them is sent, and [Configuration](/configuration#models) for the settings.
 
 ## Hosting the server
 
