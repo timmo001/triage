@@ -62,13 +62,15 @@ jobs:
       - name: Check the app image reads options the way Home Assistant writes them
         run: |
           mkdir data
-          echo '{"port": 7172}' > data/options.json
+          token=options-token-for-ci-0123456789abcdef0123
+          echo "{\"server_admin_token\": \"$token\"}" > data/options.json
           sudo chown -R root:root data
           sudo chmod 600 data/options.json
-          docker run -d --name app -v "$PWD/data:/data" -p 7172:7172 \
+          docker run -d --name app -v "$PWD/data:/data" -p 7172:7171 \
             -e TRIAGE_OPTIONS=/data/options.json triage-app:ci
           curl -sf --retry 10 --retry-all-errors --retry-delay 1 \
-            http://127.0.0.1:7172/api/health
+            -H "Authorization: Bearer $token" \
+            http://127.0.0.1:7172/api/tokens/host
           sudo test -f data/server.db
 
       - name: App logs
