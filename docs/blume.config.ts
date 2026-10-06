@@ -20,6 +20,7 @@ export default defineConfig({
   markdown: {
     externalLinks: true,
   },
+  redirects: [{ from: "/setup/hardware", to: "/hardware" }],
   github: {
     owner: "timmo001",
     repo: "triage",
@@ -30,15 +31,11 @@ export default defineConfig({
     repo: true,
     sidebar: [
       "/",
+      "/hardware",
       "/install",
       {
         label: "Setup",
-        items: [
-          "/setup/hardware",
-          "/setup/server",
-          "/setup/hosts",
-          "/setup/workers",
-        ],
+        items: ["/setup/server", "/setup/hosts", "/setup/workers"],
       },
       "/configuration",
       "/issues",

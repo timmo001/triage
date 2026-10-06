@@ -9,7 +9,7 @@ It speaks plain HTTP on port 7171. For HTTPS, put it behind a reverse proxy such
 
 ## Choose where it runs
 
-The server itself is light, and runs on a Home Assistant Green. The models that decide on issues and suggest fixes need much more, and can run on another machine as a [worker](/setup/workers). See [Plan your hardware](/setup/hardware) for what each part needs and the setups that work best.
+The server itself is light, and runs on a Home Assistant Green. The models that decide on issues and suggest fixes need much more, and can run on another machine as a [worker](/setup/workers). See [Plan your hardware](/hardware) for what each part needs and the setups that work best.
 
 ## User service
 
