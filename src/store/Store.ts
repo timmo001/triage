@@ -101,7 +101,11 @@ const state = (row: typeof IssueRow.Type, now: number): Issue.State => {
     return "regressed";
   }
 
-  return now - row.first_seen < Issue.recentMillis ? "new" : "ongoing";
+  if (now - row.first_seen < Issue.recentMillis) {
+    return "new";
+  }
+
+  return now - row.last_seen < Issue.recentMillis ? "ongoing" : "quiet";
 };
 
 const toIssue = (row: typeof IssueRow.Type, now: number): Issue.Issue => ({
@@ -611,7 +615,8 @@ export class Store extends Context.Service<
           WHEN regressed_at IS NOT NULL
             AND ${now} - regressed_at < ${Issue.recentMillis} THEN 'regressed'
           WHEN ${now} - first_seen < ${Issue.recentMillis} THEN 'new'
-          ELSE 'ongoing'
+          WHEN ${now} - last_seen < ${Issue.recentMillis} THEN 'ongoing'
+          ELSE 'quiet'
         END AS state
         FROM issues
         WHERE ${sql.and(where)}
@@ -639,7 +644,8 @@ export class Store extends Context.Service<
 
     const groupColumns: Record<Api.IssueGrouping, string> = {
       state: `CASE state WHEN 'regressed' THEN 0 WHEN 'new' THEN 1
-        WHEN 'ongoing' THEN 2 WHEN 'resolved' THEN 3 ELSE 4 END`,
+        WHEN 'ongoing' THEN 2 WHEN 'quiet' THEN 3 WHEN 'resolved' THEN 4
+        ELSE 5 END`,
       kind: "kind",
       label: "CASE label WHEN 1 THEN 0 WHEN 0 THEN 1 ELSE 2 END",
     };
@@ -711,6 +717,7 @@ export class Store extends Context.Service<
           states: {
             new: counts.get("new") ?? 0,
             ongoing: counts.get("ongoing") ?? 0,
+            quiet: counts.get("quiet") ?? 0,
             regressed: counts.get("regressed") ?? 0,
             resolved: counts.get("resolved") ?? 0,
             muted: counts.get("muted") ?? 0,

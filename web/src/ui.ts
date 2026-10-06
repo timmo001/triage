@@ -74,6 +74,10 @@ export const shared = css`
     color: var(--triage-ongoing);
   }
 
+  .state.quiet {
+    color: var(--triage-quiet);
+  }
+
   .state.resolved {
     color: var(--triage-resolved);
   }

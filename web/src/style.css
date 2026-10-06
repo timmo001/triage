@@ -8,6 +8,11 @@
   --triage-new: #2563eb;
   --triage-regressed: #dc2626;
   --triage-ongoing: #d97706;
+  --triage-quiet: color-mix(
+    in srgb,
+    var(--triage-ongoing) 20%,
+    var(--triage-muted)
+  );
   --triage-resolved: #16a34a;
   --triage-muted-state: #71717a;
   font-family:

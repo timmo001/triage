@@ -42,6 +42,10 @@ const actions: Record<
     ["Resolve", "resolved", mdiCheckCircleOutline],
     ["Mute", "muted", mdiBellOffOutline],
   ],
+  quiet: [
+    ["Resolve", "resolved", mdiCheckCircleOutline],
+    ["Mute", "muted", mdiBellOffOutline],
+  ],
   regressed: [
     ["Resolve", "resolved", mdiCheckCircleOutline],
     ["Mute", "muted", mdiBellOffOutline],

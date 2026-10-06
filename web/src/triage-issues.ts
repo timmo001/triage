@@ -617,6 +617,10 @@ export class TriageIssues extends LitElement {
         background: var(--triage-ongoing);
       }
 
+      .dot.quiet {
+        background: var(--triage-quiet);
+      }
+
       .dot.resolved {
         background: var(--triage-resolved);
       }

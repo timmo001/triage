@@ -194,8 +194,60 @@ describe("Store", () => {
     expect(result.labelled).toBe("noise");
     expect(result.counts).toEqual({
       total: 3,
-      states: { new: 2, ongoing: 0, regressed: 0, resolved: 1, muted: 0 },
+      states: {
+        new: 2,
+        ongoing: 0,
+        quiet: 0,
+        regressed: 0,
+        resolved: 1,
+        muted: 0,
+      },
     });
     expect(result.unlabelledCounts.total).toBe(2);
+  });
+
+  test("makes issues quiet after a week without events", async () => {
+    const day = 24 * 60 * 60 * 1000;
+
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+      const now = Date.now();
+
+      const event = (identifier: string, ago: number) =>
+        Event.Event.cases.LogError.make({
+          id: `${identifier}-${ago}`,
+          host: "desktop",
+          source: "journal",
+          timestamp: now - ago,
+          severity: "err",
+          identifier,
+          message: "failed",
+        });
+
+      yield* store.add([
+        event("sshd", 20 * day),
+        event("sshd", 8 * day),
+        event("cups", 20 * day),
+        event("cups", day),
+      ]);
+
+      const [quiet] = yield* store.issues({ limit: 10, state: "quiet" });
+
+      return {
+        quiet: quiet?.title,
+        counts: (yield* store.issueCounts({})).states,
+        found:
+          quiet === undefined
+            ? undefined
+            : Option.map(
+                yield* store.issue(quiet.id, 1),
+                (found) => found.issue.state,
+              ),
+      };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.quiet).toStartWith("sshd");
+    expect(result.counts).toMatchObject({ ongoing: 1, quiet: 1 });
+    expect(result.found).toEqual(Option.some("quiet"));
   });
 });
