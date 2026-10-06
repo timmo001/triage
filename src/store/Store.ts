@@ -107,6 +107,27 @@ const toIssue = (row: typeof IssueRow.Type, now: number): Issue.Issue => ({
   state: state(row, now),
 });
 
+const SummaryRow = Schema.Struct({
+  ...IssueRow.fields,
+  worth: Schema.NullOr(Schema.Finite),
+});
+
+const DecisionRow = Schema.Struct({
+  model: Schema.String,
+  decided_at: Schema.Finite,
+  issue_count: Schema.Int,
+  worth: Schema.Finite,
+  severity: Schema.Finite,
+  cause: Schema.String,
+});
+
+const SuggestionRow = Schema.Struct({
+  model: Schema.String,
+  suggested_at: Schema.Finite,
+  issue_count: Schema.Int,
+  text: Schema.String,
+});
+
 const migrations = SqliteMigrator.fromRecord({
   "0001_events_and_issues": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -261,7 +282,7 @@ export class Store extends Context.Service<
     add(events: ReadonlyArray<Event.Event>): Effect.Effect<number, StoreError>;
     issues(
       options: ListOptions,
-    ): Effect.Effect<ReadonlyArray<Issue.Issue>, StoreError>;
+    ): Effect.Effect<ReadonlyArray<Api.IssueSummary>, StoreError>;
     /** An issue with its latest events, newest first. */
     issue(
       id: string,
@@ -273,6 +294,11 @@ export class Store extends Context.Service<
       }>,
       StoreError
     >;
+    /** An issue with its latest events and each model's latest answers. */
+    review(
+      id: string,
+      events: number,
+    ): Effect.Effect<Option.Option<Api.IssueReview>, StoreError>;
     /** Add a token. Returns false when the name is already taken in its scope. */
     addToken(
       scope: TokenScope,
@@ -445,9 +471,16 @@ export class Store extends Context.Service<
 
     const listIssues = SqlSchema.findAll({
       Request: Schema.Int,
-      Result: IssueRow,
-      execute: (limit) =>
-        sql`SELECT * FROM issues WHERE count > 0 ORDER BY last_seen DESC LIMIT ${limit}`,
+      Result: SummaryRow,
+      execute: (limit) => sql`
+        SELECT issues.*, (
+          SELECT worth FROM decisions
+          WHERE decisions.issue_id = issues.id
+          ORDER BY decided_at DESC
+          LIMIT 1
+        ) AS worth
+        FROM issues WHERE count > 0 ORDER BY last_seen DESC LIMIT ${limit}
+      `,
     });
 
     const issues = Effect.fn("Store.issues")(
@@ -455,7 +488,12 @@ export class Store extends Context.Service<
         const rows = yield* listIssues(options.limit);
         const now = yield* Clock.currentTimeMillis;
 
-        return rows.map((row) => toIssue(row, now));
+        return rows.map((row): Api.IssueSummary =>
+          Object.assign(
+            toIssue(row, now),
+            row.worth === null ? {} : { worth: row.worth },
+          ),
+        );
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -486,6 +524,56 @@ export class Store extends Context.Service<
         return Option.some({
           issue: toIssue(row.value, yield* Clock.currentTimeMillis),
           events: rows.map((event) => event.data),
+        });
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const issueDecisions = SqlSchema.findAll({
+      Request: Schema.String,
+      Result: DecisionRow,
+      execute: (id) => sql`
+        SELECT model, decided_at, issue_count, worth, severity, cause
+        FROM decisions WHERE issue_id = ${id} ORDER BY decided_at DESC
+      `,
+    });
+
+    const issueSuggestions = SqlSchema.findAll({
+      Request: Schema.String,
+      Result: SuggestionRow,
+      execute: (id) => sql`
+        SELECT model, suggested_at, issue_count, text
+        FROM suggestions WHERE issue_id = ${id} ORDER BY suggested_at DESC
+      `,
+    });
+
+    const review = Effect.fn("Store.review")(
+      function* (id: string, limit: number) {
+        const detail = yield* issue(id, limit);
+
+        if (Option.isNone(detail)) {
+          return Option.none();
+        }
+
+        const decisions = yield* issueDecisions(id);
+        const suggestions = yield* issueSuggestions(id);
+
+        return Option.some({
+          ...detail.value,
+          decisions: decisions.map((row) => ({
+            model: row.model,
+            decidedAt: row.decided_at,
+            issueCount: row.issue_count,
+            worth: row.worth,
+            severity: row.severity,
+            cause: row.cause,
+          })),
+          suggestions: suggestions.map((row) => ({
+            model: row.model,
+            suggestedAt: row.suggested_at,
+            issueCount: row.issue_count,
+            text: row.text,
+          })),
         });
       },
       Effect.mapError((cause) => new StoreError({ cause })),
@@ -768,6 +856,7 @@ export class Store extends Context.Service<
       add,
       issues,
       issue,
+      review,
       addToken,
       tokenName,
       tokens,

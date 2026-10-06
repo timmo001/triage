@@ -145,6 +145,62 @@ export const IssueDetail = Schema.Struct({
 
 export interface IssueDetail extends Schema.Schema.Type<typeof IssueDetail> {}
 
+/** An issue in a list, with the latest decision's worth when there is one. */
+export const IssueSummary = Schema.Struct({
+  ...Issue.fields,
+  /** The probability the latest decision gave that it's worth fixing. */
+  worth: Schema.optional(Schema.Finite),
+});
+
+export interface IssueSummary extends Schema.Schema.Type<typeof IssueSummary> {}
+
+/** What a decision model last made of an issue, for people to read. */
+export const IssueDecision = Schema.Struct({
+  /** The model, as `provider/model`. */
+  model: Schema.String,
+  /** When it decided, in milliseconds since the Unix epoch. */
+  decidedAt: Schema.Finite,
+  /** How many events the issue had when the model decided. */
+  issueCount: Schema.Int,
+  /** The probability that the issue is worth fixing. */
+  worth: Schema.Finite,
+  /** The expected severity level, from 0 (none) to 3 (critical). */
+  severity: Schema.Finite,
+  /** The most likely cause. */
+  cause: Schema.String,
+});
+
+export interface IssueDecision extends Schema.Schema.Type<
+  typeof IssueDecision
+> {}
+
+/** A language model's latest suggestion for fixing an issue. */
+export const IssueSuggestion = Schema.Struct({
+  /** The model, as `provider/model`. */
+  model: Schema.String,
+  /** When it suggested, in milliseconds since the Unix epoch. */
+  suggestedAt: Schema.Finite,
+  /** How many events the issue had when the model wrote it. */
+  issueCount: Schema.Int,
+  /** The suggestion, in Markdown. */
+  text: Schema.String,
+});
+
+export interface IssueSuggestion extends Schema.Schema.Type<
+  typeof IssueSuggestion
+> {}
+
+/** An issue with its latest events and what the models made of it. */
+export const IssueReview = Schema.Struct({
+  ...IssueDetail.fields,
+  /** Each model's latest decision, newest first. */
+  decisions: Schema.Array(IssueDecision),
+  /** Each model's latest suggestion, newest first. */
+  suggestions: Schema.Array(IssueSuggestion),
+});
+
+export interface IssueReview extends Schema.Schema.Type<typeof IssueReview> {}
+
 /** The most issues one request for work returns. */
 export const maxWork = 50;
 
@@ -208,11 +264,11 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
       query: {
         limit: Schema.optional(Schema.Int),
       },
-      success: Schema.Array(Issue),
+      success: Schema.Array(IssueSummary),
     }),
     HttpApiEndpoint.get("get", "/:id", {
       params: { id: Schema.String },
-      success: IssueDetail,
+      success: IssueReview,
       error: IssueNotFound,
     }),
     HttpApiEndpoint.put("setStatus", "/:id/status", {

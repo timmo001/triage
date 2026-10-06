@@ -131,15 +131,15 @@ const IssuesHandlers = HttpApiBuilder.group(
           .issues({ limit: bounded(query.limit, defaultIssues, maxIssues) })
           .pipe(Effect.orDie),
       get: Effect.fn(function* ({ params }) {
-        const detail = yield* store
-          .issue(params.id, issueEvents)
+        const review = yield* store
+          .review(params.id, issueEvents)
           .pipe(Effect.orDie);
 
-        if (Option.isNone(detail)) {
+        if (Option.isNone(review)) {
           return yield* new Api.IssueNotFound({ id: params.id });
         }
 
-        return detail.value;
+        return review.value;
       }),
       setStatus: ({ params, payload }) =>
         store.setStatus(params.id, payload.status).pipe(
