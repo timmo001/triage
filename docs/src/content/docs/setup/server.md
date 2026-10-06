@@ -52,6 +52,8 @@ Install the [Home Assistant app](/install#home-assistant), then:
 
 The app's other options are **trust_proxy**, **decide_daily** and **suggest_daily**, which match the [settings](/configuration#server) of the same name. Small Home Assistant boards, such as the Green or Yellow, are rarely up to running models, so leave decide and suggest to a [worker](/setup/workers) on those.
 
+**Triage** in Home Assistant's sidebar opens the [issues page](/issues#in-a-browser) for Home Assistant's admins, with no admin token needed: Home Assistant has already signed them in. It's served on a separate port that only answers Home Assistant, so port 7171 still needs a token.
+
 The app stops briefly during backups so its database is copied consistently. Hosts keep their events until the server is back.
 
 ## Manage tokens remotely

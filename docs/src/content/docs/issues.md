@@ -35,6 +35,12 @@ triage reopen <issue>...
 
 An event later than an issue's resolution reopens it as regressed, and decision models look at it again. Add `--server <url>` to change a remote server's issues as the admin in `TRIAGE_ADMIN_TOKEN`.
 
+## In a browser
+
+The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues, filtered by state, and each issue's hosts and latest events, with buttons to resolve, mute, reopen or unmute it.
+
+Sign in with an [admin token](/setup/server#tokens). It's kept in that browser until you sign out. In the [Home Assistant app](/setup/server#home-assistant), open **Triage** in Home Assistant's sidebar instead, with no token needed.
+
 ## Decisions
 
 A decision model answers three questions about each new or regressed issue: whether it's worth fixing, how severe it is and what likely caused it, each with probabilities. The answers are only stored for now, to compare models before they drive anything.
