@@ -1,0 +1,38 @@
+---
+name: Publish Arch git package
+
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - src/**
+      - packages/*/src/**
+      - packages/*/package.json
+      - package.json
+      - bun.lock
+      - mise.toml
+      - LICENSE
+      - .scripts/linux/PKGBUILD
+      - .scripts/linux/triage.install
+      - .scripts/linux/triage-agent.service
+      - .scripts/linux/triage-server.service
+      - .github/workflows/publish-arch-git.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-arch-git-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish Arch package (triage-git)
+    uses: timmo001/workflows/.github/workflows/build-arch-package.yml@82ee28374d3471231113dabc3dd436f65a47132f # 20261004.0
+    with:
+      package-name: triage-git
+    secrets:
+      ARCH_REPO_DISPATCH_TOKEN: ${{ secrets.ARCH_REPO_DISPATCH_TOKEN }}
