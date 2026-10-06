@@ -62,6 +62,7 @@ import {
   type RowHeights,
   rowHeights,
 } from "./triage.js";
+import "./triage-filter.js";
 import "./triage-skeleton.js";
 import {
   ago,
@@ -309,33 +310,12 @@ const groupTitle = (row: IssueRow) => {
   return value;
 };
 
-/** A labelled select for one of the list's settings. */
-const select = (
-  name: string,
-  path: string,
-  value: string | undefined,
-  options: ReadonlyArray<readonly [string, string]>,
-  change: (value: string) => void,
-) => html`
-  <label>
-    <span class="field-name muted-text">${icon(path)}${name}</span>
-    <select
-      @change=${(event: Event) => {
-        if (event.target instanceof HTMLSelectElement) {
-          change(event.target.value);
-        }
-      }}
-    >
-      ${options.map(
-        ([option, title]) => html`
-          <option value=${option} ?selected=${option === (value ?? "")}>
-            ${title}
-          </option>
-        `,
-      )}
-    </select>
-  </label>
-`;
+const toOptions = (titles: Record<string, string>) =>
+  Object.entries(titles).map(([value, title]) => ({ value, title }));
+
+const kindOptions = toOptions(kindTitles);
+
+const labelOptions = toOptions(labelTitles);
 
 @customElement("triage-issues")
 export class TriageIssues extends LitElement {
@@ -348,17 +328,6 @@ export class TriageIssues extends LitElement {
         align-items: center;
         gap: 0.5rem;
         margin: 0.75rem 0;
-      }
-
-      select {
-        box-sizing: border-box;
-        min-height: 2.25rem;
-        font: inherit;
-        color: inherit;
-        background: var(--triage-surface);
-        border: 1px solid var(--triage-border);
-        border-radius: 0.375rem;
-        padding: 0.4rem 0.6rem;
       }
 
       .search {
@@ -389,12 +358,6 @@ export class TriageIssues extends LitElement {
         outline: none;
       }
 
-      .field-name {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-      }
-
       label {
         display: inline-flex;
         align-items: center;
@@ -410,6 +373,7 @@ export class TriageIssues extends LitElement {
         padding: 0.5rem var(--triage-gutter, 0rem);
         background: var(--triage-bg);
         border-bottom: 1px solid var(--triage-border);
+        container: bar / inline-size;
       }
 
       .bar .toolbar {
@@ -423,8 +387,29 @@ export class TriageIssues extends LitElement {
         height: 2.25rem;
       }
 
+      .search {
+        min-width: 0;
+      }
+
       .bar .toolbar > button {
         flex: none;
+      }
+
+      @container bar (width < 46rem) {
+        .search {
+          flex-basis: 6rem;
+        }
+
+        .bar .toolbar > button {
+          width: 2.25rem;
+          padding: 0;
+          justify-content: center;
+          gap: 0;
+        }
+
+        .button-label {
+          display: none;
+        }
       }
 
       .bar .toolbar > button.icon-only {
@@ -551,11 +536,6 @@ export class TriageIssues extends LitElement {
       .options .toolbar {
         flex-direction: column;
         align-items: stretch;
-      }
-
-      .options label {
-        display: grid;
-        grid-template-columns: 5.5rem minmax(0, 1fr);
       }
 
       .options .toolbar > button {
@@ -742,18 +722,6 @@ export class TriageIssues extends LitElement {
           border-radius: 0;
         }
 
-        .search {
-          flex-basis: 6rem;
-          min-width: 0;
-        }
-
-        .bar .toolbar > button {
-          width: 2.25rem;
-          padding: 0;
-          justify-content: center;
-          gap: 0;
-        }
-
         .wide-only {
           display: none;
         }
@@ -921,12 +889,13 @@ export class TriageIssues extends LitElement {
    * from the page's own controls, and are checked against the schema.
    */
   #update(change: {
-    readonly [K in keyof ListSettings]?: string | undefined;
+    readonly [K in keyof ListSettings]?:
+      string | ReadonlyArray<string> | undefined;
   }) {
     const next = decodeSettings(
       Object.fromEntries(
         Object.entries({ ...this.#settings.value, ...change }).filter(
-          ([, value]) => value !== undefined && value !== "",
+          ([, value]) => value !== undefined && value.length > 0,
         ),
       ),
     );
@@ -952,15 +921,26 @@ export class TriageIssues extends LitElement {
   #renderBar(selected: ReadonlyArray<string>) {
     const settings = this.#settings.value;
 
-    const filtering = [
-      settings.state,
-      settings.host,
-      settings.kind,
-      settings.label,
-    ].filter((value) => value !== undefined).length;
+    const filtering =
+      (settings.state === undefined ? 0 : 1) +
+      (settings.host?.length ?? 0) +
+      (settings.kind?.length ?? 0) +
+      (settings.label?.length ?? 0);
 
     return html`
       <div class="toolbar">
+        <button
+          popovertarget="options"
+          aria-label="Filters"
+          title="Filters"
+          aria-pressed=${filtering > 0}
+        >
+          ${icon(mdiFilterVariant)}<span class="button-label">Filters</span>${
+            filtering === 0
+              ? nothing
+              : html`<span class="count">${filtering}</span>`
+          }
+        </button>
         <label class="search">
           ${icon(mdiMagnify)}
           <input
@@ -984,16 +964,15 @@ export class TriageIssues extends LitElement {
           />
         </label>
         <button
-          popovertarget="options"
-          aria-label="Filters"
-          title="Filters"
-          aria-pressed=${filtering > 0}
+          popovertarget="group-menu"
+          aria-label="Group by"
+          title="Group by"
+          aria-pressed=${settings.group !== undefined}
+          style="anchor-name: --group"
         >
-          ${icon(mdiFilterVariant)}<span class="wide-only">Filters</span>${
-            filtering === 0
-              ? nothing
-              : html`<span class="count">${filtering}</span>`
-          }
+          ${icon(mdiFormatListGroup)}<span class="button-label"
+            >${settings.group === undefined ? "Group" : groupTitles[settings.group]}</span
+          >
         </button>
         <button
           popovertarget="sort-menu"
@@ -1002,19 +981,8 @@ export class TriageIssues extends LitElement {
           style="anchor-name: --sort"
         >
           ${icon(settings.order === "asc" ? mdiSortAscending : mdiSortDescending)}<span
-            class="wide-only"
+            class="button-label"
             >${sortTitles[settings.sort]}</span
-          >
-        </button>
-        <button
-          popovertarget="group-menu"
-          aria-label="Group by"
-          title="Group by"
-          aria-pressed=${settings.group !== undefined}
-          style="anchor-name: --group"
-        >
-          ${icon(mdiFormatListGroup)}<span class="wide-only"
-            >${settings.group === undefined ? "Group" : groupTitles[settings.group]}</span
           >
         </button>
         <button
@@ -1090,39 +1058,34 @@ export class TriageIssues extends LitElement {
             stateOption(state, counts?.states[state]),
           )}
         </div>
-        <h2>${icon(mdiFilterVariant)} Filter</h2>
-        <div class="toolbar">
-          ${select(
-            "Host",
-            mdiServer,
-            settings.host,
-            [
-              ["", "All hosts"],
-              ...known.map(
-                (host) =>
-                  [
-                    host.host,
-                    `${host.host} (${host.issues} ${host.issues === 1 ? "issue" : "issues"})`,
-                  ] as const,
-              ),
-            ],
-            (host) => this.#update({ host }),
-          )}
-          ${select(
-            "Kind",
-            mdiAlertCircleOutline,
-            settings.kind,
-            [["", "All kinds"], ...Object.entries(kindTitles)],
-            (kind) => this.#update({ kind }),
-          )}
-          ${select(
-            "Label",
-            mdiTagOutline,
-            settings.label,
-            [["", "Any label"], ...Object.entries(labelTitles)],
-            (label) => this.#update({ label }),
-          )}
-        </div>
+        <triage-filter
+          label="Host"
+          path=${mdiServer}
+          .options=${known.map((host) => ({
+            value: host.host,
+            title: host.host,
+            count: host.issues,
+          }))}
+          .value=${settings.host ?? []}
+          @filter-change=${(event: CustomEvent<ReadonlyArray<string>>) =>
+            this.#update({ host: event.detail })}
+        ></triage-filter>
+        <triage-filter
+          label="Kind"
+          path=${mdiAlertCircleOutline}
+          .options=${kindOptions}
+          .value=${settings.kind ?? []}
+          @filter-change=${(event: CustomEvent<ReadonlyArray<string>>) =>
+            this.#update({ kind: event.detail })}
+        ></triage-filter>
+        <triage-filter
+          label="Label"
+          path=${mdiTagOutline}
+          .options=${labelOptions}
+          .value=${settings.label ?? []}
+          @filter-change=${(event: CustomEvent<ReadonlyArray<string>>) =>
+            this.#update({ label: event.detail })}
+        ></triage-filter>
       </div>
     `;
   }

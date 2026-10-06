@@ -1,6 +1,6 @@
 import { BrowserKeyValueStore } from "@effect/platform-browser";
 import { Api, Issue } from "@timmo001/effect-triage";
-import { Data, Effect, Layer, Option, Schema, Stream } from "effect";
+import { Data, Effect, Equal, Layer, Option, Schema, Stream } from "effect";
 import {
   FetchHttpClient,
   HttpClientError,
@@ -54,9 +54,9 @@ export const ListSettings = Schema.Struct({
   sort: Api.IssueSort,
   order: Api.SortOrder,
   group: Schema.optional(Api.IssueGrouping),
-  host: Schema.optional(Schema.String),
-  kind: Schema.optional(Issue.Kind),
-  label: Schema.optional(Api.LabelFilter),
+  host: Schema.optional(Schema.Array(Schema.String)),
+  kind: Schema.optional(Schema.Array(Issue.Kind)),
+  label: Schema.optional(Schema.Array(Api.LabelFilter)),
   search: Schema.optional(Schema.String),
 });
 
@@ -144,15 +144,7 @@ const countFilters = Atom.make((get): Api.IssueFilters => {
   const { host, kind, label, search } = get(listSettings);
 
   return { host, kind, label, search };
-}).pipe(
-  Atom.withEquality<Api.IssueFilters>(
-    (a, b) =>
-      a.host === b.host &&
-      a.kind === b.kind &&
-      a.label === b.label &&
-      a.search === b.search,
-  ),
-);
+}).pipe(Atom.withEquality<Api.IssueFilters>(Equal.equals));
 
 /** How many issues match the list's filters, in all and in each state. */
 export const issueCounts = TriageApi.runtime.factory.withReactivity(issuesKey)(

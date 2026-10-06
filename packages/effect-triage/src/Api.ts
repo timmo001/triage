@@ -206,12 +206,12 @@ export const LabelFilter = Schema.Literals(["worth", "noise", "none"]);
 
 export type LabelFilter = typeof LabelFilter.Type;
 
-/** Filters shared by an issue list and its counts. */
+/** Filters shared by an issue list and its counts. Lists match any value. */
 export const IssueFilters = Schema.Struct({
-  /** Only issues that happened on this host. */
-  host: Schema.optional(Schema.String),
-  kind: Schema.optional(Kind),
-  label: Schema.optional(LabelFilter),
+  /** Only issues that happened on one of these hosts. */
+  host: Schema.optional(Schema.Array(Schema.String)),
+  kind: Schema.optional(Schema.Array(Kind)),
+  label: Schema.optional(Schema.Array(LabelFilter)),
   /** Only issues whose title contains this, ignoring case. */
   search: Schema.optional(Schema.String),
 });

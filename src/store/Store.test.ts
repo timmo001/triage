@@ -164,16 +164,18 @@ describe("Store", () => {
         page: yield* titles({ offset: 1, limit: 1 }),
         byTitle: yield* titles({ sort: "title", order: "asc" }),
         byWorth: yield* titles({ sort: "worth" }),
-        unlabelled: yield* titles({ label: "none" }),
-        noise: yield* titles({ label: "noise" }),
+        unlabelled: yield* titles({ label: ["none"] }),
+        noise: yield* titles({ label: ["noise"] }),
+        anyLabel: yield* titles({ label: ["none", "noise"] }),
         resolved: yield* titles({ state: "resolved" }),
         search: yield* titles({ search: "WIRE" }),
-        laptop: yield* titles({ host: "laptop" }),
+        laptop: yield* titles({ host: ["laptop"] }),
+        bothHosts: yield* titles({ host: ["laptop", "desktop"] }),
         grouped: yield* titles({ group: "state", order: "asc" }),
-        labelled: (yield* store.issues({ limit: 10, label: "noise" }))[0]
+        labelled: (yield* store.issues({ limit: 10, label: ["noise"] }))[0]
           ?.label,
         counts: yield* store.issueCounts({}),
-        unlabelledCounts: yield* store.issueCounts({ label: "none" }),
+        unlabelledCounts: yield* store.issueCounts({ label: ["none"] }),
       };
     }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
 
@@ -183,9 +185,11 @@ describe("Store", () => {
     expect(result.byWorth[0]).toBe("wireplumber");
     expect(result.unlabelled).toEqual(["wireplumber", "dbus"]);
     expect(result.noise).toEqual(["bluetoothd"]);
+    expect(result.anyLabel).toEqual(["wireplumber", "dbus", "bluetoothd"]);
     expect(result.resolved).toEqual(["dbus"]);
     expect(result.search).toEqual(["wireplumber"]);
     expect(result.laptop).toEqual(["wireplumber"]);
+    expect(result.bothHosts).toEqual(["wireplumber", "dbus", "bluetoothd"]);
     expect(result.grouped).toEqual(["bluetoothd", "wireplumber", "dbus"]);
     expect(result.labelled).toBe("noise");
     expect(result.counts).toEqual({

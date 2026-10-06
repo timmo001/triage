@@ -578,15 +578,18 @@ export class Store extends Context.Service<
     const summaries = (filters: Api.IssueFilters, now: number) => {
       const where = [
         sql`count > 0`,
-        ...(filters.host === undefined
+        ...(filters.host === undefined || filters.host.length === 0
           ? []
           : [
               sql`EXISTS (
                 SELECT 1 FROM events
-                WHERE events.issue_id = issues.id AND events.host = ${filters.host}
+                WHERE events.issue_id = issues.id
+                  AND events.host IN ${sql.in(filters.host)}
               )`,
             ]),
-        ...(filters.kind === undefined ? [] : [sql`kind = ${filters.kind}`]),
+        ...(filters.kind === undefined || filters.kind.length === 0
+          ? []
+          : [sql`kind IN ${sql.in(filters.kind)}`]),
         ...(filters.search === undefined || filters.search === ""
           ? []
           : [sql`instr(lower(title), lower(${filters.search})) > 0`]),
@@ -615,18 +618,16 @@ export class Store extends Context.Service<
       `;
     };
 
-    const labelled = (label: Api.LabelFilter | undefined) => {
-      switch (label) {
-        case undefined:
-          return sql`1`;
-        case "none":
-          return sql`label IS NULL`;
-        case "worth":
-          return sql`label = 1`;
-        case "noise":
-          return sql`label = 0`;
-      }
+    const labelConditions: Record<Api.LabelFilter, string> = {
+      none: "label IS NULL",
+      worth: "label = 1",
+      noise: "label = 0",
     };
+
+    const labelled = (labels: ReadonlyArray<Api.LabelFilter> | undefined) =>
+      labels === undefined || labels.length === 0
+        ? sql`1`
+        : sql.or(labels.map((label) => labelConditions[label]));
 
     const sortColumns: Record<Api.IssueSort, string> = {
       lastSeen: "last_seen",
