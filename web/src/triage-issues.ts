@@ -955,11 +955,12 @@ export class TriageIssues extends LitElement {
   #renderBar(selected: ReadonlyArray<string>) {
     const settings = this.#settings.value;
 
-    const filtering =
-      (settings.state === undefined ? 0 : 1) +
-      (settings.host?.length ?? 0) +
-      (settings.kind?.length ?? 0) +
-      (settings.label?.length ?? 0);
+    const filtering = [
+      settings.state,
+      settings.host,
+      settings.kind,
+      settings.label,
+    ].filter((value) => value !== undefined).length;
 
     return html`
       <div class="toolbar">

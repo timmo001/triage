@@ -131,6 +131,10 @@ export class TriageFilter extends LitElement {
         background: var(--triage-border);
       }
 
+      label:has(input:disabled) {
+        cursor: default;
+      }
+
       .title {
         flex: 1;
         min-width: 0;
@@ -201,14 +205,17 @@ export class TriageFilter extends LitElement {
     this.dispatchEvent(new CustomEvent("filter-change", { detail: value }));
   }
 
+  /** No values means no filter, so every option counts as ticked. */
+  #isTicked(option: string) {
+    return this.value.length === 0 || this.value.includes(option);
+  }
+
   #toggle(option: string, checked: boolean) {
-    this.#change(
-      this.options
-        .map(({ value }) => value)
-        .filter((value) =>
-          value === option ? checked : this.value.includes(value),
-        ),
-    );
+    const ticked = this.options
+      .map(({ value }) => value)
+      .filter((value) => (value === option ? checked : this.#isTicked(value)));
+
+    this.#change(ticked.length === this.options.length ? [] : ticked);
   }
 
   #renderChoices() {
@@ -246,7 +253,11 @@ export class TriageFilter extends LitElement {
                     }
                     <input
                       type="checkbox"
-                      .checked=${this.value.includes(option.value)}
+                      .checked=${this.#isTicked(option.value)}
+                      ?disabled=${
+                        this.#isTicked(option.value) &&
+                        (this.value.length || this.options.length) === 1
+                      }
                       @change=${(event: Event) => {
                         if (event.target instanceof HTMLInputElement) {
                           this.#toggle(option.value, event.target.checked);
@@ -278,7 +289,11 @@ export class TriageFilter extends LitElement {
           ${
             this.value.length === 0
               ? nothing
-              : html`<span class="badge">${this.value.length}</span>`
+              : html`<span
+                  class="badge"
+                  title="${this.value.length} of ${this.options.length} shown"
+                  >${this.value.length}/${this.options.length}</span
+                >`
           }
         </button>
         ${
@@ -286,8 +301,8 @@ export class TriageFilter extends LitElement {
             ? nothing
             : html`<button
                 class="clear icon-only"
-                aria-label="Clear ${this.label}"
-                title="Clear"
+                aria-label="Clear the ${this.label} filter"
+                title="Clear filter"
                 @click=${() => this.#change([])}
               >
                 ${icon(mdiFilterVariantRemove)}
