@@ -149,6 +149,14 @@ const IssuesHandlers = HttpApiBuilder.group(
             StoreError: Effect.die,
           }),
         ),
+      setLabel: ({ params, payload }) =>
+        store.label(params.id, payload.label === "worth").pipe(
+          Effect.catchTags({
+            IssueNotFound: () =>
+              Effect.fail(new Api.IssueNotFound({ id: params.id })),
+            StoreError: Effect.die,
+          }),
+        ),
     });
   }),
 );

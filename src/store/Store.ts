@@ -547,6 +547,12 @@ export class Store extends Context.Service<
       `,
     });
 
+    const issueLabel = SqlSchema.findOneOption({
+      Request: Schema.String,
+      Result: Schema.Struct({ worth: Schema.BooleanFromBit }),
+      execute: (id) => sql`SELECT worth FROM labels WHERE issue_id = ${id}`,
+    });
+
     const review = Effect.fn("Store.review")(
       function* (id: string, limit: number) {
         const detail = yield* issue(id, limit);
@@ -557,9 +563,16 @@ export class Store extends Context.Service<
 
         const decisions = yield* issueDecisions(id);
         const suggestions = yield* issueSuggestions(id);
+        const label = yield* issueLabel(id);
 
-        return Option.some({
+        return Option.some<Api.IssueReview>({
           ...detail.value,
+          ...Option.match(label, {
+            onNone: () => ({}),
+            onSome: (row) => ({
+              label: row.worth ? ("worth" as const) : ("noise" as const),
+            }),
+          }),
           decisions: decisions.map((row) => ({
             model: row.model,
             decidedAt: row.decided_at,

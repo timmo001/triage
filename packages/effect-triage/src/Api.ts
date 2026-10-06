@@ -190,6 +190,14 @@ export interface IssueSuggestion extends Schema.Schema.Type<
   typeof IssueSuggestion
 > {}
 
+/**
+ * A person's verdict on an issue: worth fixing, or noise. Decision models are
+ * measured against these.
+ */
+export const Label = Schema.Literals(["worth", "noise"]);
+
+export type Label = typeof Label.Type;
+
 /** An issue with its latest events and what the models made of it. */
 export const IssueReview = Schema.Struct({
   ...IssueDetail.fields,
@@ -197,6 +205,8 @@ export const IssueReview = Schema.Struct({
   decisions: Schema.Array(IssueDecision),
   /** Each model's latest suggestion, newest first. */
   suggestions: Schema.Array(IssueSuggestion),
+  /** The hand label, when someone has given one. */
+  label: Schema.optional(Label),
 });
 
 export interface IssueReview extends Schema.Schema.Type<typeof IssueReview> {}
@@ -277,6 +287,12 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
       success: HttpApiSchema.NoContent,
       error: IssueNotFound,
     }),
+    HttpApiEndpoint.put("setLabel", "/:id/label", {
+      params: { id: Schema.String },
+      payload: Schema.Struct({ label: Label }),
+      success: HttpApiSchema.NoContent,
+      error: IssueNotFound,
+    }),
   )
   .middleware(AdminAuthorization)
   .prefix("/api/issues")
@@ -284,7 +300,7 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
     OpenApi.annotations({
       title: "Issues",
       description:
-        "Events grouped by fingerprint, and resolving or muting them",
+        "Events grouped by fingerprint, resolving or muting them, and labelling them worth fixing or noise",
     }),
   ) {}
 
