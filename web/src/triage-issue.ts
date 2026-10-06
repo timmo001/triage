@@ -1,4 +1,13 @@
 import { type Api, Event, type Issue } from "@timmo001/effect-triage";
+import {
+  mdiBellOffOutline,
+  mdiBellOutline,
+  mdiCheckCircleOutline,
+  mdiChevronLeft,
+  mdiRestore,
+  mdiThumbDownOutline,
+  mdiThumbUpOutline,
+} from "@mdi/js";
 import DOMPurify from "dompurify";
 import { Predicate } from "effect";
 import { AsyncResult } from "effect/reactivity";
@@ -12,6 +21,7 @@ import {
   ago,
   formatPercent,
   formatTime,
+  icon,
   renderDefect,
   renderError,
   renderLoading,
@@ -22,27 +32,29 @@ import {
 
 const actions: Record<
   Issue.State,
-  ReadonlyArray<readonly [label: string, status: Issue.Status]>
+  ReadonlyArray<readonly [label: string, status: Issue.Status, icon: string]>
 > = {
   new: [
-    ["Resolve", "resolved"],
-    ["Mute", "muted"],
+    ["Resolve", "resolved", mdiCheckCircleOutline],
+    ["Mute", "muted", mdiBellOffOutline],
   ],
   ongoing: [
-    ["Resolve", "resolved"],
-    ["Mute", "muted"],
+    ["Resolve", "resolved", mdiCheckCircleOutline],
+    ["Mute", "muted", mdiBellOffOutline],
   ],
   regressed: [
-    ["Resolve", "resolved"],
-    ["Mute", "muted"],
+    ["Resolve", "resolved", mdiCheckCircleOutline],
+    ["Mute", "muted", mdiBellOffOutline],
   ],
-  resolved: [["Reopen", "open"]],
-  muted: [["Unmute", "open"]],
+  resolved: [["Reopen", "open", mdiRestore]],
+  muted: [["Unmute", "open", mdiBellOutline]],
 };
 
-const labels: ReadonlyArray<readonly [text: string, label: Api.Label]> = [
-  ["Worth fixing", "worth"],
-  ["Noise", "noise"],
+const labels: ReadonlyArray<
+  readonly [text: string, label: Api.Label, icon: string]
+> = [
+  ["Worth fixing", "worth", mdiThumbUpOutline],
+  ["Noise", "noise", mdiThumbDownOutline],
 ];
 
 const kinds: Record<Issue.Kind, string> = {
@@ -58,8 +70,16 @@ export class TriageIssue extends LitElement {
     shared,
     css`
       .back {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
         margin-top: 1rem;
+        margin-inline-start: -0.3rem;
+        text-decoration: none;
+      }
+
+      .back:hover span {
+        text-decoration: underline;
       }
 
       h1 {
@@ -209,7 +229,9 @@ export class TriageIssue extends LitElement {
 
   override render() {
     return html`
-      <a class="back" href=${homeHref}>All issues</a>
+      <a class="back" href=${homeHref}
+        >${icon(mdiChevronLeft)}<span>All issues</span></a
+      >
       ${AsyncResult.matchWithError(this.#detail.value, {
         onInitial: renderLoading,
         onError: renderError,
@@ -236,12 +258,12 @@ export class TriageIssue extends LitElement {
           </dl>
           <div class="actions">
             ${actions[value.issue.state].map(
-              ([label, status]) => html`
+              ([label, status, path]) => html`
                 <button
                   ?disabled=${this.#setStatus.value.waiting}
                   @click=${() => this.#changeStatus(value.issue.id, status)}
                 >
-                  ${label}
+                  ${icon(path)} ${label}
                 </button>
               `,
             )}
@@ -251,13 +273,13 @@ export class TriageIssue extends LitElement {
           <div class="actions" role="group" aria-label="Your label">
             <span class="muted-text">Your label</span>
             ${labels.map(
-              ([text, label]) => html`
+              ([text, label, path]) => html`
                 <button
                   aria-pressed=${value.label === label}
                   ?disabled=${this.#setLabel.value.waiting}
                   @click=${() => this.#changeLabel(value.issue.id, label)}
                 >
-                  ${text}
+                  ${icon(path)} ${text}
                 </button>
               `,
             )}

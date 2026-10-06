@@ -1,8 +1,9 @@
+import { mdiLogout } from "@mdi/js";
 import { css, html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
 import { AtomController, registry } from "./AtomController.js";
 import { homeHref, Route, route, token } from "./triage.js";
-import { shared } from "./ui.js";
+import { icon, shared } from "./ui.js";
 import "./triage-issue.js";
 import "./triage-issues.js";
 import "./triage-sign-in.js";
@@ -12,11 +13,21 @@ export class TriageApp extends LitElement {
   static override styles = [
     shared,
     css`
+      :host {
+        --triage-gutter: 1.5rem;
+      }
+
+      @media (max-width: 39.99rem) {
+        :host {
+          --triage-gutter: 1rem;
+        }
+      }
+
       header {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        padding: 0.75rem 1.5rem;
+        padding: 0.75rem var(--triage-gutter);
         border-bottom: 1px solid var(--triage-border);
         background: var(--triage-surface);
       }
@@ -42,7 +53,7 @@ export class TriageApp extends LitElement {
       main {
         max-width: 72rem;
         margin: 0 auto;
-        padding: 1rem 1.5rem 3rem;
+        padding: 1rem var(--triage-gutter) 3rem;
       }
     `,
   ];
@@ -79,7 +90,9 @@ export class TriageApp extends LitElement {
         ${
           this.#token.value === ""
             ? null
-            : html`<button @click=${this.#signOut}>Sign out</button>`
+            : html`<button @click=${this.#signOut}>
+                ${icon(mdiLogout)} Sign out
+              </button>`
         }
       </header>
       <main>

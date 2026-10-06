@@ -1,8 +1,15 @@
 import type { Issue } from "@timmo001/effect-triage";
+import { mdiLogout } from "@mdi/js";
 import { Predicate } from "effect";
-import { css, html } from "lit";
+import { css, html, svg } from "lit";
 import { registry } from "./AtomController.js";
 import { token } from "./triage.js";
+
+/** A Material Design icon, from one of `@mdi/js`'s paths. */
+export const icon = (path: string) =>
+  html`<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+    ${svg`<path d=${path}></path>`}
+  </svg>`;
 
 export const shared = css`
   :host {
@@ -13,7 +20,17 @@ export const shared = css`
     color: var(--triage-accent);
   }
 
+  .icon {
+    flex: none;
+    width: 1.15em;
+    height: 1.15em;
+    fill: currentColor;
+  }
+
   button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     font: inherit;
     padding: 0.35rem 0.8rem;
     border: 1px solid var(--triage-border);
@@ -26,6 +43,10 @@ export const shared = css`
   button:disabled {
     opacity: 0.5;
     cursor: default;
+  }
+
+  button.icon-only {
+    padding: 0.35rem;
   }
 
   button[aria-pressed="true"] {
@@ -130,7 +151,7 @@ export const renderError = (error: { readonly _tag: string }) => {
       ? html`<triage-sign-in></triage-sign-in>`
       : html`<p class="message">
           The server didn't accept this admin token.
-          <button @click=${signOut}>Sign out</button>
+          <button @click=${signOut}>${icon(mdiLogout)} Sign out</button>
         </p>`;
   }
 
