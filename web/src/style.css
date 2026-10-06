@@ -17,6 +17,9 @@
     sans-serif;
   color: var(--triage-text);
   background: var(--triage-bg);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--triage-muted) 45%, transparent)
+    transparent;
 }
 
 @media (prefers-color-scheme: dark) {

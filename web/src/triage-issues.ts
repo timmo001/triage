@@ -430,6 +430,7 @@ export class TriageIssues extends LitElement {
         box-sizing: border-box;
         margin: 0;
         overflow-y: auto;
+        scrollbar-width: thin;
         color: inherit;
         background: var(--triage-surface);
         border: 1px solid var(--triage-border);
@@ -441,6 +442,7 @@ export class TriageIssues extends LitElement {
         max-height: 85vh;
         padding: 1rem;
         border-radius: 0.75rem 0.75rem 0 0;
+        --triage-filter-inset: 1rem;
       }
 
       .options::backdrop,

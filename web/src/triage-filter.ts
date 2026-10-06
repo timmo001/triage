@@ -27,19 +27,31 @@ export class TriageFilter extends LitElement {
       .header {
         display: flex;
         align-items: center;
+        margin-inline: calc(-1 * var(--triage-filter-inset, 0rem));
+        padding-inline: var(--triage-filter-inset, 0rem);
+        font-size: 0.95rem;
+        font-weight: 600;
+        background: var(--triage-bg);
+        border-top: 1px solid var(--triage-border);
+      }
+
+      :host([expanded]) .header {
+        border-bottom: 1px solid var(--triage-border);
       }
 
       .toggle {
         flex: 1;
         gap: 0.5rem;
-        padding: 0.6rem 0.25rem;
-        font-weight: 600;
+        padding: 0.65rem 0;
+        font-weight: inherit;
         background: none;
         border: 0;
         border-radius: 0;
       }
 
       .toggle > .icon:first-child {
+        width: 1.35em;
+        height: 1.35em;
         color: var(--triage-accent);
       }
 
@@ -60,7 +72,7 @@ export class TriageFilter extends LitElement {
       }
 
       ul {
-        margin: 0 0 0.5rem;
+        margin: 0.5rem 0;
         padding: 0;
         list-style: none;
       }
