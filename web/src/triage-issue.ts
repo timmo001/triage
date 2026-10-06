@@ -285,6 +285,7 @@ const renderDecisions = (decisions: ReadonlyArray<Api.IssueDecision>) =>
               <th>Worth fixing</th>
               <th>Severity</th>
               <th>Likely cause</th>
+              <th>Decided by</th>
               <th>Decided</th>
             </tr>
           </thead>
@@ -296,6 +297,7 @@ const renderDecisions = (decisions: ReadonlyArray<Api.IssueDecision>) =>
                   <td class="worth">${formatPercent(decision.worth)}</td>
                   <td>${severityLabel(decision.severity)}</td>
                   <td class="cause">${decision.cause}</td>
+                  <td>${decision.by ?? "unknown"}</td>
                   <td title=${formatTime(decision.decidedAt)}>
                     ${ago(decision.decidedAt)}, at ${decision.issueCount}
                     ${decision.issueCount === 1 ? "event" : "events"}
@@ -327,6 +329,11 @@ const renderSuggestions = (suggestions: ReadonlyArray<Api.IssueSuggestion>) =>
               <li>
                 <header>
                   <span>${suggestion.model}</span>
+                  ${
+                    suggestion.by === null
+                      ? ""
+                      : html`<span>by ${suggestion.by}</span>`
+                  }
                   <time title=${formatTime(suggestion.suggestedAt)}>
                     ${ago(suggestion.suggestedAt)}
                   </time>

@@ -63,15 +63,18 @@ describe("Store", () => {
       const id = issue?.id ?? "";
       const fresh = yield* state;
 
-      yield* store.saveDecision({
-        issueId: id,
-        model: "m",
-        issueCount: 1,
-        worth: 0.9,
-        severity: 1,
-        cause: "application",
-        answers: "{}",
-      });
+      yield* store.saveDecision(
+        {
+          issueId: id,
+          model: "m",
+          issueCount: 1,
+          worth: 0.9,
+          severity: 1,
+          cause: "application",
+          answers: "{}",
+        },
+        "cli",
+      );
       const decided = yield* store.undecided("m", 10);
 
       yield* store.setStatus(id, "resolved");

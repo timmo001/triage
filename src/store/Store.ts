@@ -115,6 +115,7 @@ const SummaryRow = Schema.Struct({
 const DecisionRow = Schema.Struct({
   model: Schema.String,
   decided_at: Schema.Finite,
+  decided_by: Schema.NullOr(Schema.String),
   issue_count: Schema.Int,
   worth: Schema.Finite,
   severity: Schema.Finite,
@@ -124,6 +125,7 @@ const DecisionRow = Schema.Struct({
 const SuggestionRow = Schema.Struct({
   model: Schema.String,
   suggested_at: Schema.Finite,
+  suggested_by: Schema.NullOr(Schema.String),
   issue_count: Schema.Int,
   text: Schema.String,
 });
@@ -258,6 +260,12 @@ const migrations = SqliteMigrator.fromRecord({
     yield* sql`ALTER TABLE issues ADD COLUMN resolved_at INTEGER`;
     yield* sql`ALTER TABLE issues ADD COLUMN regressed_at INTEGER`;
   }),
+  "0009_decided_by": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`ALTER TABLE decisions ADD COLUMN decided_by TEXT`;
+    yield* sql`ALTER TABLE suggestions ADD COLUMN suggested_by TEXT`;
+  }),
 });
 
 /**
@@ -334,8 +342,14 @@ export class Store extends Context.Service<
       model: string,
       since: number,
     ): Effect.Effect<number, StoreError>;
-    /** Store a model's decision, replacing any earlier one for the issue. */
-    saveDecision(decision: StoredDecision): Effect.Effect<void, StoreError>;
+    /**
+     * Store a model's decision, replacing any earlier one for the issue. `by`
+     * is the worker that asked the model, or `server` or `cli`.
+     */
+    saveDecision(
+      decision: StoredDecision,
+      by: string,
+    ): Effect.Effect<void, StoreError>;
     /** Label an issue by hand, replacing any earlier label. */
     label(
       issueId: string,
@@ -366,9 +380,13 @@ export class Store extends Context.Service<
       model: string,
       since: number,
     ): Effect.Effect<number, StoreError>;
-    /** Store a model's suggestion, replacing any earlier one for the issue. */
+    /**
+     * Store a model's suggestion, replacing any earlier one for the issue.
+     * `by` is the worker that asked the model, or `server` or `cli`.
+     */
     saveSuggestion(
       suggestion: StoredSuggestion,
+      by: string,
     ): Effect.Effect<void, StoreError>;
   }
 >()("triage/store/Store") {
@@ -533,7 +551,7 @@ export class Store extends Context.Service<
       Request: Schema.String,
       Result: DecisionRow,
       execute: (id) => sql`
-        SELECT model, decided_at, issue_count, worth, severity, cause
+        SELECT model, decided_at, decided_by, issue_count, worth, severity, cause
         FROM decisions WHERE issue_id = ${id} ORDER BY decided_at DESC
       `,
     });
@@ -542,7 +560,7 @@ export class Store extends Context.Service<
       Request: Schema.String,
       Result: SuggestionRow,
       execute: (id) => sql`
-        SELECT model, suggested_at, issue_count, text
+        SELECT model, suggested_at, suggested_by, issue_count, text
         FROM suggestions WHERE issue_id = ${id} ORDER BY suggested_at DESC
       `,
     });
@@ -576,6 +594,7 @@ export class Store extends Context.Service<
           decisions: decisions.map((row) => ({
             model: row.model,
             decidedAt: row.decided_at,
+            by: row.decided_by,
             issueCount: row.issue_count,
             worth: row.worth,
             severity: row.severity,
@@ -584,6 +603,7 @@ export class Store extends Context.Service<
           suggestions: suggestions.map((row) => ({
             model: row.model,
             suggestedAt: row.suggested_at,
+            by: row.suggested_by,
             issueCount: row.issue_count,
             text: row.text,
           })),
@@ -715,12 +735,13 @@ export class Store extends Context.Service<
     );
 
     const saveDecision = Effect.fn("Store.saveDecision")(
-      function* (decision: StoredDecision) {
+      function* (decision: StoredDecision, by: string) {
         yield* sql`
           INSERT INTO decisions ${sql.insert({
             issue_id: decision.issueId,
             model: decision.model,
             decided_at: yield* Clock.currentTimeMillis,
+            decided_by: by,
             issue_count: decision.issueCount,
             worth: decision.worth,
             severity: decision.severity,
@@ -729,6 +750,7 @@ export class Store extends Context.Service<
           })}
           ON CONFLICT (issue_id, model) DO UPDATE SET
             decided_at = excluded.decided_at,
+            decided_by = excluded.decided_by,
             issue_count = excluded.issue_count,
             worth = excluded.worth,
             severity = excluded.severity,
@@ -843,18 +865,20 @@ export class Store extends Context.Service<
     );
 
     const saveSuggestion = Effect.fn("Store.saveSuggestion")(
-      function* (suggestion: StoredSuggestion) {
+      function* (suggestion: StoredSuggestion, by: string) {
         yield* sql`
           INSERT INTO suggestions ${sql.insert({
             issue_id: suggestion.issueId,
             model: suggestion.model,
             suggested_at: yield* Clock.currentTimeMillis,
+            suggested_by: by,
             issue_count: suggestion.issueCount,
             text: suggestion.text,
             evidence: suggestion.evidence,
           })}
           ON CONFLICT (issue_id, model) DO UPDATE SET
             suggested_at = excluded.suggested_at,
+            suggested_by = excluded.suggested_by,
             issue_count = excluded.issue_count,
             text = excluded.text,
             evidence = excluded.evidence

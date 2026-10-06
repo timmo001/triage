@@ -160,6 +160,11 @@ export const IssueDecision = Schema.Struct({
   model: Schema.String,
   /** When it decided, in milliseconds since the Unix epoch. */
   decidedAt: Schema.Finite,
+  /**
+   * The worker that asked the model, or `server` or `cli`. Null for
+   * decisions from before 0.5.0.
+   */
+  by: Schema.NullOr(Schema.String),
   /** How many events the issue had when the model decided. */
   issueCount: Schema.Int,
   /** The probability that the issue is worth fixing. */
@@ -180,6 +185,11 @@ export const IssueSuggestion = Schema.Struct({
   model: Schema.String,
   /** When it suggested, in milliseconds since the Unix epoch. */
   suggestedAt: Schema.Finite,
+  /**
+   * The worker that asked the model, or `server` or `cli`. Null for
+   * suggestions from before 0.5.0.
+   */
+  by: Schema.NullOr(Schema.String),
   /** How many events the issue had when the model wrote it. */
   issueCount: Schema.Int,
   /** The suggestion, in Markdown. */

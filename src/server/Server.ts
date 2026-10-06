@@ -166,14 +166,18 @@ const WorkHandlers = HttpApiBuilder.group(
   "work",
   Effect.fn(function* (handlers) {
     const work = yield* Work;
+    const store = yield* Store;
 
     return handlers.handleAll({
       toDecide: ({ query }) =>
         work
           .toDecide(query.model, bounded(query.limit, Api.maxWork, Api.maxWork))
           .pipe(Effect.orDie),
-      saveDecision: ({ payload }) =>
-        work.saveDecision(payload).pipe(Effect.orDie),
+      saveDecision: Effect.fn(function* ({ payload }) {
+        const worker = yield* Api.CurrentWorker;
+
+        yield* store.saveDecision(payload, worker.name).pipe(Effect.orDie);
+      }),
       toSuggest: ({ query }) =>
         work
           .toSuggest({
@@ -192,8 +196,11 @@ const WorkHandlers = HttpApiBuilder.group(
 
         return detail.value;
       }),
-      saveSuggestion: ({ payload }) =>
-        work.saveSuggestion(payload).pipe(Effect.orDie),
+      saveSuggestion: Effect.fn(function* ({ payload }) {
+        const worker = yield* Api.CurrentWorker;
+
+        yield* store.saveSuggestion(payload, worker.name).pipe(Effect.orDie);
+      }),
     });
   }),
 );

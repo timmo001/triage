@@ -247,7 +247,9 @@ const decide = Command.make(
   Command.withDescription(
     "Ask a decision model whether the server's new issues are worth fixing, storing the answers without acting on them",
   ),
-  Command.provide(Work.layerStore({}).pipe(Layer.provide(Store.layerServer))),
+  Command.provide(
+    Work.layerStore({ by: "cli" }).pipe(Layer.provide(Store.layerServer)),
+  ),
 );
 
 const llmProviderFlag = (name: string, urlFlag: string) =>
@@ -318,7 +320,9 @@ const suggest = Command.make(
   Command.withDescription(
     "Ask a language model how to fix some of the server's issues, from their redacted events only, and store its suggestions",
   ),
-  Command.provide(Work.layerStore({}).pipe(Layer.provide(Store.layerServer))),
+  Command.provide(
+    Work.layerStore({ by: "cli" }).pipe(Layer.provide(Store.layerServer)),
+  ),
 );
 
 const label = Command.make(
@@ -553,6 +557,7 @@ const serve = Command.make(
       Layer.merge(Server.layer(input), yield* processLoops(input)).pipe(
         Layer.provide(
           Work.layerStore({
+            by: "server",
             decideDaily: input.decideDaily,
             suggestDaily: input.suggestDaily,
           }),

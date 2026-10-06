@@ -11,12 +11,7 @@ import {
   Schema,
 } from "effect";
 import { FetchHttpClient } from "effect/http";
-import {
-  Store,
-  type StoreError,
-  type StoredDecision,
-  type StoredSuggestion,
-} from "../store/Store.js";
+import { Store, type StoreError } from "../store/Store.js";
 
 /** The window daily limits count over. */
 export const dayMillis = Duration.toMillis(Duration.days(1));
@@ -55,7 +50,7 @@ export class Work extends Context.Service<
       limit: number,
     ): Effect.Effect<ReadonlyArray<Api.IssueDetail>, WorkError>;
     /** Store a decision, replacing any earlier one by the same model. */
-    saveDecision(decision: StoredDecision): Effect.Effect<void, WorkError>;
+    saveDecision(decision: Api.Decision): Effect.Effect<void, WorkError>;
     /**
      * Issues `decisionModel` rated at least `worth` that `model` hasn't
      * suggested a fix for, with their latest events, most recently seen
@@ -70,17 +65,17 @@ export class Work extends Context.Service<
     /** One issue with its latest events, to suggest a fix for on request. */
     issue(id: string): Effect.Effect<Option.Option<Api.IssueDetail>, WorkError>;
     /** Store a suggestion, replacing any earlier one by the same model. */
-    saveSuggestion(
-      suggestion: StoredSuggestion,
-    ): Effect.Effect<void, WorkError>;
+    saveSuggestion(suggestion: Api.Suggestion): Effect.Effect<void, WorkError>;
   }
 >()("triage/triage/Work") {
   /**
    * Work from the local store, with at most `decideDaily` decisions and
    * `suggestDaily` suggestions per model in any 24 hours. Without them there's
-   * no daily limit, for one-off runs someone asked for.
+   * no daily limit, for one-off runs someone asked for. Answers are stored as
+   * made `by` the server or the CLI.
    */
   static readonly layerStore = (options: {
+    readonly by: "server" | "cli";
     readonly decideDaily?: number;
     readonly suggestDaily?: number;
   }) =>
@@ -123,7 +118,9 @@ export class Work extends Context.Service<
             return yield* details(yield* store.undecided(model, allowed));
           }, Effect.mapError(toWorkError)),
           saveDecision: (decision) =>
-            store.saveDecision(decision).pipe(Effect.mapError(toWorkError)),
+            store
+              .saveDecision(decision, options.by)
+              .pipe(Effect.mapError(toWorkError)),
           toSuggest: Effect.fn("Work.toSuggest")(function* (request) {
             const allowed = Math.min(
               request.limit,
@@ -143,7 +140,9 @@ export class Work extends Context.Service<
           issue: (id) =>
             store.issue(id, issueEvents).pipe(Effect.mapError(toWorkError)),
           saveSuggestion: (suggestion) =>
-            store.saveSuggestion(suggestion).pipe(Effect.mapError(toWorkError)),
+            store
+              .saveSuggestion(suggestion, options.by)
+              .pipe(Effect.mapError(toWorkError)),
         });
       }),
     );
