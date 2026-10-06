@@ -5,6 +5,7 @@ import { Journal, type JournalError } from "../journal/Journal.js";
 import { rawUnit, toEvent } from "../journal/toEvent.js";
 import { Redactor } from "../redact.js";
 import { Store, type StoreError } from "../store/Store.js";
+import { Attribution } from "./Attribution.js";
 
 /** The store's cursor key for this machine's journal. */
 const source = "journal";
@@ -46,6 +47,7 @@ export class Collector extends Context.Service<
       const journal = yield* Journal;
       const store = yield* Store;
       const { redact } = yield* Redactor;
+      const attribution = yield* Attribution;
 
       const withBreadcrumbs = (entry: Entry, event: Event.Event) => {
         const bootId = text(entry, "_BOOT_ID");
@@ -108,7 +110,12 @@ export class Collector extends Context.Service<
                         (event) => [entry, event] as const,
                       ),
                     ),
-                    ([entry, event]) => withBreadcrumbs(entry, event),
+                    ([entry, event]) =>
+                      withBreadcrumbs(entry, event).pipe(
+                        Effect.flatMap((withCrumbs) =>
+                          attribution.attribute(entry, withCrumbs),
+                        ),
+                      ),
                   );
 
                   totals.added += yield* store.record(

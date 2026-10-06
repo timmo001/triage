@@ -413,6 +413,14 @@ const eventFields = (event: Event.Event) => {
       OutOfMemory: (oom) => [["Killed", oom.process]],
       LogError: () => [],
     }),
+    [
+      "Package",
+      event.package === undefined
+        ? undefined
+        : `${event.package.name} ${event.package.version}`,
+    ],
+    ["OS", event.system?.os],
+    ["Kernel", event.system?.kernel],
     ["Boot", event.bootId],
   ];
 

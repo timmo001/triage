@@ -18,6 +18,8 @@ For failures and crashes, hosts also keep the last 10 lines the unit logged befo
 
 Each event keeps its message, the program and unit that logged it, its severity and when it happened. Everything else in the journal entry is dropped.
 
+For events from the current boot, hosts also add the OS name and version from `/etc/os-release`, the kernel release, and, where pacman knows it, the name and version of the package that owns the program, unit file or kernel. Older events don't get these, since the host could have been running something else then.
+
 ## What's redacted
 
 Redaction happens on the host, when an event is captured, before it's stored or sent anywhere. Every text field, including stack frames and the logged lines, goes through it. It replaces:

@@ -11,6 +11,24 @@ export const Frame = Schema.Struct({
 
 export interface Frame extends Schema.Schema.Type<typeof Frame> {}
 
+/** The installed package a program or unit came from. */
+export const Package = Schema.Struct({
+  name: Schema.NonEmptyString,
+  version: Schema.NonEmptyString,
+});
+
+export interface Package extends Schema.Schema.Type<typeof Package> {}
+
+/** What the host was running when the event happened. */
+export const System = Schema.Struct({
+  /** The operating system's name and version, from `/etc/os-release`. */
+  os: Schema.optionalKey(Schema.String),
+  /** The running kernel's release, as `uname -r` gives it. */
+  kernel: Schema.optionalKey(Schema.String),
+});
+
+export interface System extends Schema.Schema.Type<typeof System> {}
+
 const common = {
   /** Unique per source, such as a hash of a journal cursor, so an event is stored once. */
   id: Schema.NonEmptyString,
@@ -41,6 +59,14 @@ const common = {
    * first.
    */
   breadcrumbs: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
+   * The package that owns the program or unit, when the host's package
+   * manager knows it. Only set for events from the boot they were collected
+   * in, since the version could have changed since.
+   */
+  package: Schema.optionalKey(Package),
+  /** What the host was running, for events from the boot they were collected in. */
+  system: Schema.optionalKey(System),
 };
 
 /**

@@ -3,6 +3,7 @@ import type { Issue } from "@timmo001/effect-triage";
 import { Config, Console, Effect, Layer, Option, Redacted } from "effect";
 import { Argument, CliError, Command, Flag } from "effect/cli";
 import packageJson from "../package.json" with { type: "json" };
+import { Attribution } from "./collect/Attribution.js";
 import { Collector } from "./collect/Collector.js";
 import { Journal } from "./journal/Journal.js";
 import { layerOptions } from "./options.js";
@@ -18,7 +19,11 @@ import { Work } from "./triage/Work.js";
 import { Uploader } from "./upload/Uploader.js";
 
 const collectorLayer = Collector.layer.pipe(
-  Layer.provide(Layer.mergeAll(Journal.layer, Redactor.layer)),
+  Layer.provide(
+    Layer.mergeAll(Journal.layer, Attribution.layer).pipe(
+      Layer.provideMerge(Redactor.layer),
+    ),
+  ),
   Layer.provideMerge(Store.layer),
 );
 

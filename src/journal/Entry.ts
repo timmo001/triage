@@ -14,6 +14,8 @@ export const Entry = Schema.Struct({
   __CURSOR: Schema.NonEmptyString,
   __REALTIME_TIMESTAMP: Schema.FiniteFromString,
   _BOOT_ID: Field,
+  _EXE: Field,
+  _TRANSPORT: Field,
   _HOSTNAME: Field,
   _SYSTEMD_UNIT: Field,
   _SYSTEMD_USER_UNIT: Field,
