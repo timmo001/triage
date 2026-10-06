@@ -30,9 +30,9 @@
     },
     "packages/client": {
       "name": "@timmo001/effect-triage-client",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "dependencies": {
-        "@timmo001/effect-triage": "0.6.0",
+        "@timmo001/effect-triage": "0.7.0",
       },
       "devDependencies": {
         "effect": "4.0.1",
@@ -43,7 +43,7 @@
     },
     "packages/effect-triage": {
       "name": "@timmo001/effect-triage",
-      "version": "0.6.0",
+      "version": "0.7.0",
       "devDependencies": {
         "effect": "4.0.1",
       },
