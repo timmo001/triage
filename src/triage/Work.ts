@@ -1,5 +1,16 @@
 import type { Api } from "@timmo001/effect-triage";
-import { Clock, Context, Duration, Effect, Layer, Option } from "effect";
+import { TriageClient } from "@timmo001/effect-triage-client";
+import {
+  Clock,
+  Config,
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Schema,
+} from "effect";
+import { FetchHttpClient } from "effect/http";
 import {
   Store,
   type StoreError,
@@ -12,6 +23,19 @@ export const dayMillis = Duration.toMillis(Duration.days(1));
 
 /** How many of an issue's latest events describe it to a model. */
 export const issueEvents = 20;
+
+/** The store or the server couldn't give out work or keep an answer. */
+export class WorkError extends Schema.TaggedError<WorkError>()("WorkError", {
+  cause: Schema.Defect(),
+}) {
+  override get message() {
+    return this.cause instanceof Error
+      ? this.cause.message
+      : String(this.cause);
+  }
+}
+
+const toWorkError = (cause: unknown) => new WorkError({ cause });
 
 /**
  * Where decide and suggest get their issues and keep their answers: the local
@@ -28,9 +52,9 @@ export class Work extends Context.Service<
     toDecide(
       model: string,
       limit: number,
-    ): Effect.Effect<ReadonlyArray<Api.IssueDetail>, StoreError>;
+    ): Effect.Effect<ReadonlyArray<Api.IssueDetail>, WorkError>;
     /** Store a decision, replacing any earlier one by the same model. */
-    saveDecision(decision: StoredDecision): Effect.Effect<void, StoreError>;
+    saveDecision(decision: StoredDecision): Effect.Effect<void, WorkError>;
     /**
      * Issues `decisionModel` rated at least `worth` that `model` hasn't
      * suggested a fix for, with their latest events, most recently seen
@@ -41,15 +65,13 @@ export class Work extends Context.Service<
       readonly decisionModel: string;
       readonly worth: number;
       readonly limit: number;
-    }): Effect.Effect<ReadonlyArray<Api.IssueDetail>, StoreError>;
+    }): Effect.Effect<ReadonlyArray<Api.IssueDetail>, WorkError>;
     /** One issue with its latest events, to suggest a fix for on request. */
-    issue(
-      id: string,
-    ): Effect.Effect<Option.Option<Api.IssueDetail>, StoreError>;
+    issue(id: string): Effect.Effect<Option.Option<Api.IssueDetail>, WorkError>;
     /** Store a suggestion, replacing any earlier one by the same model. */
     saveSuggestion(
       suggestion: StoredSuggestion,
-    ): Effect.Effect<void, StoreError>;
+    ): Effect.Effect<void, WorkError>;
   }
 >()("triage/triage/Work") {
   /**
@@ -98,8 +120,9 @@ export class Work extends Context.Service<
             }
 
             return yield* details(yield* store.undecided(model, allowed));
-          }),
-          saveDecision: (decision) => store.saveDecision(decision),
+          }, Effect.mapError(toWorkError)),
+          saveDecision: (decision) =>
+            store.saveDecision(decision).pipe(Effect.mapError(toWorkError)),
           toSuggest: Effect.fn("Work.toSuggest")(function* (request) {
             const allowed = Math.min(
               request.limit,
@@ -115,10 +138,58 @@ export class Work extends Context.Service<
             return yield* details(
               yield* store.unsuggested({ ...request, limit: allowed }),
             );
-          }),
-          issue: (id) => store.issue(id, issueEvents),
-          saveSuggestion: (suggestion) => store.saveSuggestion(suggestion),
+          }, Effect.mapError(toWorkError)),
+          issue: (id) =>
+            store.issue(id, issueEvents).pipe(Effect.mapError(toWorkError)),
+          saveSuggestion: (suggestion) =>
+            store.saveSuggestion(suggestion).pipe(Effect.mapError(toWorkError)),
         });
       }),
     );
+
+  /**
+   * Work for the server at `$TRIAGE_SERVER`, authenticating with the worker
+   * token in `$TRIAGE_WORKER_TOKEN`. The server applies its daily limits.
+   */
+  static readonly layerRemote = Layer.unwrap(
+    Effect.gen(function* () {
+      const url = yield* Config.String("TRIAGE_SERVER");
+      const token = yield* Config.Redacted("TRIAGE_WORKER_TOKEN");
+
+      return Layer.effect(
+        Work,
+        Effect.gen(function* () {
+          const client = yield* TriageClient;
+
+          return Work.of({
+            toDecide: (model, limit) =>
+              client.work
+                .toDecide({ query: { model, limit } })
+                .pipe(Effect.mapError(toWorkError)),
+            saveDecision: (decision) =>
+              client.work
+                .saveDecision({ payload: decision })
+                .pipe(Effect.mapError(toWorkError)),
+            toSuggest: (request) =>
+              client.work
+                .toSuggest({ query: request })
+                .pipe(Effect.mapError(toWorkError)),
+            issue: (id) =>
+              client.work.issue({ params: { id } }).pipe(
+                Effect.asSome,
+                Effect.catchTag("IssueNotFound", () => Effect.succeedNone),
+                Effect.mapError(toWorkError),
+              ),
+            saveSuggestion: (suggestion) =>
+              client.work
+                .saveSuggestion({ payload: suggestion })
+                .pipe(Effect.mapError(toWorkError)),
+          });
+        }),
+      ).pipe(
+        Layer.provide(TriageClient.layer({ url, token })),
+        Layer.provide(FetchHttpClient.layer),
+      );
+    }),
+  );
 }

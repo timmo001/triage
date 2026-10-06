@@ -368,6 +368,68 @@ const agreementCommand = Command.make(
   Command.provide(Store.layerServer),
 );
 
+/** Whether and how this device decides on issues and suggests fixes. */
+const processFlags = {
+  decide: Flag.Boolean("decide").pipe(
+    Flag.withDescription(
+      "Ask a decision model about new issues every few minutes, keeping the answers without acting on them. Off unless set",
+    ),
+    Flag.withFallbackConfig(Config.Boolean("TRIAGE_DECIDE")),
+    Flag.withDefault(false),
+  ),
+  ...decisionFlags,
+  suggest: Flag.Boolean("suggest").pipe(
+    Flag.withDescription(
+      "Ask a language model every 15 minutes how to fix issues the decision model clearly rates worth fixing, keeping its suggestions. Off unless set",
+    ),
+    Flag.withFallbackConfig(Config.Boolean("TRIAGE_SUGGEST")),
+    Flag.withDefault(false),
+  ),
+  llmProvider: llmProviderFlag("llm-provider", "llm-url"),
+  llmUrl: llmUrlFlag("llm-url"),
+  llmModel: llmModelFlag("llm-model").pipe(Flag.optional),
+};
+
+/** The decide and suggest loops `input` turns on, for whichever `Work`. */
+const processLoops = Effect.fnUntraced(function* (input: {
+  readonly decide: boolean;
+  readonly provider: Provider;
+  readonly url: string;
+  readonly model: Option.Option<string>;
+  readonly suggest: boolean;
+  readonly llmProvider: LlmProvider;
+  readonly llmUrl: Option.Option<string>;
+  readonly llmModel: Option.Option<string>;
+}) {
+  const decider = input.decide
+    ? layerShadow({ interval: "5 minutes", limit: 20 }).pipe(
+        Layer.provide(triagerLayer(input)),
+      )
+    : Layer.empty;
+
+  const suggester = input.suggest
+    ? layerAutomatic({
+        interval: "15 minutes",
+        limit: 5,
+        decisionModel: `${input.provider}/${decisionModel(input)}`,
+      }).pipe(
+        Layer.provide(
+          Suggester.layer({
+            provider: input.llmProvider,
+            url: input.llmUrl,
+            model: yield* Effect.fromOption(input.llmModel).pipe(
+              Effect.mapError(
+                () => new CliError.MissingOption({ option: "llm-model" }),
+              ),
+            ),
+          }),
+        ),
+      )
+    : Layer.empty;
+
+  return Layer.mergeAll(decider, suggester);
+});
+
 const serve = Command.make(
   "serve",
   {
@@ -389,27 +451,12 @@ const serve = Command.make(
       Flag.withFallbackConfig(Config.Boolean("TRIAGE_TRUST_PROXY")),
       Flag.withDefault(false),
     ),
-    decide: Flag.Boolean("decide").pipe(
-      Flag.withDescription(
-        "Ask a decision model about new issues every few minutes, storing the answers without acting on them. Off unless set",
-      ),
-      Flag.withFallbackConfig(Config.Boolean("TRIAGE_DECIDE")),
-      Flag.withDefault(false),
-    ),
     decideDaily: Flag.Int("decide-daily").pipe(
       Flag.withDescription(
         "The most issues each decision model may decide on in any 24 hours, here with --decide or by workers",
       ),
       Flag.withFallbackConfig(Config.Int("TRIAGE_DECIDE_DAILY")),
       Flag.withDefault(20),
-    ),
-    ...decisionFlags,
-    suggest: Flag.Boolean("suggest").pipe(
-      Flag.withDescription(
-        "Ask a language model every 15 minutes how to fix issues the decision model clearly rates worth fixing, storing its suggestions. Off unless set",
-      ),
-      Flag.withFallbackConfig(Config.Boolean("TRIAGE_SUGGEST")),
-      Flag.withDefault(false),
     ),
     suggestDaily: Flag.Int("suggest-daily").pipe(
       Flag.withDescription(
@@ -418,39 +465,11 @@ const serve = Command.make(
       Flag.withFallbackConfig(Config.Int("TRIAGE_SUGGEST_DAILY")),
       Flag.withDefault(5),
     ),
-    llmProvider: llmProviderFlag("llm-provider", "llm-url"),
-    llmUrl: llmUrlFlag("llm-url"),
-    llmModel: llmModelFlag("llm-model").pipe(Flag.optional),
+    ...processFlags,
   },
   Effect.fnUntraced(function* (input) {
-    const decider = input.decide
-      ? layerShadow({ interval: "5 minutes", limit: 20 }).pipe(
-          Layer.provide(triagerLayer(input)),
-        )
-      : Layer.empty;
-
-    const suggester = input.suggest
-      ? layerAutomatic({
-          interval: "15 minutes",
-          limit: 5,
-          decisionModel: `${input.provider}/${decisionModel(input)}`,
-        }).pipe(
-          Layer.provide(
-            Suggester.layer({
-              provider: input.llmProvider,
-              url: input.llmUrl,
-              model: yield* Effect.fromOption(input.llmModel).pipe(
-                Effect.mapError(
-                  () => new CliError.MissingOption({ option: "llm-model" }),
-                ),
-              ),
-            }),
-          ),
-        )
-      : Layer.empty;
-
     return yield* Layer.launch(
-      Layer.mergeAll(Server.layer(input), decider, suggester).pipe(
+      Layer.merge(Server.layer(input), yield* processLoops(input)).pipe(
         Layer.provide(
           Work.layerStore({
             decideDaily: input.decideDaily,
@@ -465,6 +484,24 @@ const serve = Command.make(
     "Run the triage server over HTTP, which collects events from enrolled hosts. Use a reverse proxy or Cloudflare for HTTPS",
   ),
   Command.provide(tokensLayer),
+);
+
+const work = Command.make(
+  "work",
+  processFlags,
+  Effect.fnUntraced(function* (input) {
+    if (!input.decide && !input.suggest) {
+      return yield* new CliError.MissingOption({ option: "decide" });
+    }
+
+    return yield* Layer.launch(
+      (yield* processLoops(input)).pipe(Layer.provide(Work.layerRemote)),
+    );
+  }),
+).pipe(
+  Command.withDescription(
+    "Decide on issues and suggest fixes for the server at $TRIAGE_SERVER, authenticating with $TRIAGE_WORKER_TOKEN, within the server's daily limits. Needs --decide, --suggest or both",
+  ),
 );
 
 const tokenCommands = (options: {
@@ -571,6 +608,7 @@ const triage = Command.make("triage").pipe(
     issues,
     upload,
     serve,
+    work,
     hosts,
     admins,
     workers,
