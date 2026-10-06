@@ -52,6 +52,22 @@ describe("fingerprint", () => {
     expect(unitTemplate("getty@tty1.service")).toBe("getty@tty1.service");
   });
 
+  test("groups transient scopes and generated units", () => {
+    expect(unitTemplate("app-Hyprland-gtk\\x2dlaunch-c185ed16.scope")).toBe(
+      "app-Hyprland-gtk\\x2dlaunch-<id>.scope",
+    );
+    expect(unitTemplate("app-heroic-2008598.scope")).toBe(
+      "app-heroic-<id>.scope",
+    );
+    expect(unitTemplate("run-p1796882-i1823824.service")).toBe(
+      "run-<id>.service",
+    );
+    expect(unitTemplate("session-1.scope")).toBe("session-<id>.scope");
+    expect(unitTemplate("app-walker@autostart.service")).toBe(
+      "app-walker@autostart.service",
+    );
+  });
+
   test("issue IDs are stable", () => {
     expect(issueId("a")).toBe("af63dc4c8601ec8c");
   });

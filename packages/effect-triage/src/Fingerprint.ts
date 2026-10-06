@@ -32,9 +32,21 @@ export const template = (message: string): string =>
 
 const basename = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-/** A templated unit with an instance of only numbers, such as a process or user ID, groups as one. */
+/**
+ * A unit's name without the parts that change between runs, so they group as
+ * one: a templated unit's instance of only numbers, such as a process or user
+ * ID, the random or PID suffix of an app's transient scope, `systemd-run`'s
+ * generated names and login session numbers.
+ */
 export const unitTemplate = (unit: string) =>
-  unit.replace(/@[\d_-]+(?=\.[a-z]+$)/, "@<n>");
+  unit
+    .replace(/@[\d_-]+(?=\.[a-z]+$)/, "@<n>")
+    .replace(/^(app-.+)-(?:[0-9a-f]{8}|\d+)(?=\.scope$)/, "$1-<id>")
+    .replace(
+      /^run-(?:p\d+-i\d+|u\d+|r[0-9a-f]+)(?=\.(?:service|scope)$)/,
+      "run-<id>",
+    )
+    .replace(/^session-\w+(?=\.scope$)/, "session-<id>");
 
 /**
  * The grouping key for an event. Events with the same fingerprint belong to
@@ -57,11 +69,14 @@ export const fingerprint = (event: Event): string =>
         unitTemplate(failure.unit ?? failure.identifier ?? "?"),
         failure.result ?? "",
       ].join("|"),
-    OutOfMemory: (oom) => ["oom", oom.process ?? oom.unit ?? "?"].join("|"),
+    OutOfMemory: (oom) =>
+      ["oom", oom.process ?? unitTemplate(oom.unit ?? "?")].join("|"),
     LogError: (log) =>
-      ["log", log.identifier ?? log.unit ?? "?", template(log.message)].join(
-        "|",
-      ),
+      [
+        "log",
+        log.identifier ?? unitTemplate(log.unit ?? "?"),
+        template(log.message),
+      ].join("|"),
   });
 
 /** A short, stable ID for a fingerprint: 64-bit FNV-1a as 16 hex digits. */

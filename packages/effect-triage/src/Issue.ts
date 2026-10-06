@@ -39,9 +39,9 @@ export const title = (event: Event): string =>
     UnitFailure: (failure) =>
       `${unitTemplate(failure.unit ?? failure.identifier ?? "A unit")} failed${failure.result === undefined ? "" : ` (${failure.result})`}`,
     OutOfMemory: (oom) =>
-      `${oom.process ?? oom.unit ?? "A process"} was killed for memory`,
+      `${oom.process ?? (oom.unit === undefined ? "A process" : unitTemplate(oom.unit))} was killed for memory`,
     LogError: (log) =>
-      `${log.identifier ?? log.unit ?? "unknown"}: ${template(log.message)}`,
+      `${log.identifier ?? (log.unit === undefined ? "unknown" : unitTemplate(log.unit))}: ${template(log.message)}`,
   });
 
 /** The issue an event starts, before any other event joins it. */
