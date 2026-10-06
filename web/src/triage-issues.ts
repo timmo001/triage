@@ -1063,6 +1063,7 @@ export class TriageIssues extends LitElement {
         <triage-filter
           label="Host"
           path=${mdiServer}
+          ?loading=${AsyncResult.isInitial(this.#hosts.value)}
           .options=${known.map((host) => ({
             value: host.host,
             title: host.host,
