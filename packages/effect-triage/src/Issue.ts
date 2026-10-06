@@ -23,13 +23,14 @@ export type Status = typeof Status.Type;
 /**
  * Where an issue stands. Open issues are new for a week after they're first
  * seen, regressed for a week after they come back, quiet after a week without
- * events, and ongoing otherwise.
+ * events, and ongoing otherwise. Listed most pressing first, the order the
+ * web UI shows them in.
  */
 export const State = Schema.Literals([
+  "regressed",
   "new",
   "ongoing",
   "quiet",
-  "regressed",
   "resolved",
   "muted",
 ]);

@@ -31,7 +31,7 @@ export interface ListOptions extends Api.IssueFilters {
   readonly limit: number;
   /** How many issues to skip first. */
   readonly offset?: number | undefined;
-  readonly state?: Issue.State | undefined;
+  readonly state?: ReadonlyArray<Issue.State> | undefined;
   /** What to sort by, the latest seen first by default. */
   readonly sort?: Api.IssueSort | undefined;
   readonly order?: Api.SortOrder | undefined;
@@ -643,9 +643,9 @@ export class Store extends Context.Service<
     };
 
     const groupColumns: Record<Api.IssueGrouping, string> = {
-      state: `CASE state WHEN 'regressed' THEN 0 WHEN 'new' THEN 1
-        WHEN 'ongoing' THEN 2 WHEN 'quiet' THEN 3 WHEN 'resolved' THEN 4
-        ELSE 5 END`,
+      state: `CASE state ${Issue.State.literals
+        .map((state, index) => `WHEN '${state}' THEN ${index}`)
+        .join(" ")} END`,
       kind: "kind",
       label: "CASE label WHEN 1 THEN 0 WHEN 0 THEN 1 ELSE 2 END",
     };
@@ -675,9 +675,9 @@ export class Store extends Context.Service<
             SELECT * FROM (${summaries(options, now)})
             WHERE ${sql.and([
               labelled(options.label),
-              ...(options.state === undefined
+              ...(options.state === undefined || options.state.length === 0
                 ? []
-                : [sql`state = ${options.state}`]),
+                : [sql`state IN ${sql.in(options.state)}`]),
             ])}
             ORDER BY ${sql.literal(orderBy)}
             LIMIT ${options.limit} OFFSET ${options.offset ?? 0}

@@ -28,8 +28,9 @@ const skeletonWidths = ["7rem", "5rem", "8rem", "6rem"];
 /**
  * One of the issue list's filters: a list of options to tick, matching
  * issues with any of them. Every filter is the same height and scrolls its
- * options inside it. Fires `filter-change` with the ticked values, and
- * `filter-toggle` with whether to show the options.
+ * options inside it. Fires `filter-change` with the ticked values, empty
+ * when everything is ticked, and `filter-toggle` with whether to show the
+ * options.
  *
  * @cssprop --triage-filter-color - The heading's icon colour. Defaults to the accent.
  */
@@ -187,6 +188,10 @@ export class TriageFilter extends LitElement {
 
   @property({ attribute: false }) accessor value: ReadonlyArray<string> = [];
 
+  /** What clearing the filter goes back to. Everything, unless given. */
+  @property({ attribute: false })
+  accessor defaultValue: ReadonlyArray<string> = [];
+
   /** Shows placeholder rows while the options load. */
   @property({ type: Boolean }) accessor loading = false;
 
@@ -214,6 +219,20 @@ export class TriageFilter extends LitElement {
   /** No values means no filter, so every option counts as ticked. */
   #isTicked(option: string) {
     return this.value.length === 0 || this.value.includes(option);
+  }
+
+  /** Whether the ticked options differ from the default. */
+  #isFiltering() {
+    if (this.defaultValue.length === 0) {
+      return this.value.length > 0;
+    }
+
+    const ticked = this.options.filter(({ value }) => this.#isTicked(value));
+
+    return (
+      ticked.length !== this.defaultValue.length ||
+      ticked.some(({ value }) => !this.defaultValue.includes(value))
+    );
   }
 
   #toggle(option: string, checked: boolean) {
@@ -280,6 +299,7 @@ export class TriageFilter extends LitElement {
 
   override render() {
     const shown = this.value.length || this.options.length;
+    const filtering = this.#isFiltering();
 
     return html`
       <div class="header">
@@ -300,7 +320,7 @@ export class TriageFilter extends LitElement {
               : html`<span
                   class=${classMap({
                     badge: true,
-                    filtering: this.value.length > 0,
+                    filtering,
                   })}
                   title="${shown} of ${this.options.length} shown"
                   >${shown}/${this.options.length}</span
@@ -308,16 +328,16 @@ export class TriageFilter extends LitElement {
           }
         </button>
         ${
-          this.value.length === 0
-            ? nothing
-            : html`<button
+          filtering
+            ? html`<button
                 class="clear icon-only"
                 aria-label="Clear the ${this.label} filter"
                 title="Clear filter"
-                @click=${() => this.#change([])}
+                @click=${() => this.#change(this.defaultValue)}
               >
                 ${icon(mdiFilterVariantRemove)}
               </button>`
+            : nothing
         }
       </div>
       <div id="options" class="scroller" ?hidden=${!this.expanded}>

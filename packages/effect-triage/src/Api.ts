@@ -371,8 +371,8 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
         /** How many issues to skip, for fetching the next page. */
         offset: Schema.optional(Schema.Int),
         ...IssueFilters.fields,
-        /** Only issues in this state. */
-        state: Schema.optional(State),
+        /** Only issues in one of these states. */
+        state: Schema.optional(Schema.Array(State)),
         /** What to sort by. The latest seen first by default. */
         sort: Schema.optional(IssueSort),
         order: Schema.optional(SortOrder),

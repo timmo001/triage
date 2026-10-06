@@ -167,7 +167,7 @@ describe("Store", () => {
         unlabelled: yield* titles({ label: ["none"] }),
         noise: yield* titles({ label: ["noise"] }),
         anyLabel: yield* titles({ label: ["none", "noise"] }),
-        resolved: yield* titles({ state: "resolved" }),
+        resolved: yield* titles({ state: ["resolved", "muted"] }),
         search: yield* titles({ search: "WIRE" }),
         laptop: yield* titles({ host: ["laptop"] }),
         bothHosts: yield* titles({ host: ["laptop", "desktop"] }),
@@ -231,7 +231,7 @@ describe("Store", () => {
         event("cups", day),
       ]);
 
-      const [quiet] = yield* store.issues({ limit: 10, state: "quiet" });
+      const [quiet] = yield* store.issues({ limit: 10, state: ["quiet"] });
 
       return {
         quiet: quiet?.title,

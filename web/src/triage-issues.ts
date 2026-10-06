@@ -53,6 +53,7 @@ import {
   type BulkAction,
   bulkAction,
   collapsedGroups,
+  defaultStates,
   hosts,
   issueCounts,
   issueHref,
@@ -86,6 +87,15 @@ const features = tableFeatures({
 });
 
 type IssueRow = Row<typeof features, Api.IssueSummary>;
+
+const stateTitles: Record<Issue.State, string> = {
+  regressed: "Regressed",
+  new: "New",
+  ongoing: "Ongoing",
+  quiet: "Quiet",
+  resolved: "Resolved",
+  muted: "Muted",
+};
 
 const kindTitles: Record<Issue.Kind, string> = {
   Crash: "Crashes",
@@ -212,9 +222,14 @@ const loadAhead = 10;
 /** Below this width the list shows one cell with a secondary line. */
 const narrowWidth = 640;
 
-type FilterName = "host" | "kind" | "label";
+type FilterName = "state" | "host" | "kind" | "label";
 
-const filterNames: ReadonlyArray<FilterName> = ["host", "kind", "label"];
+const filterNames: ReadonlyArray<FilterName> = [
+  "state",
+  "host",
+  "kind",
+  "label",
+];
 
 /** Matches where the filters open as a bottom sheet, one at a time. */
 const sheetQuery = window.matchMedia("(max-width: 39.99rem)");
@@ -565,70 +580,6 @@ export class TriageIssues extends LitElement {
         color: var(--triage-muted);
       }
 
-      .options .toolbar {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      .options .toolbar > button {
-        justify-content: center;
-      }
-
-      .options .states {
-        gap: 0.15rem;
-      }
-
-      .options .states > .state-option {
-        justify-content: flex-start;
-        gap: 0.6rem;
-        background: none;
-        border-color: transparent;
-      }
-
-      .options .states > .state-option[aria-pressed="true"] {
-        color: var(--triage-text);
-        background: var(--triage-surface);
-        border-color: var(--triage-accent);
-      }
-
-      .state-name {
-        flex: 1;
-        text-align: start;
-        text-transform: capitalize;
-      }
-
-      .dot {
-        flex: none;
-        width: 0.6rem;
-        height: 0.6rem;
-        border-radius: 50%;
-        background: var(--triage-muted);
-      }
-
-      .dot.new {
-        background: var(--triage-new);
-      }
-
-      .dot.regressed {
-        background: var(--triage-regressed);
-      }
-
-      .dot.ongoing {
-        background: var(--triage-ongoing);
-      }
-
-      .dot.quiet {
-        background: var(--triage-quiet);
-      }
-
-      .dot.resolved {
-        background: var(--triage-resolved);
-      }
-
-      .dot.muted {
-        background: var(--triage-muted-state);
-      }
-
       .count {
         min-width: 1.5rem;
         padding: 0.05rem 0.45rem;
@@ -860,7 +811,7 @@ export class TriageIssues extends LitElement {
 
   #isOpen(name: FilterName) {
     return (
-      this.openFilters ?? (sheetQuery.matches ? ["host"] : filterNames)
+      this.openFilters ?? (sheetQuery.matches ? ["state"] : filterNames)
     ).includes(name);
   }
 
@@ -969,6 +920,26 @@ export class TriageIssues extends LitElement {
     this.rowSelection = {};
   }
 
+  /**
+   * Change the states shown. Nothing ticked means every state, and the
+   * defaults are kept as no setting, so they follow any change to them.
+   */
+  #updateStates(states: ReadonlyArray<string>) {
+    if (states.length === 0) {
+      this.#update({ state: Issue.State.literals });
+
+      return;
+    }
+
+    this.#update({
+      state:
+        states.length === defaultStates.length &&
+        defaultStates.every((state) => states.includes(state))
+          ? undefined
+          : states,
+    });
+  }
+
   #refresh() {
     registry.refresh(issueList);
     registry.refresh(issueCounts);
@@ -1062,21 +1033,6 @@ export class TriageIssues extends LitElement {
     const counts = AsyncResult.getOrElse(this.#counts.value, () => undefined);
     const known = AsyncResult.getOrElse(this.#hosts.value, () => []);
 
-    const stateOption = (
-      state: Issue.State | undefined,
-      count: number | undefined,
-    ) => html`
-      <button
-        class="state-option"
-        aria-pressed=${state === settings.state}
-        @click=${() => this.#update({ state })}
-      >
-        <span class="dot ${state ?? "all"}"></span>
-        <span class="state-name">${state ?? "all"}</span>
-        ${count === undefined ? nothing : html`<span class="count">${count}</span>`}
-      </button>
-    `;
-
     return html`
       <div id="options" class="options" popover>
         <div class="sheet-head">
@@ -1109,13 +1065,23 @@ export class TriageIssues extends LitElement {
             ${icon(mdiFilterVariantRemove)} Clear
           </button>
         </div>
-        <h2>${icon(mdiListStatus)} State</h2>
-        <div class="toolbar states" role="group" aria-label="State">
-          ${stateOption(undefined, counts?.total)}
-          ${Issue.State.literals.map((state) =>
-            stateOption(state, counts?.states[state]),
-          )}
-        </div>
+        <triage-filter
+          label="State"
+          path=${mdiListStatus}
+          .options=${Issue.State.literals.map((state) => ({
+            value: state,
+            title: stateTitles[state],
+            count: counts?.states[state],
+          }))}
+          .expanded=${this.#isOpen("state")}
+          style="--triage-filter-color: var(--triage-ongoing)"
+          @filter-toggle=${(event: CustomEvent<boolean>) =>
+            this.#toggleFilter("state", event.detail)}
+          .value=${settings.state ?? defaultStates}
+          .defaultValue=${defaultStates}
+          @filter-change=${(event: CustomEvent<ReadonlyArray<string>>) =>
+            this.#updateStates(event.detail)}
+        ></triage-filter>
         <triage-filter
           label="Host"
           path=${mdiServer}

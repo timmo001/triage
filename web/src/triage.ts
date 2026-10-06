@@ -63,9 +63,17 @@ export class TriageApi extends AtomHttpApi.Service<TriageApi>()(
 
 const issuesKey = ["issues"];
 
+/** The states the issue list shows until others are picked. */
+export const defaultStates: ReadonlyArray<Issue.State> = [
+  "regressed",
+  "new",
+  "ongoing",
+];
+
 /** How the issue list is filtered, sorted and grouped, kept between visits. */
 export const ListSettings = Schema.Struct({
-  state: Schema.optional(Issue.State),
+  /** The states to show, or the defaults when not set. */
+  state: Schema.optional(Schema.Array(Issue.State)),
   sort: Api.IssueSort,
   order: Api.SortOrder,
   group: Schema.optional(Api.IssueGrouping),
@@ -136,7 +144,12 @@ export const issueList = TriageApi.runtime.factory.withReactivity(issuesKey)(
     return Stream.paginate(0, (offset) =>
       TriageApi.use((client) =>
         client.issues.list({
-          query: { ...settings, limit: pageSize, offset },
+          query: {
+            ...settings,
+            state: settings.state ?? defaultStates,
+            limit: pageSize,
+            offset,
+          },
         }),
       ).pipe(
         asDefects,
