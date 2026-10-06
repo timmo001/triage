@@ -1,4 +1,4 @@
-import { Issue } from "@timmo001/effect-triage";
+import { type Api, Issue } from "@timmo001/effect-triage";
 import { AsyncResult } from "effect/reactivity";
 import { css, html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
@@ -6,6 +6,7 @@ import { AtomController } from "./AtomController.js";
 import { issueHref, issueLimit, issues } from "./triage.js";
 import {
   ago,
+  formatPercent,
   formatTime,
   renderDefect,
   renderError,
@@ -17,6 +18,16 @@ import {
 type Filter = Issue.State | "all";
 
 const filters: ReadonlyArray<Filter> = ["all", ...Issue.State.literals];
+
+type Sort = "recent" | "worth";
+
+const sorts: ReadonlyArray<readonly [Sort, string]> = [
+  ["recent", "Last seen"],
+  ["worth", "Worth fixing"],
+];
+
+const byWorth = (a: Api.IssueSummary, b: Api.IssueSummary) =>
+  (b.worth ?? -1) - (a.worth ?? -1);
 
 @customElement("triage-issues")
 export class TriageIssues extends LitElement {
@@ -30,7 +41,13 @@ export class TriageIssues extends LitElement {
         margin: 1rem 0;
       }
 
-      .filters button {
+      .filters .label {
+        align-self: center;
+        margin-left: auto;
+        font-size: 0.85rem;
+      }
+
+      [aria-label="State"] button {
         text-transform: capitalize;
       }
 
@@ -66,7 +83,8 @@ export class TriageIssues extends LitElement {
         text-decoration: underline;
       }
 
-      td.count {
+      td.count,
+      td.worth {
         text-align: right;
         font-variant-numeric: tabular-nums;
       }
@@ -78,6 +96,8 @@ export class TriageIssues extends LitElement {
   ];
 
   @state() accessor filter: Filter = "all";
+
+  @state() accessor sort: Sort = "recent";
 
   readonly #issues = new AtomController(this, () => issues);
 
@@ -93,24 +113,42 @@ export class TriageIssues extends LitElement {
           counts.set(issue.state, (counts.get(issue.state) ?? 0) + 1);
         }
 
-        const shown =
+        const filtered =
           this.filter === "all"
             ? value
             : value.filter((issue) => issue.state === this.filter);
 
+        const shown =
+          this.sort === "worth" ? filtered.toSorted(byWorth) : filtered;
+
         return html`
           <h1>Issues</h1>
-          <div class="filters" role="group" aria-label="State">
-            ${filters.map(
-              (filter) => html`
-                <button
-                  aria-pressed=${filter === this.filter}
-                  @click=${() => (this.filter = filter)}
-                >
-                  ${filter} (${counts.get(filter) ?? 0})
-                </button>
-              `,
-            )}
+          <div class="filters">
+            <div class="filters" role="group" aria-label="State">
+              ${filters.map(
+                (filter) => html`
+                  <button
+                    aria-pressed=${filter === this.filter}
+                    @click=${() => (this.filter = filter)}
+                  >
+                    ${filter} (${counts.get(filter) ?? 0})
+                  </button>
+                `,
+              )}
+            </div>
+            <span class="label muted-text">Sort by</span>
+            <div class="filters" role="group" aria-label="Sort by">
+              ${sorts.map(
+                ([sort, label]) => html`
+                  <button
+                    aria-pressed=${sort === this.sort}
+                    @click=${() => (this.sort = sort)}
+                  >
+                    ${label}
+                  </button>
+                `,
+              )}
+            </div>
           </div>
           ${
             shown.length === 0
@@ -121,6 +159,11 @@ export class TriageIssues extends LitElement {
                       <tr>
                         <th>State</th>
                         <th>Issue</th>
+                        <th
+                          title="How likely the latest decision says it's worth fixing"
+                        >
+                          Worth
+                        </th>
                         <th>Events</th>
                         <th>Last seen</th>
                       </tr>
@@ -132,6 +175,13 @@ export class TriageIssues extends LitElement {
                             <td>${stateBadge(issue.state)}</td>
                             <td class="title">
                               <a href=${issueHref(issue.id)}>${issue.title}</a>
+                            </td>
+                            <td class="worth">
+                              ${
+                                issue.worth === undefined
+                                  ? html`<span class="muted-text">-</span>`
+                                  : formatPercent(issue.worth)
+                              }
                             </td>
                             <td class="count">${issue.count}</td>
                             <td

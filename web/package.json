@@ -11,8 +11,10 @@
   "dependencies": {
     "@effect/platform-browser": "4.0.1",
     "@timmo001/effect-triage": "workspace:*",
+    "dompurify": "3.4.16",
     "effect": "4.0.1",
-    "lit": "3.3.3"
+    "lit": "3.3.3",
+    "marked": "18.1.0"
   },
   "devDependencies": {}
 }

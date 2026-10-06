@@ -1,16 +1,21 @@
-import type { Event, Issue } from "@timmo001/effect-triage";
+import type { Api, Event, Issue } from "@timmo001/effect-triage";
+import DOMPurify from "dompurify";
 import { Predicate } from "effect";
 import { AsyncResult } from "effect/reactivity";
 import { css, html, LitElement } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { marked } from "marked";
 import { AtomController, registry } from "./AtomController.js";
 import { issue, setStatus } from "./triage.js";
 import {
   ago,
+  formatPercent,
   formatTime,
   renderDefect,
   renderError,
   renderLoading,
+  severityLabel,
   shared,
   stateBadge,
 } from "./ui.js";
@@ -77,7 +82,7 @@ export class TriageIssue extends LitElement {
         margin-bottom: 2rem;
       }
 
-      ol {
+      .cards {
         list-style: none;
         margin: 0;
         padding: 0;
@@ -85,14 +90,14 @@ export class TriageIssue extends LitElement {
         gap: 0.75rem;
       }
 
-      li {
+      .cards > li {
         padding: 0.75rem 1rem;
         border: 1px solid var(--triage-border);
         border-radius: 0.5rem;
         background: var(--triage-surface);
       }
 
-      li header {
+      .cards > li > header {
         display: flex;
         flex-wrap: wrap;
         gap: 0.25rem 1rem;
@@ -110,6 +115,57 @@ export class TriageIssue extends LitElement {
       details {
         margin-top: 0.5rem;
         font-size: 0.85rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 2rem;
+        background: var(--triage-surface);
+        border: 1px solid var(--triage-border);
+        border-radius: 0.5rem;
+      }
+
+      th,
+      td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid var(--triage-border);
+        text-align: left;
+      }
+
+      th {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--triage-muted);
+      }
+
+      td.worth {
+        font-variant-numeric: tabular-nums;
+      }
+
+      td.cause {
+        text-transform: capitalize;
+      }
+
+      .suggestions {
+        margin-bottom: 2rem;
+      }
+
+      .suggestion {
+        overflow-wrap: anywhere;
+      }
+
+      .suggestion :is(h1, h2, h3, h4, h5, h6) {
+        margin: 1rem 0 0.5rem;
+        font-size: 1rem;
+      }
+
+      .suggestion pre {
+        overflow-x: auto;
+        white-space: pre;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.4rem;
+        background: var(--triage-bg);
       }
     `,
   ];
@@ -163,8 +219,12 @@ export class TriageIssue extends LitElement {
               `,
             )}
           </div>
+          <h2>Decisions</h2>
+          ${renderDecisions(value.decisions)}
+          <h2>Suggested fixes</h2>
+          ${renderSuggestions(value.suggestions)}
           <h2>Latest events</h2>
-          <ol>
+          <ol class="cards">
             ${value.events.map(renderEvent)}
           </ol>
         `,
@@ -183,6 +243,74 @@ export class TriageIssue extends LitElement {
 
 const formatFrame = (frame: Event.Frame) =>
   `${frame.function ?? "??"} (${frame.module ?? "unknown"})`;
+
+const renderDecisions = (decisions: ReadonlyArray<Api.IssueDecision>) =>
+  decisions.length === 0
+    ? html`<p class="muted-text">No decision model has looked at it yet.</p>`
+    : html`
+        <table>
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Worth fixing</th>
+              <th>Severity</th>
+              <th>Likely cause</th>
+              <th>Decided</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${decisions.map(
+              (decision) => html`
+                <tr>
+                  <td>${decision.model}</td>
+                  <td class="worth">${formatPercent(decision.worth)}</td>
+                  <td>${severityLabel(decision.severity)}</td>
+                  <td class="cause">${decision.cause}</td>
+                  <td title=${formatTime(decision.decidedAt)}>
+                    ${ago(decision.decidedAt)}, at ${decision.issueCount}
+                    ${decision.issueCount === 1 ? "event" : "events"}
+                  </td>
+                </tr>
+              `,
+            )}
+          </tbody>
+        </table>
+      `;
+
+// The text comes from a language model, so it's sanitised before rendering,
+// without images so it can't make the browser fetch anything.
+const markdown = (text: string) =>
+  unsafeHTML(
+    DOMPurify.sanitize(marked.parse(text, { async: false }), {
+      FORBID_TAGS: ["img"],
+      FORBID_ATTR: ["style"],
+    }),
+  );
+
+const renderSuggestions = (suggestions: ReadonlyArray<Api.IssueSuggestion>) =>
+  suggestions.length === 0
+    ? html`<p class="muted-text">No language model has suggested a fix yet.</p>`
+    : html`
+        <ol class="cards suggestions">
+          ${suggestions.map(
+            (suggestion) => html`
+              <li>
+                <header>
+                  <span>${suggestion.model}</span>
+                  <time title=${formatTime(suggestion.suggestedAt)}>
+                    ${ago(suggestion.suggestedAt)}
+                  </time>
+                  <span>
+                    at ${suggestion.issueCount}
+                    ${suggestion.issueCount === 1 ? "event" : "events"}
+                  </span>
+                </header>
+                <div class="suggestion">${markdown(suggestion.text)}</div>
+              </li>
+            `,
+          )}
+        </ol>
+      `;
 
 const renderEvent = (event: Event.Event) => html`
   <li>

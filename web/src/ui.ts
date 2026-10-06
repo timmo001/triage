@@ -74,6 +74,21 @@ export const shared = css`
 export const stateBadge = (state: Issue.State) =>
   html`<span class="state ${state}">${state}</span>`;
 
+const percentage = new Intl.NumberFormat(undefined, {
+  style: "percent",
+  maximumFractionDigits: 0,
+});
+
+/** A probability as a percentage, such as "82%". */
+export const formatPercent = (probability: number) =>
+  percentage.format(probability);
+
+const severities = ["none", "minor", "major", "critical"];
+
+/** The nearest severity level to a 0 to 3 rating. */
+export const severityLabel = (severity: number) =>
+  severities[Math.min(3, Math.max(0, Math.round(severity)))] ?? "none";
+
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
 const units: ReadonlyArray<readonly [Intl.RelativeTimeFormatUnit, number]> = [
