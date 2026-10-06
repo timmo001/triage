@@ -81,7 +81,7 @@ TRIAGE_ADMIN_TOKEN=<the same value> triage hosts add laptop --server https://tri
 
 | Variable | Default | |
 | --- | --- | --- |
-| `TRIAGE_HOSTNAME` | `127.0.0.1` (`0.0.0.0` in the container) | Address to listen on |
+| `TRIAGE_HOSTNAME` | `127.0.0.1` (`::` in the container, IPv4 and IPv6) | Address to listen on |
 | `TRIAGE_PORT` | `7171` | Port to listen on |
 | `TRIAGE_SERVER_DB` | `$XDG_STATE_HOME/triage/server.db` (`/data/server.db` in the container) | Server database |
 | `TRIAGE_TRUST_PROXY` | `false` | Trust `X-Forwarded-Host` and `X-Forwarded-For`. Only turn this on when the proxy is the only way to reach the server |

@@ -28,7 +28,7 @@ FROM gcr.io/distroless/cc-debian12:nonroot@sha256:9dac0a79194e45a7da0158a9c6da57
 
 COPY --from=build /src/dist/triage /usr/local/bin/triage
 
-ENV TRIAGE_HOSTNAME=0.0.0.0 \
+ENV TRIAGE_HOSTNAME=:: \
     TRIAGE_PORT=7171 \
     TRIAGE_SERVER_DB=/data/server.db
 
