@@ -1,8 +1,18 @@
 import { BrowserKeyValueStore } from "@effect/platform-browser";
 import { Api, Issue } from "@timmo001/effect-triage";
-import { Data, Effect, Equal, Layer, Option, Schema, Stream } from "effect";
+import {
+  Data,
+  Effect,
+  Equal,
+  Layer,
+  Option,
+  Schedule,
+  Schema,
+  Stream,
+} from "effect";
 import {
   FetchHttpClient,
+  HttpClient,
   HttpClientError,
   HttpClientRequest,
 } from "effect/http";
@@ -43,6 +53,11 @@ export class TriageApi extends AtomHttpApi.Service<TriageApi>()(
       );
     },
     baseUrl: new URL(".", document.baseURI).href.replace(/\/$/, ""),
+    // Covers the server restarting, so a page doesn't fail mid-scroll.
+    transformClient: HttpClient.retryTransient({
+      schedule: Schedule.exponential("250 millis"),
+      times: 5,
+    }),
   },
 ) {}
 
