@@ -83,44 +83,49 @@ export class Collector extends Context.Service<
       const collect = Effect.fn("Collector.collect")(function* (
         options: CollectOptions,
       ) {
-        const after = yield* store.cursor(source);
         const totals = { entries: 0, added: 0 };
 
-        yield* journal
-          .read({ after: Option.getOrUndefined(after), follow: options.follow })
-          .pipe(
-            Stream.groupedWithin(1000, "1 second"),
-            Stream.runForEach(
-              Effect.fnUntraced(function* (entries) {
-                const last = entries.at(-1);
+        // journalctl --follow only reads the current boot, so catch up on
+        // earlier boots with a plain read before following.
+        for (const follow of options.follow ? [false, true] : [false]) {
+          const after = yield* store.cursor(source);
 
-                if (last === undefined) {
-                  return;
-                }
+          yield* journal
+            .read({ after: Option.getOrUndefined(after), follow })
+            .pipe(
+              Stream.groupedWithin(1000, "1 second"),
+              Stream.runForEach(
+                Effect.fnUntraced(function* (entries) {
+                  const last = entries.at(-1);
 
-                const events = yield* Effect.forEach(
-                  entries.flatMap((entry) =>
-                    Option.toArray(toEvent(entry, redact)).map(
-                      (event) => [entry, event] as const,
+                  if (last === undefined) {
+                    return;
+                  }
+
+                  const events = yield* Effect.forEach(
+                    entries.flatMap((entry) =>
+                      Option.toArray(toEvent(entry, redact)).map(
+                        (event) => [entry, event] as const,
+                      ),
                     ),
-                  ),
-                  ([entry, event]) => withBreadcrumbs(entry, event),
-                );
+                    ([entry, event]) => withBreadcrumbs(entry, event),
+                  );
 
-                totals.added += yield* store.record(
-                  source,
-                  events,
-                  last.__CURSOR,
-                );
+                  totals.added += yield* store.record(
+                    source,
+                    events,
+                    last.__CURSOR,
+                  );
 
-                totals.entries += entries.length;
+                  totals.entries += entries.length;
 
-                if (options.onBatch !== undefined) {
-                  yield* options.onBatch({ ...totals });
-                }
-              }),
-            ),
-          );
+                  if (options.onBatch !== undefined) {
+                    yield* options.onBatch({ ...totals });
+                  }
+                }),
+              ),
+            );
+        }
 
         return { ...totals };
       });
