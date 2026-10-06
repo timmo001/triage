@@ -2,10 +2,12 @@
 
 Runs the triage server, which collects crashes and errors from your machines and groups them into issues. The models that decide which issues are worth fixing, and suggest fixes, run on another machine as a worker, so nothing heavy runs on Home Assistant.
 
+The full documentation is at [triage.timmo.dev](https://triage.timmo.dev), including [this app](https://triage.timmo.dev/setup/server#home-assistant), [installing triage](https://triage.timmo.dev/install) on your other machines and [every setting](https://triage.timmo.dev/configuration).
+
 ## Setting up
 
 1. Set **server_admin_token** to a long random value, at least 32 characters, such as from `openssl rand -base64 32`, and start the app.
-2. From a machine with `triage` installed, add each machine to collect from, and a worker for the machine with the models:
+2. From a machine with [`triage` installed](https://triage.timmo.dev/install), add each machine to collect from, and a worker for the machine with the models:
 
    ```sh
    export TRIAGE_ADMIN_TOKEN=<the same value>
@@ -18,6 +20,8 @@ Runs the triage server, which collects crashes and errors from your machines and
 The server speaks plain HTTP on port 7171, so tokens are only as private as your network. To reach it from outside, put it behind a reverse proxy or a Cloudflare tunnel for HTTPS, and turn on **trust_proxy** only if that's the only way in.
 
 ## Options
+
+These match the server's [settings](https://triage.timmo.dev/configuration#server) of the same name.
 
 - **server_admin_token**: an admin token the server always accepts, for managing hosts, workers and admins with `--server`. It isn't stored or listed. Leave it empty once you've added an admin of your own with `triage admins add`.
 - **trust_proxy**: trust `X-Forwarded-Host` and `X-Forwarded-For` from a reverse proxy.
