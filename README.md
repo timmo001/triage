@@ -34,6 +34,14 @@ TRIAGE_DECISION_MODEL=winnow
 
 then run `systemctl --user enable --now triage-worker.service`. The worker fetches issues from the server and sends back its answers, so the models only need to be reachable from the worker. The server's daily limits apply to every worker together, and nothing queues up while a worker is off.
 
+## Home Assistant
+
+The Home Assistant app runs the server on Home Assistant OS, for amd64 and aarch64. Add this repository to the app store:
+
+[![Add the repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Ftimmo001%2Ftriage)
+
+then install Triage, set its admin token and start it. Its documentation tab explains adding hosts and workers with `--server`.
+
 ## Self-hosting
 
 The server speaks plain HTTP. For HTTPS, run it behind a reverse proxy such as Caddy, Traefik or nginx, or behind Cloudflare, and let that handle TLS.

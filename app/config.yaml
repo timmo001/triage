@@ -1,0 +1,29 @@
+---
+name: Triage
+version: 0.1.0
+slug: triage
+description: Collect crashes and errors from your machines, and decide which are worth fixing
+url: https://github.com/timmo001/triage
+arch:
+  - aarch64
+  - amd64
+image: ghcr.io/timmo001/triage-app
+ports:
+  7171/tcp: 7171
+ports_description:
+  7171/tcp: The triage server's API, for hosts, workers and admins
+watchdog: http://[HOST]:[PORT:7171]/api/health
+environment:
+  TRIAGE_OPTIONS: /data/options.json
+# Stopped during backups so the SQLite database is copied in a consistent
+# state. Agents keep events until the server is back.
+backup: cold
+options:
+  trust_proxy: false
+  decide_daily: 20
+  suggest_daily: 5
+schema:
+  server_admin_token: password?
+  trust_proxy: bool
+  decide_daily: int(0,)
+  suggest_daily: int(0,)

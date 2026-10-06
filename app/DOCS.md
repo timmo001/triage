@@ -1,0 +1,27 @@
+# Triage
+
+Runs the triage server, which collects crashes and errors from your machines and groups them into issues. The models that decide which issues are worth fixing, and suggest fixes, run on another machine as a worker, so nothing heavy runs on Home Assistant.
+
+## Setting up
+
+1. Set **server_admin_token** to a long random value, at least 32 characters, such as from `openssl rand -base64 32`, and start the app.
+2. From a machine with `triage` installed, add each machine to collect from, and a worker for the machine with the models:
+
+   ```sh
+   export TRIAGE_ADMIN_TOKEN=<the same value>
+   triage hosts add laptop --server http://homeassistant.local:7171
+   triage workers add desktop --server http://homeassistant.local:7171
+   ```
+
+3. Put the server's URL and each printed token in `~/.config/triage/agent.env` or `worker.env` on that machine, as the [README](https://github.com/timmo001/triage#arch-linux) describes.
+
+The server speaks plain HTTP on port 7171, so tokens are only as private as your network. To reach it from outside, put it behind a reverse proxy or a Cloudflare tunnel for HTTPS, and turn on **trust_proxy** only if that's the only way in.
+
+## Options
+
+- **server_admin_token**: an admin token the server always accepts, for managing hosts, workers and admins with `--server`. It isn't stored or listed. Leave it empty once you've added an admin of your own with `triage admins add`.
+- **trust_proxy**: trust `X-Forwarded-Host` and `X-Forwarded-For` from a reverse proxy.
+- **decide_daily**: the most issues each decision model may decide on in any 24 hours, across all workers.
+- **suggest_daily**: the most fixes each language model may suggest in any 24 hours, across all workers.
+
+The database is kept in the app's data, and the app stops briefly during backups so it's copied consistently. Machines keep their events until the server is back.
