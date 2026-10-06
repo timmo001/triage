@@ -93,6 +93,91 @@ jobs:
       # The JSR entry resolves @timmo001/effect-triage from the workspace, so build it too.
       check-command: cd ../.. && bun run check && bun run test && bun run build:packages
 
+  linux:
+    name: Linux
+    needs: tools
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: timmo001/workflows/.github/workflows/release-bun-cli-linux.yml@82ee28374d3471231113dabc3dd436f65a47132f # 20261004.0
+    with:
+      binary-name: triage
+      entrypoint: src/index.ts
+      package-config: .scripts/linux/nfpm.yaml
+      bun-version: ${{ needs.tools.outputs.bun }}
+      smoke-test-arguments: |-
+        --version
+        --help
+      package-prepare-command: |-
+        mkdir -p .scripts/linux/completions
+        ./dist/release/root/triage --completions bash > .scripts/linux/completions/triage.bash
+        ./dist/release/root/triage --completions fish > .scripts/linux/completions/triage.fish
+        ./dist/release/root/triage --completions zsh > .scripts/linux/completions/_triage
+      release-version: ${{ github.event.release.tag_name }}
+      source-ref: ${{ github.event.release.tag_name }}
+      existing-release: true
+      attest: true
+
+  prepare-arch-bin:
+    name: Prepare Arch package (triage-bin)
+    needs: linux
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ env.RELEASE_VERSION }}
+
+      - name: Render PKGBUILD
+        uses: timmo001/workflows/.github/actions/prepare-arch-bin@82ee28374d3471231113dabc3dd436f65a47132f # 20261004.0
+        with:
+          releaseVersion: ${{ env.RELEASE_VERSION }}
+          packageName: triage
+          pkgbuildTemplate: .scripts/linux/PKGBUILD.bin
+          outputDirectory: ${{ runner.temp }}/arch-bin
+          completionsArguments: "--completions {shell}"
+          extraFiles: |-
+            LICENSE
+            .scripts/linux/triage-agent.service
+            .scripts/linux/triage-server.service
+            .scripts/linux/triage.install
+
+      - name: Upload package files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: arch-triage-bin-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/arch-bin
+          if-no-files-found: error
+          retention-days: 1
+
+  arch-bin:
+    name: Arch package (triage-bin)
+    needs: prepare-arch-bin
+    uses: timmo001/workflows/.github/workflows/build-arch-package.yml@82ee28374d3471231113dabc3dd436f65a47132f # 20261004.0
+    with:
+      package-name: triage-bin
+      package-files-artifact-name: arch-triage-bin-${{ github.run_id }}-${{ github.run_attempt }}
+      pkgbuild-path: PKGBUILD
+    secrets:
+      ARCH_REPO_DISPATCH_TOKEN: ${{ secrets.ARCH_REPO_DISPATCH_TOKEN }}
+
+  attach-arch-bin:
+    name: Attach Arch package (triage-bin)
+    needs: arch-bin
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: timmo001/workflows/.github/workflows/attach-release-arch-package.yml@82ee28374d3471231113dabc3dd436f65a47132f # 20261004.0
+    with:
+      artifact-name: ${{ needs.arch-bin.outputs.artifact-name }}
+      release-tag: ${{ github.event.release.tag_name }}
+      package-name: triage-bin
+
   # amd64 only for now: Bun's compile step is unreliable under QEMU. Add arm64
   # through native arm runners with the Home Assistant app.
   image:
