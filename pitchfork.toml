@@ -18,7 +18,7 @@ ready_http = "http://localhost:4321/"
 health_http = "http://localhost:4321/"
 retry = true
 
-# The web UI with hot reloading, using the background server's API. The
+# The web UI, rebuilt on each page load, using the background server's API. The
 # `bun` condition resolves @timmo001/effect-triage to its source, as the build
 # does.
 [daemons.web]

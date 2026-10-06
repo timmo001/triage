@@ -137,7 +137,7 @@ description = "Stop the background local server"
 run = "pitchfork stop server"
 
 [tasks."serve:web"]
-description = "Start the web UI with hot reloading in the background through Pitchfork, using the background local server"
+description = "Start the web UI in the background through Pitchfork, using the background local server"
 depends = ["install"]
 run = ["pitchfork start server", "pitchfork start web"]
 
