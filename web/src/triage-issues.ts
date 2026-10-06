@@ -44,7 +44,7 @@ import { Api, Issue } from "@timmo001/effect-triage";
 import { Equal, Predicate, Schema } from "effect";
 import { AsyncResult } from "effect/reactivity";
 import { css, html, LitElement, nothing } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { customElement, query, state } from "lit/decorators.js";
 import { join } from "lit/directives/join.js";
 import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
@@ -59,7 +59,10 @@ import {
   issueList,
   ListSettings,
   listSettings,
+  type RowHeights,
+  rowHeights,
 } from "./triage.js";
+import "./triage-skeleton.js";
 import {
   ago,
   formatPercent,
@@ -67,7 +70,6 @@ import {
   icon,
   renderDefect,
   renderError,
-  renderLoading,
   shared,
   stateBadge,
 } from "./ui.js";
@@ -205,6 +207,61 @@ const actions: ReadonlyArray<readonly [string, string, BulkAction]> = [
 
 /** Load the next page once the last drawn row is this close to the end. */
 const loadAhead = 10;
+
+/** Below this width the list shows one cell with a secondary line. */
+const narrowWidth = 640;
+
+/** The columns a row shows, in order, after the selection checkbox. */
+const shownColumns = columns.flatMap((definition) => {
+  const id =
+    definition.id ??
+    ("accessorKey" in definition ? definition.accessorKey : undefined);
+
+  return id === undefined || id === "select" || id in columnVisibility
+    ? []
+    : [id];
+});
+
+/** Placeholder widths for each column's text. */
+const skeletonWidths = new Map([
+  ["state", "4rem"],
+  ["label", "3rem"],
+  ["worth", "2rem"],
+  ["count", "2rem"],
+  ["hosts", "5rem"],
+  ["lastSeen", "5rem"],
+]);
+
+/** Title widths for skeleton rows, so they don't look like a solid block. */
+const skeletonTitleWidths = [72, 54, 86, 63, 47, 78, 59];
+
+const skeletonRow = (index: number, height: number) => html`
+  <div class="row" style="height: ${height}px">
+    <span></span>
+    ${shownColumns.map(
+      (id) => html`
+        <div class=${cellClasses.get(id) ?? ""} role="cell">
+          <triage-skeleton-text
+            style="--triage-skeleton-text-width: ${
+              id === "title"
+                ? `${skeletonTitleWidths[index % skeletonTitleWidths.length]}%`
+                : (skeletonWidths.get(id) ?? "4rem")
+            }"
+          ></triage-skeleton-text>
+          ${
+            id === "title"
+              ? html`<div class="secondary small">
+                  <triage-skeleton-text
+                    style="--triage-skeleton-text-width: 60%"
+                  ></triage-skeleton-text>
+                </div>`
+              : nothing
+          }
+        </div>
+      `,
+    )}
+  </div>
+`;
 
 const decodeSettings = Schema.decodeUnknownSync(ListSettings);
 
@@ -580,6 +637,44 @@ export class TriageIssues extends LitElement {
         border-radius: 0.5rem;
       }
 
+      .skeleton {
+        box-sizing: border-box;
+        overflow: hidden;
+        animation: fade-in 0.3s ease-in both;
+      }
+
+      .skeleton .row {
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      .skeleton.more {
+        margin-top: 0.75rem;
+      }
+
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+        }
+      }
+
+      button[aria-busy="true"] .icon {
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          rotate: 1turn;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .skeleton,
+        button[aria-busy="true"] .icon {
+          animation: none;
+        }
+      }
+
       .row {
         display: grid;
         grid-template-columns:
@@ -756,6 +851,9 @@ export class TriageIssues extends LitElement {
 
   @state() accessor rowSelection: RowSelectionState = {};
 
+  /** The skeleton filling the window while a fresh list loads. */
+  @query(".skeleton:not(.more)") accessor skeleton: HTMLElement | null = null;
+
   readonly #settings = new AtomController(this, () => listSettings);
 
   readonly #collapsed = new AtomController(this, () => collapsedGroups);
@@ -768,18 +866,50 @@ export class TriageIssues extends LitElement {
 
   readonly #bulk = new AtomController(this, () => bulkAction);
 
+  readonly #rowHeights = new AtomController(this, () => rowHeights);
+
   readonly #table = new TableController<typeof features, Api.IssueSummary>(
     this,
   );
 
   readonly #virtualizer = new WindowVirtualizerController<HTMLDivElement>(
     this,
-    { count: 0, estimateSize: () => 45, overscan: 10 },
+    { count: 0, estimateSize: () => 46, overscan: 10 },
   );
 
   #list: HTMLElement | undefined;
 
+  /** The settings the shown rows were loaded for. */
+  #shownSettings: ListSettings | undefined;
+
   #search: ReturnType<typeof setTimeout> | undefined;
+
+  #layout(): keyof RowHeights {
+    return this.getBoundingClientRect().width < narrowWidth ? "narrow" : "wide";
+  }
+
+  /**
+   * Rows standing in for issues that are loading. Without a count there are
+   * enough to fill the window, and `updated` sizes them to stop at its end.
+   */
+  #renderSkeleton(count?: number) {
+    const height = this.#rowHeights.value[this.#layout()];
+
+    return html`
+      <div
+        class="list skeleton ${count === undefined ? "" : "more"}"
+        role="progressbar"
+        aria-label=${
+          count === undefined ? "Loading issues" : "Loading more issues"
+        }
+      >
+        ${Array.from(
+          { length: count ?? Math.ceil(window.innerHeight / height) },
+          (_, index) => skeletonRow(index, height),
+        )}
+      </div>
+    `;
+  }
 
   /**
    * Change the list settings, dropping any that are cleared. Values come
@@ -798,6 +928,10 @@ export class TriageIssues extends LitElement {
 
     if (Equal.equals(next, this.#settings.value)) {
       return;
+    }
+
+    if (window.scrollY > 0) {
+      window.scrollTo({ top: 0 });
     }
 
     registry.set(listSettings, next);
@@ -1185,10 +1319,12 @@ export class TriageIssues extends LitElement {
 
     const rows = table.getRowModel().rows;
     const virtualizer = this.#virtualizer.getVirtualizer();
+    const estimate = this.#rowHeights.value[this.#layout()];
 
     virtualizer.setOptions({
       ...virtualizer.options,
       count: rows.length,
+      estimateSize: () => estimate,
       getItemKey: (index) => rows[index]?.id ?? index,
       scrollMargin: this.#list?.offsetTop ?? 0,
     });
@@ -1250,52 +1386,96 @@ export class TriageIssues extends LitElement {
           </div>
         </div>
       </div>
-      ${
-        done
-          ? nothing
-          : html`<p class="muted-text" aria-busy="true">Loading more…</p>`
-      }
+      ${done ? nothing : this.#renderSkeleton(3)}
     `;
   }
 
   override render() {
-    const loaded =
-      AsyncResult.getOrElse(this.#issues.value, () => undefined)?.items ?? [];
+    const settings = this.#settings.value;
+    const result = this.#issues.value;
+
+    const loaded = AsyncResult.getOrElse(result, () => undefined)?.items ?? [];
 
     const selected = loaded
       .filter((issue) => this.rowSelection[issue.id] === true)
       .map((issue) => issue.id);
 
+    if (!result.waiting) {
+      this.#shownSettings = settings;
+    }
+
     return html`
       <h1>Issues</h1>
       ${this.#renderOptions()}
       <div class="bar">${this.#renderBar(selected)}</div>
-      ${AsyncResult.matchWithError(this.#issues.value, {
-        onInitial: renderLoading,
-        onError: (error) =>
-          Predicate.isTagged(error, "NoSuchElementError")
-            ? html`<p class="message">No issues here.</p>`
-            : renderError(error),
-        onDefect: renderDefect,
-        onSuccess: ({ value }) => this.#renderList(value.items, value.done),
-      })}
+      ${
+        result.waiting && settings !== this.#shownSettings
+          ? this.#renderSkeleton()
+          : AsyncResult.matchWithError(result, {
+              onInitial: () => this.#renderSkeleton(),
+              onError: (error) =>
+                Predicate.isTagged(error, "NoSuchElementError")
+                  ? html`<p class="message">No issues here.</p>`
+                  : renderError(error),
+              onDefect: renderDefect,
+              onSuccess: ({ value }) =>
+                this.#renderList(value.items, value.done),
+            })
+      }
     `;
   }
 
-  /** Fetch the next page as the last loaded rows scroll into view. */
   override updated() {
     const result = this.#issues.value;
     const virtualizer = this.#virtualizer.getVirtualizer();
-    const last = virtualizer.getVirtualItems().at(-1);
+    const items = virtualizer.getVirtualItems();
+    const last = items.at(-1);
 
+    // Size a skeleton to fill the window from where it starts, leaving room
+    // for whatever sits below it, so the page doesn't scroll.
+    const skeleton = this.skeleton;
+
+    if (skeleton !== null) {
+      const rect = skeleton.getBoundingClientRect();
+
+      const below =
+        document.documentElement.scrollHeight - (rect.bottom + window.scrollY);
+
+      const fit = Math.max(
+        window.innerHeight - rect.top - below,
+        this.#rowHeights.value[this.#layout()] * 3,
+      );
+
+      if (Math.abs(fit - rect.height) >= 1) {
+        skeleton.style.height = `${fit}px`;
+      }
+    }
+
+    if (!AsyncResult.isSuccess(result) || result.waiting) {
+      return;
+    }
+
+    // Fetch the next page as the last loaded rows scroll into view.
     if (
-      AsyncResult.isSuccess(result) &&
-      !result.waiting &&
       !result.value.done &&
       last !== undefined &&
       last.index >= virtualizer.options.count - loadAhead
     ) {
       registry.set(issueList, undefined);
+    }
+
+    // Remember how tall rows are, so the next skeleton matches them.
+    if (items.length > 0) {
+      const layout = this.#layout();
+      const heights = this.#rowHeights.value;
+
+      const measured = Math.round(
+        items.reduce((total, item) => total + item.size, 0) / items.length,
+      );
+
+      if (Math.abs(measured - heights[layout]) >= 2) {
+        registry.set(rowHeights, { ...heights, [layout]: measured });
+      }
     }
   }
 }

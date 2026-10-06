@@ -77,6 +77,21 @@ export const collapsedGroups = Atom.kvs({
   defaultValue: (): ReadonlyArray<string> => [],
 });
 
+export const RowHeights = Schema.Struct({
+  narrow: Schema.Finite,
+  wide: Schema.Finite,
+});
+
+export interface RowHeights extends Schema.Schema.Type<typeof RowHeights> {}
+
+/** The average issue row height last measured, so skeletons can match it. */
+export const rowHeights = Atom.kvs({
+  runtime: storage,
+  key: "triage-row-heights",
+  schema: RowHeights,
+  defaultValue: (): RowHeights => ({ narrow: 52, wide: 46 }),
+});
+
 /** How many issues each page of the list fetches. */
 const pageSize = 100;
 
