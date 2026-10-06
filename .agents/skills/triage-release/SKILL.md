@@ -17,7 +17,7 @@ The publish workflows fail unless the release tag exactly matches every manifest
 - `packages/effect-triage/package.json` and `packages/effect-triage/jsr.json`
 - `packages/client/package.json` and `packages/client/jsr.json`
 
-Then run `mise run version:sync` to pin the client's `@timmo001/effect-triage` dependency and the Home Assistant app's `version` in `app/config.yaml` to it, and `bun install` to refresh `bun.lock`; CI installs with `--frozen-lockfile`. Run `mise run check`, `mise run test`, `mise run build` and `mise run build:packages` before committing.
+Then run `mise run version:sync` to pin the client's `@timmo001/effect-triage` dependency and the Home Assistant app's `version` in `home-assistant/app/config.yaml` to it, and `bun install` to refresh `bun.lock`; CI installs with `--frozen-lockfile`. Run `mise run check`, `mise run test`, `mise run build` and `mise run build:packages` before committing.
 
 Releasing is a public, irreversible publish. Commit, push and create the release only when the user asks for each step, and use their chosen version.
 

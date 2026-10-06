@@ -28,7 +28,7 @@ run = "bun run build:packages"
 description = "Pin the client's @timmo001/effect-triage dependency and the Home Assistant app's image tag to the shared release version"
 run = '''
 version="$(bun pm pkg get version | tr -d '"')"
-sed -i "s/^version: .*/version: $version/" app/config.yaml
+sed -i "s/^version: .*/version: $version/" home-assistant/app/config.yaml
 cd packages/client
 bun pm pkg set "dependencies.@timmo001/effect-triage=$version"
 '''
