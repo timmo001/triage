@@ -5,6 +5,7 @@ import {
   mdiCheckCircleOutline,
   mdiChevronDown,
   mdiChevronLeft,
+  mdiChevronRight,
   mdiClose,
   mdiFilterVariant,
   mdiFilterVariantRemove,
@@ -51,6 +52,7 @@ import { AtomController, registry } from "./AtomController.js";
 import {
   type BulkAction,
   bulkAction,
+  collapsedGroups,
   hosts,
   issueCounts,
   issueHref,
@@ -689,14 +691,38 @@ export class TriageIssues extends LitElement {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        padding: 0.75rem 0.75rem 0.4rem;
-        font-size: 0.85rem;
+        padding: 0 0 0 0.75rem;
+        font-size: 0.95rem;
         font-weight: 600;
+        background: var(--triage-bg);
         border-bottom: 1px solid var(--triage-border);
       }
 
       .group-name {
         text-transform: capitalize;
+      }
+
+      .group-toggle {
+        flex: 1;
+        gap: 0.5rem;
+        padding: 0.65rem 0.75rem 0.65rem 0;
+        font-weight: inherit;
+        background: none;
+        border: 0;
+        border-radius: 0;
+        text-align: start;
+      }
+
+      .group-toggle .icon {
+        width: 1.35em;
+        height: 1.35em;
+        color: var(--triage-accent);
+      }
+
+      .group-toggle .muted-text {
+        margin-inline-start: auto;
+        font-size: 0.85rem;
+        font-weight: normal;
       }
 
       .title a {
@@ -727,6 +753,8 @@ export class TriageIssues extends LitElement {
   @state() accessor rowSelection: RowSelectionState = {};
 
   readonly #settings = new AtomController(this, () => listSettings);
+
+  readonly #collapsed = new AtomController(this, () => collapsedGroups);
 
   readonly #issues = new AtomController(this, () => issueList);
 
@@ -1073,10 +1101,28 @@ export class TriageIssues extends LitElement {
 
   #renderRow(row: IssueRow) {
     if (row.getIsGrouped()) {
+      const expanded = row.getIsExpanded();
+
       return html`
         ${this.#renderCheckbox(row, `Select every loaded ${groupTitle(row)} issue`)}
-        <span class="group-name">${groupTitle(row)}</span>
-        <span class="muted-text">${row.subRows.length} loaded</span>
+        <button
+          class="group-toggle"
+          aria-expanded=${expanded}
+          @click=${() => {
+            const collapsed = this.#collapsed.value.filter(
+              (id) => id !== row.id,
+            );
+
+            registry.set(
+              collapsedGroups,
+              expanded ? [...collapsed, row.id] : collapsed,
+            );
+          }}
+        >
+          ${icon(expanded ? mdiChevronDown : mdiChevronRight)}
+          <span class="group-name">${groupTitle(row)}</span>
+          <span class="muted-text">${row.subRows.length} loaded</span>
+        </button>
       `;
     }
 
@@ -1097,6 +1143,7 @@ export class TriageIssues extends LitElement {
 
   #renderList(issues: Array<Api.IssueSummary>, done: boolean) {
     const settings = this.#settings.value;
+    const collapsed = this.#collapsed.value;
 
     const table = this.#table.table({
       features,
@@ -1109,9 +1156,10 @@ export class TriageIssues extends LitElement {
       state: {
         ...tableStateOf(settings),
         rowSelection: this.rowSelection,
-        expanded: true,
+        expanded: Object.fromEntries(collapsed.map((id) => [id, false])),
         columnVisibility,
       },
+      getIsRowExpanded: (row) => !collapsed.includes(row.id),
       onSortingChange: (updater) => {
         const [next] = functionalUpdate(
           updater,

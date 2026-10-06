@@ -69,6 +69,14 @@ export const listSettings = Atom.kvs({
   defaultValue: (): ListSettings => ({ sort: "lastSeen", order: "desc" }),
 });
 
+/** The groups someone has collapsed in the issue list, by group row ID. */
+export const collapsedGroups = Atom.kvs({
+  runtime: storage,
+  key: "triage-collapsed-groups",
+  schema: Schema.Array(Schema.String),
+  defaultValue: (): ReadonlyArray<string> => [],
+});
+
 /** How many issues each page of the list fetches. */
 const pageSize = 100;
 
