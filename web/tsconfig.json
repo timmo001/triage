@@ -9,6 +9,9 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "paths": {
+      "@timmo001/effect-triage": ["../packages/effect-triage/src/index.ts"]
+    },
     "plugins": [
       {
         "name": "@effect/language-service",
