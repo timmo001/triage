@@ -38,7 +38,7 @@ export class TriageApi extends AtomHttpApi.Service<TriageApi>()(
         HttpApiMiddleware.layerClient(Api.WorkerAuthorization, bearer),
       );
     },
-    baseUrl: new URL(".", location.href).href.replace(/\/$/, ""),
+    baseUrl: new URL(".", document.baseURI).href.replace(/\/$/, ""),
   },
 ) {}
 
@@ -68,22 +68,90 @@ export type Route = Data.TaggedEnum<{
 
 export const Route = Data.taggedEnum<Route>();
 
-const parseRoute = (hash: string): Route => {
-  const match = /^#\/issues\/([^/]+)$/.exec(hash);
+/**
+ * Where the UI lives, from the page's `<base>`: `/`, or Home Assistant's
+ * ingress path. Every route is relative to it.
+ */
+const basePath = new URL(document.baseURI).pathname;
 
-  return match?.[1] === undefined
+const issuePattern = new URLPattern({ pathname: "/issues/:id" });
+
+const parseRoute = (): Route => {
+  const path = location.pathname.startsWith(basePath)
+    ? `/${location.pathname.slice(basePath.length)}`
+    : location.pathname;
+
+  const id = issuePattern.exec({ pathname: path })?.pathname.groups["id"];
+
+  return id === undefined
     ? Route.Issues()
-    : Route.Issue({ id: decodeURIComponent(match[1]) });
+    : Route.Issue({ id: decodeURIComponent(id) });
 };
 
-/** The page to show, from the URL's hash, so it works under any path prefix. */
+/** The link within the UI that a click lands on, if any. */
+const appLink = (event: MouseEvent) => {
+  if (
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  ) {
+    return undefined;
+  }
+
+  const link = event
+    .composedPath()
+    .find((target) => target instanceof HTMLAnchorElement);
+
+  if (
+    link === undefined ||
+    link.target !== "" ||
+    link.hasAttribute("download") ||
+    link.origin !== location.origin ||
+    !link.pathname.startsWith(basePath)
+  ) {
+    return undefined;
+  }
+
+  return link;
+};
+
+/**
+ * The page to show, from the URL's path. Links within the UI change the path
+ * without reloading, and the back and forward buttons follow it.
+ */
 export const route = Atom.readable((get) => {
-  const update = () => get.setSelf(parseRoute(location.hash));
+  const update = () => get.setSelf(parseRoute());
 
-  window.addEventListener("hashchange", update);
-  get.addFinalizer(() => window.removeEventListener("hashchange", update));
+  const onClick = (event: MouseEvent) => {
+    const link = appLink(event);
 
-  return parseRoute(location.hash);
+    if (link === undefined) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (link.href !== location.href) {
+      history.pushState(null, "", link.href);
+      window.scrollTo(0, 0);
+      update();
+    }
+  };
+
+  window.addEventListener("popstate", update);
+  document.addEventListener("click", onClick);
+  get.addFinalizer(() => {
+    window.removeEventListener("popstate", update);
+    document.removeEventListener("click", onClick);
+  });
+
+  return parseRoute();
 });
 
-export const issueHref = (id: string) => `#/issues/${encodeURIComponent(id)}`;
+/** Links resolve against the page's base, so they work under any prefix. */
+export const homeHref = "./";
+
+export const issueHref = (id: string) => `issues/${encodeURIComponent(id)}`;

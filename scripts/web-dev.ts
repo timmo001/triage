@@ -1,5 +1,6 @@
-// The web UI, rebuilt on each page load, sending everything but the page to a triage
-// server: the background dev server unless TRIAGE_DEV_API says otherwise.
+// The web UI, rebuilt on each page load, sending the API to a triage server: the
+// background dev server unless TRIAGE_DEV_API says otherwise. Every other path
+// gets the page, which routes in the browser.
 import index from "../web/index.html";
 
 const api = process.env["TRIAGE_DEV_API"] ?? "http://127.0.0.1:7172";
@@ -10,11 +11,15 @@ const server = Bun.serve({
   // Bun's hot reloading breaks Lit's standard decorators
   // ("__decoratorStart is not a function"), so reload the page instead.
   development: { hmr: false, console: true },
-  routes: { "/": index },
-  fetch: (request) => {
-    const url = new URL(request.url);
+  routes: {
+    "/*": index,
+    "/api/*": (request) => {
+      const url = new URL(request.url);
 
-    return fetch(new Request(new URL(url.pathname + url.search, api), request));
+      return fetch(
+        new Request(new URL(url.pathname + url.search, api), request),
+      );
+    },
   },
 });
 

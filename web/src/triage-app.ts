@@ -1,7 +1,7 @@
 import { css, html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
 import { AtomController, registry } from "./AtomController.js";
-import { Route, route, token } from "./triage.js";
+import { homeHref, Route, route, token } from "./triage.js";
 import { shared } from "./ui.js";
 import "./triage-issue.js";
 import "./triage-issues.js";
@@ -54,7 +54,7 @@ export class TriageApp extends LitElement {
   override render() {
     return html`
       <header>
-        <a href="#/">
+        <a href=${homeHref}>
           <svg viewBox="0 0 128 128" aria-hidden="true">
             <path
               fill="#3F3F46"

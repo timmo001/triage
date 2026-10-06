@@ -7,7 +7,7 @@ import { customElement, property } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { marked } from "marked";
 import { AtomController, registry } from "./AtomController.js";
-import { issue, setStatus } from "./triage.js";
+import { homeHref, issue, setStatus } from "./triage.js";
 import {
   ago,
   formatPercent,
@@ -178,7 +178,7 @@ export class TriageIssue extends LitElement {
 
   override render() {
     return html`
-      <a class="back" href="#/">All issues</a>
+      <a class="back" href=${homeHref}>All issues</a>
       ${AsyncResult.matchWithError(this.#detail.value, {
         onInitial: renderLoading,
         onError: renderError,

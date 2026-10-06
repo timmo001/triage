@@ -278,34 +278,69 @@ const contentTypes = new Map([
   ["svg", "image/svg+xml"],
 ]);
 
+const { "index.html": indexHtml = "", ...assets } = bundleWeb();
+
 /**
- * The web UI's files, built into the binary. Asset names carry a content
- * hash, so only `index.html` needs checking for changes.
+ * The web UI's assets, built into the binary. Their names carry a content
+ * hash, so they never change.
  */
 const webFiles = new Map(
-  Object.entries(bundleWeb()).map(([name, body]) => [
+  Object.entries(assets).map(([name, body]) => [
     name,
     HttpServerResponse.text(body, {
       contentType: contentTypes.get(name.split(".").pop() ?? ""),
-      headers: {
-        "cache-control":
-          name === "index.html"
-            ? "no-cache"
-            : "public, max-age=31536000, immutable",
-      },
+      headers: { "cache-control": "public, max-age=31536000, immutable" },
     }),
   ]),
 );
 
 const notFound = HttpServerResponse.empty({ status: 404 });
 
-const web = HttpRouter.add("GET", "/*", (request) =>
-  Effect.succeed(
-    webFiles.get(
-      new URL(request.url, "http://triage").pathname.slice(1) || "index.html",
-    ) ?? notFound,
-  ),
-);
+/** The page, with its base set to `base` so links and assets resolve under it. */
+const page = (base: string) =>
+  HttpServerResponse.text(
+    indexHtml.replace('<base href="/"', `<base href="${base}"`),
+    {
+      contentType: contentTypes.get("html"),
+      headers: { "cache-control": "no-cache" },
+    },
+  );
+
+const rootPage = page("/");
+
+/** Home Assistant's ingress prefix, such as `/api/hassio_ingress/<token>`. */
+const ingressPath = /^\/api\/hassio_ingress\/[\w-]+$/;
+
+/**
+ * The web UI. Asset files are served as they are, and every other path outside
+ * the API gets the page, which routes in the browser. Under ingress the page's
+ * base is the path Home Assistant serves it from.
+ */
+const web = (options: { readonly ingress: boolean }) =>
+  HttpRouter.add("GET", "/*", (request) => {
+    const path = new URL(request.url, "http://triage").pathname.slice(1);
+    const file = webFiles.get(path);
+
+    if (file !== undefined) {
+      return Effect.succeed(file);
+    }
+
+    if (
+      path === "api" ||
+      path.startsWith("api/") ||
+      (path.includes(".") && path !== "index.html")
+    ) {
+      return Effect.succeed(notFound);
+    }
+
+    const prefix = request.headers["x-ingress-path"];
+
+    return Effect.succeed(
+      options.ingress && prefix !== undefined && ingressPath.test(prefix)
+        ? page(`${prefix}/`)
+        : rootPage,
+    );
+  });
 
 export interface ServeOptions {
   readonly hostname: string;
@@ -333,7 +368,7 @@ export interface ServeOptions {
 export const layer = (options: ServeOptions) =>
   Layer.mergeAll(
     HttpRouter.serve(
-      Layer.merge(routes, web),
+      Layer.merge(routes, web({ ingress: false })),
       options.trustProxy
         ? { middleware: HttpMiddleware.xForwardedHeaders }
         : {},
@@ -346,7 +381,10 @@ export const layer = (options: ServeOptions) =>
       onNone: () => Layer.empty,
       onSome: (port) =>
         HttpRouter.serve(
-          Layer.merge(apiRoutes(IngressAdminAuthorizationLayer), web),
+          Layer.merge(
+            apiRoutes(IngressAdminAuthorizationLayer),
+            web({ ingress: true }),
+          ),
           { middleware: onlyFrom(options.ingressFrom) },
         ).pipe(
           Layer.provide(
