@@ -38,3 +38,39 @@ jobs:
 
       - name: Build packages
         run: mise run build:packages
+
+  image:
+    name: Build container images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Build images
+        run: |
+          docker build --target server -t triage:ci .
+          docker build --target app -t triage-app:ci .
+
+      - name: Check the server image runs as nonroot
+        run: |
+          docker run --rm triage:ci --version
+          test "$(docker image inspect -f '{{.Config.User}}' triage:ci)" = nonroot
+
+      # The Supervisor creates /data and writes options.json as root, mode 0600.
+      - name: Check the app image reads options the way Home Assistant writes them
+        run: |
+          mkdir data
+          echo '{"port": 7172}' > data/options.json
+          sudo chown -R root:root data
+          sudo chmod 600 data/options.json
+          docker run -d --name app -v "$PWD/data:/data" -p 7172:7172 \
+            -e TRIAGE_OPTIONS=/data/options.json triage-app:ci
+          curl -sf --retry 10 --retry-all-errors --retry-delay 1 \
+            http://127.0.0.1:7172/api/health
+          sudo test -f data/server.db
+
+      - name: App logs
+        if: always()
+        run: docker logs app || true

@@ -7,7 +7,7 @@ compatibility: Requires mise, Bun and the GitHub CLI from the triage repository 
 
 # Releasing triage
 
-One version covers the CLI and both libraries. A published, non-prerelease GitHub release runs `.github/workflows/release.yml`, which publishes `@timmo001/effect-triage` then `@timmo001/effect-triage-client` to npm and JSR through OIDC, with no tokens, and pushes the server image to `ghcr.io/timmo001/triage` tagged with the version, `major.minor` and `latest` (one manifest for amd64 and arm64, each built on its own native runner and labelled for Home Assistant). It also attaches the Linux binary and the `triage-bin` package. Prereleases publish nothing.
+One version covers the CLI and both libraries. A published, non-prerelease GitHub release runs `.github/workflows/release.yml`, which publishes `@timmo001/effect-triage` then `@timmo001/effect-triage-client` to npm and JSR through OIDC, with no tokens, and pushes the server image to `ghcr.io/timmo001/triage` tagged with the version, `major.minor` and `latest`, and the Home Assistant app's image, which runs as root, to `ghcr.io/timmo001/triage-app` the same way (each one manifest for amd64 and arm64, built on native runners and labelled for Home Assistant). It also attaches the Linux binary and the `triage-bin` package. Prereleases publish nothing.
 
 ## Bump the version
 
@@ -17,9 +17,11 @@ The publish workflows fail unless the release tag exactly matches every manifest
 - `packages/effect-triage/package.json` and `packages/effect-triage/jsr.json`
 - `packages/client/package.json` and `packages/client/jsr.json`
 
-Then run `mise run version:sync` to pin the client's `@timmo001/effect-triage` dependency to it, and `bun install` to refresh `bun.lock`; CI installs with `--frozen-lockfile`. Run `mise run check`, `mise run test`, `mise run build` and `mise run build:packages` before committing.
+Then run `mise run version:sync` to pin the client's `@timmo001/effect-triage` dependency and the Home Assistant app's `version` in `app/config.yaml` to it, and `bun install` to refresh `bun.lock`; CI installs with `--frozen-lockfile`. Run `mise run check`, `mise run test`, `mise run build` and `mise run build:packages` before committing.
 
 Releasing is a public, irreversible publish. Commit, push and create the release only when the user asks for each step, and use their chosen version.
+
+After the first release with the app image, check that the new `ghcr.io/timmo001/triage-app` package is public, as Home Assistant pulls it without credentials.
 
 ## Registries
 
