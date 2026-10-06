@@ -3,5 +3,8 @@ dist/
 dist-ts/
 .opencode/references/
 .env
+*.db
+*.db-shm
+*.db-wal
 .env.*
 !.env.example
