@@ -41,25 +41,52 @@ Triage has four roles, and any machine can take on any of them:
 | Decide | `triage work --decide` or `serve --decide` | Asks a decision model which new issues are worth fixing |
 | Suggest | `triage work --suggest` or `serve --suggest` | Asks a language model how to fix the issues worth fixing |
 
-A small always-on box, such as a Home Assistant Green, can serve, while a desktop with a GPU decides and suggests as a worker. The worker pulls work from the server, so the models only need to be reachable from the worker, and nothing queues up while it's off.
+A small always-on box can serve while a machine with more power decides and suggests as a worker, or one machine can do it all. [Plan your hardware](/setup/hardware) covers what each role needs.
 
 AI only runs when you ask for it. Decide and suggest are off until you turn them on, and stop at their daily limits.
 
 ## Get started
 
-| Page | Why |
-| --- | --- |
-| [Install](/install) | The Arch packages, the Home Assistant app, the container or a release build |
-| [Plan your hardware](/setup/hardware) | What each part needs, and where it runs best |
-| [Run a server](/setup/server) | Where events and issues live |
-| [Add hosts](/setup/hosts) | Collect from each machine |
-| [Add workers](/setup/workers) | Run the models on another machine |
-| [Configuration](/configuration) | Every setting |
-| [Issues](/issues) | States, labels and how models are measured |
-| [Choices](/choices) | Hosting and models, local or hosted |
-| [Privacy](/privacy) | What's captured, what's redacted and where it goes |
-| [Libraries](/libraries) | Talk to a server from your own Effect app |
-| [Commands](/commands) | Every command and flag |
+<Steps>
+  <Step title="Install">
+    The Arch packages, the Home Assistant app, the container or a release build. See [Install](/install).
+  </Step>
+  <Step title="Plan your hardware">
+    Decide which machine takes each role. See [Plan your hardware](/setup/hardware).
+  </Step>
+  <Step title="Run a server">
+    Where events and issues live. See [Run a server](/setup/server).
+  </Step>
+  <Step title="Add hosts">
+    Collect from each machine. See [Add hosts](/setup/hosts).
+  </Step>
+  <Step title="Add workers">
+    Optional: run the models on another machine. See [Add workers](/setup/workers).
+  </Step>
+</Steps>
+
+## Reference
+
+<CardGroup cols={3}>
+  <Card title="Configuration" href="/configuration">
+    Every setting.
+  </Card>
+  <Card title="Issues" href="/issues">
+    States, labels and how models are measured.
+  </Card>
+  <Card title="Choices" href="/choices">
+    Hosting and models, local or hosted.
+  </Card>
+  <Card title="Privacy" href="/privacy">
+    What's captured, what's redacted and where it goes.
+  </Card>
+  <Card title="Libraries" href="/libraries">
+    Talk to a server from your own Effect app.
+  </Card>
+  <Card title="Commands" href="/commands">
+    Every command and flag.
+  </Card>
+</CardGroup>
 
 ## Machine-readable docs
 
