@@ -417,6 +417,22 @@ export class TriageIssues extends LitElement {
         .button-label {
           display: none;
         }
+
+        .bar .toolbar > button {
+          position: relative;
+        }
+
+        .bar .toolbar > button > .count {
+          position: absolute;
+          top: -0.4rem;
+          right: -0.4rem;
+          min-width: 1rem;
+          padding: 0 0.25rem;
+          font-size: 0.7rem;
+          line-height: 1rem;
+          color: var(--triage-bg);
+          background: var(--triage-accent);
+        }
       }
 
       .bar .toolbar > button.icon-only {
