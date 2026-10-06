@@ -10,6 +10,7 @@ import { TokenName, Tokens } from "./server/Tokens.js";
 import { Store, type TokenScope } from "./store/Store.js";
 import { layerAutomatic, LlmProvider, Suggester } from "./triage/Suggester.js";
 import { agreement, layerShadow, Provider, Triager } from "./triage/Triager.js";
+import { Work } from "./triage/Work.js";
 import { Uploader } from "./upload/Uploader.js";
 
 const collectorLayer = Collector.layer.pipe(
@@ -242,7 +243,7 @@ const decide = Command.make(
   Command.withDescription(
     "Ask a decision model whether the server's new issues are worth fixing, storing the answers without acting on them",
   ),
-  Command.provide(Store.layerServer),
+  Command.provide(Work.layerStore({}).pipe(Layer.provide(Store.layerServer))),
 );
 
 const llmProviderFlag = (name: string, urlFlag: string) =>
@@ -313,7 +314,7 @@ const suggest = Command.make(
   Command.withDescription(
     "Ask a language model how to fix some of the server's issues, from their redacted events only, and store its suggestions",
   ),
-  Command.provide(Store.layerServer),
+  Command.provide(Work.layerStore({}).pipe(Layer.provide(Store.layerServer))),
 );
 
 const label = Command.make(
@@ -423,18 +424,15 @@ const serve = Command.make(
   },
   Effect.fnUntraced(function* (input) {
     const decider = input.decide
-      ? layerShadow({
-          interval: "5 minutes",
-          limit: 20,
-          daily: input.decideDaily,
-        }).pipe(Layer.provide(triagerLayer(input)))
+      ? layerShadow({ interval: "5 minutes", limit: 20 }).pipe(
+          Layer.provide(triagerLayer(input)),
+        )
       : Layer.empty;
 
     const suggester = input.suggest
       ? layerAutomatic({
           interval: "15 minutes",
           limit: 5,
-          daily: input.suggestDaily,
           decisionModel: `${input.provider}/${decisionModel(input)}`,
         }).pipe(
           Layer.provide(
@@ -452,7 +450,14 @@ const serve = Command.make(
       : Layer.empty;
 
     return yield* Layer.launch(
-      Layer.mergeAll(Server.layer(input), decider, suggester),
+      Layer.mergeAll(Server.layer(input), decider, suggester).pipe(
+        Layer.provide(
+          Work.layerStore({
+            decideDaily: input.decideDaily,
+            suggestDaily: input.suggestDaily,
+          }),
+        ),
+      ),
     );
   }),
 ).pipe(

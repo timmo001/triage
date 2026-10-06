@@ -1,8 +1,7 @@
 import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai-compat";
-import { Event, Issue } from "@timmo001/effect-triage";
+import { type Api, Event, Issue } from "@timmo001/effect-triage";
 import {
-  Clock,
   Config,
   Context,
   type Duration,
@@ -14,8 +13,9 @@ import {
 } from "effect";
 import { LanguageModel, Prompt } from "effect/ai";
 import { FetchHttpClient } from "effect/http";
-import { IssueNotFound, Store, type StoreError } from "../store/Store.js";
-import { clear, dayMillis, toState } from "./Triager.js";
+import { IssueNotFound } from "../store/Store.js";
+import { clear, toState } from "./Triager.js";
+import { Work } from "./Work.js";
 
 /**
  * Which API writes suggestions: any OpenAI-compatible or Anthropic-compatible
@@ -67,20 +67,26 @@ export interface Suggestion {
 export class Suggester extends Context.Service<
   Suggester,
   {
+    /** Suggest a fix for one issue, on request. */
     suggest(
       issueId: string,
-    ): Effect.Effect<Suggestion, Effect.Error<ReturnType<typeof suggestFor>>>;
+    ): Effect.Effect<
+      Suggestion,
+      Effect.Error<ReturnType<typeof suggestFor>> | IssueNotFound
+    >;
     /**
-     * Issues `decisionModel` rated at least `worth` that this model hasn't
-     * suggested a fix for yet, most recently seen first.
+     * Suggest fixes for issues `decisionModel` rated at least `worth` that
+     * this model hasn't suggested a fix for yet, most recently seen first,
+     * within the daily limit where the suggestions are kept.
      */
-    unsuggested(options: {
+    suggestWorth(options: {
       readonly decisionModel: string;
       readonly worth: number;
       readonly limit: number;
-    }): Effect.Effect<ReadonlyArray<Issue.Issue>, StoreError>;
-    /** How many suggestions this model has made since `since`, in milliseconds. */
-    suggestedSince(since: number): Effect.Effect<number, StoreError>;
+    }): Effect.Effect<
+      ReadonlyArray<Suggestion>,
+      Effect.Error<ReturnType<typeof suggestFor>>
+    >;
   }
 >()("triage/triage/Suggester") {
   /**
@@ -95,15 +101,29 @@ export class Suggester extends Context.Service<
     Layer.effect(
       Suggester,
       Effect.gen(function* () {
-        const store = yield* Store;
+        const work = yield* Work;
         const model = yield* LanguageModel.LanguageModel;
         const name = `${options.provider}/${options.model}`;
 
         return Suggester.of({
-          suggest: (issueId) => suggestFor(store, model, name, issueId),
-          unsuggested: (options) =>
-            store.unsuggested({ ...options, model: name }),
-          suggestedSince: (since) => store.suggestedSince(name, since),
+          suggest: Effect.fn("Suggester.suggest")(function* (issueId) {
+            const found = yield* work.issue(issueId);
+
+            if (Option.isNone(found)) {
+              return yield* new IssueNotFound({ issueId });
+            }
+
+            return yield* suggestFor(work, model, name, found.value);
+          }),
+          suggestWorth: Effect.fn("Suggester.suggestWorth")(
+            function* (request) {
+              const issues = yield* work.toSuggest({ ...request, model: name });
+
+              return yield* Effect.forEach(issues, (detail) =>
+                suggestFor(work, model, name, detail),
+              );
+            },
+          ),
         });
       }),
     ).pipe(
@@ -115,53 +135,38 @@ export class Suggester extends Context.Service<
 
 /**
  * Suggest fixes every `interval` for issues `decisionModel` clearly rated
- * worth fixing, up to `limit` a run and `daily` in any 24 hours. A failed run
- * is logged and tried again next time.
+ * worth fixing, up to `limit` a run. A failed run is logged and tried again
+ * next time.
  */
 export const layerAutomatic = (options: {
   readonly interval: Duration.Input;
   readonly limit: number;
-  readonly daily: number;
   readonly decisionModel: string;
 }) =>
   Layer.effectDiscard(
     Effect.gen(function* () {
       const suggester = yield* Suggester;
 
-      yield* Effect.gen(function* () {
-        const left =
-          options.daily -
-          (yield* suggester.suggestedSince(
-            (yield* Clock.currentTimeMillis) - dayMillis,
-          ));
-
-        if (left <= 0) {
-          return 0;
-        }
-
-        const issues = yield* suggester.unsuggested({
+      yield* suggester
+        .suggestWorth({
           decisionModel: options.decisionModel,
           worth: clear,
-          limit: Math.min(options.limit, left),
-        });
-
-        yield* Effect.forEach(issues, (issue) => suggester.suggest(issue.id));
-
-        return issues.length;
-      }).pipe(
-        Effect.tap((count) =>
-          count === 0
-            ? Effect.void
-            : Effect.logInfo(
-                `Suggested fixes for ${count} issue${count === 1 ? "" : "s"}`,
-              ),
-        ),
-        Effect.catch((error) =>
-          Effect.logWarning(`Couldn't suggest fixes: ${error.message}`),
-        ),
-        Effect.repeat(Schedule.spaced(options.interval)),
-        Effect.forkScoped,
-      );
+          limit: options.limit,
+        })
+        .pipe(
+          Effect.tap(({ length }) =>
+            length === 0
+              ? Effect.void
+              : Effect.logInfo(
+                  `Suggested fixes for ${length} issue${length === 1 ? "" : "s"}`,
+                ),
+          ),
+          Effect.catch((error) =>
+            Effect.logWarning(`Couldn't suggest fixes: ${error.message}`),
+          ),
+          Effect.repeat(Schedule.spaced(options.interval)),
+          Effect.forkScoped,
+        );
     }),
   );
 
@@ -250,19 +255,11 @@ const describe = (issue: Issue.Issue, events: ReadonlyArray<Event.Event>) => {
 };
 
 const suggestFor = Effect.fnUntraced(function* (
-  store: Store["Service"],
+  work: Work["Service"],
   model: LanguageModel.LanguageModel,
   name: string,
-  issueId: string,
+  { issue, events }: Api.IssueDetail,
 ) {
-  const found = yield* store.issue(issueId, 20);
-
-  if (Option.isNone(found)) {
-    return yield* new IssueNotFound({ issueId });
-  }
-
-  const { issue, events } = found.value;
-
   const response = yield* model.generateText({
     prompt: Prompt.make(JSON.stringify(describe(issue, events), null, 2)).pipe(
       Prompt.setSystem(instructions),
@@ -275,7 +272,7 @@ const suggestFor = Effect.fnUntraced(function* (
     timestamp,
   }));
 
-  yield* store.saveSuggestion({
+  yield* work.saveSuggestion({
     issueId: issue.id,
     model: name,
     issueCount: issue.count,

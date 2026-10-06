@@ -5,30 +5,22 @@ import {
 import { TypeSafeClient, TypeSafeDecisionModel } from "@effect/ai-typesafe";
 import { Event, Issue } from "@timmo001/effect-triage";
 import {
-  Clock,
   Config,
   Context,
-  Duration,
+  type Duration,
   Effect,
   Layer,
-  Option,
   Schedule,
   Schema,
   type Types,
 } from "effect";
 import { Decision, DecisionModel } from "effect/ai";
 import { FetchHttpClient } from "effect/http";
-import {
-  type LabelledDecision,
-  Store,
-  type StoreError,
-} from "../store/Store.js";
+import type { LabelledDecision } from "../store/Store.js";
+import { Work } from "./Work.js";
 
 /** How sure a model must be before its answer counts as a clear yes or no. */
 export const clear = 0.8;
-
-/** The window daily limits count over. */
-export const dayMillis = Duration.toMillis(Duration.days(1));
 
 /** How a model's decisions compare with hand labels. */
 export interface Agreement {
@@ -163,22 +155,23 @@ export const toState = (
 export class Triager extends Context.Service<
   Triager,
   {
-    /** Decide on issues the model hasn't seen yet, most recently seen first. */
+    /**
+     * Decide on issues the model hasn't seen yet, most recently seen first,
+     * within the daily limit where the answers are kept.
+     */
     decide(
       limit: number,
     ): Effect.Effect<
       ReadonlyArray<Decided>,
       Effect.Error<ReturnType<typeof decideAll>>
     >;
-    /** How many decisions this model has made since `since`, in milliseconds. */
-    decidedSince(since: number): Effect.Effect<number, StoreError>;
   }
 >()("triage/triage/Triager") {
   /**
    * Any TypeSafe System One API at `url`, such as Ollaya or Ollama locally,
    * with `$TRIAGE_DECISION_API_KEY` when it needs one, or Clef on Cloudflare
    * Workers AI with `$CLOUDFLARE_ACCOUNT_ID` and `$CLOUDFLARE_API_TOKEN`.
-   * Decisions are stored as `provider/model`.
+   * Decisions are kept as `provider/model`.
    */
   static readonly layer = (options: {
     readonly provider: Provider;
@@ -188,13 +181,12 @@ export class Triager extends Context.Service<
     Layer.effect(
       Triager,
       Effect.gen(function* () {
-        const store = yield* Store;
+        const work = yield* Work;
         const decisions = yield* DecisionModel.DecisionModel;
         const name = `${options.provider}/${options.model}`;
 
         return Triager.of({
-          decide: (limit) => decideAll(store, decisions, name, limit),
-          decidedSince: (since) => store.decidedSince(name, since),
+          decide: (limit) => decideAll(work, decisions, name, limit),
         });
       }),
     ).pipe(
@@ -214,31 +206,18 @@ export type Provider = typeof Provider.Type;
 
 /**
  * Decide on new issues every `interval`, still in shadow mode, up to `limit`
- * a run and `daily` in any 24 hours. A failed run, such as the model being
- * unreachable, is logged and tried again next time.
+ * a run. A failed run, such as the model being unreachable, is logged and
+ * tried again next time.
  */
 export const layerShadow = (options: {
   readonly interval: Duration.Input;
   readonly limit: number;
-  readonly daily: number;
 }) =>
   Layer.effectDiscard(
     Effect.gen(function* () {
       const triager = yield* Triager;
 
-      yield* Effect.gen(function* () {
-        const left =
-          options.daily -
-          (yield* triager.decidedSince(
-            (yield* Clock.currentTimeMillis) - dayMillis,
-          ));
-
-        if (left <= 0) {
-          return [];
-        }
-
-        return yield* triager.decide(Math.min(options.limit, left));
-      }).pipe(
+      yield* triager.decide(options.limit).pipe(
         Effect.tap((decided) =>
           decided.length === 0
             ? Effect.void
@@ -276,28 +255,20 @@ const decisionModel = (options: {
       );
 
 const decideAll = Effect.fnUntraced(function* (
-  store: Store["Service"],
+  work: Work["Service"],
   decisions: DecisionModel.DecisionModel,
   name: string,
   limit: number,
 ) {
-  const issues = yield* store.undecided(name, limit);
+  const issues = yield* work.toDecide(name, limit);
   const decided: Array<Decided> = [];
 
-  for (const summary of issues) {
-    const found = yield* store.issue(summary.id, 20);
-
-    if (Option.isNone(found)) {
-      continue;
-    }
-
-    const { issue, events } = found.value;
-
+  for (const { issue, events } of issues) {
     const { answers } = yield* decisions.decide(Questions, {
       input: toState(issue, events),
     });
 
-    yield* store.saveDecision({
+    yield* work.saveDecision({
       issueId: issue.id,
       model: name,
       issueCount: issue.count,
