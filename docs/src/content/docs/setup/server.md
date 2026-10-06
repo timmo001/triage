@@ -7,6 +7,10 @@ The server stores events from your hosts, groups them into issues and keeps the 
 
 It speaks plain HTTP on port 7171. For HTTPS, put it behind a reverse proxy such as Caddy, Traefik or nginx, or behind Cloudflare, and let that handle TLS.
 
+## Choose where it runs
+
+The server itself is light, and runs on a Home Assistant Green. The models that decide on issues and suggest fixes need much more, and can run on another machine as a [worker](/setup/workers). See [Plan your hardware](/setup/hardware) for what each part needs and the setups that work best.
+
 ## User service
 
 With the [Arch package](/install#arch-linux) installed, set any [options](/configuration#server) in `~/.config/triage/server.env`, then:

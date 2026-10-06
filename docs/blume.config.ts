@@ -33,7 +33,12 @@ export default defineConfig({
       "/install",
       {
         label: "Setup",
-        items: ["/setup/server", "/setup/hosts", "/setup/workers"],
+        items: [
+          "/setup/hardware",
+          "/setup/server",
+          "/setup/hosts",
+          "/setup/workers",
+        ],
       },
       "/configuration",
       "/issues",
