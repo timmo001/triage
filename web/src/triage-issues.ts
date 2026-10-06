@@ -854,6 +854,13 @@ export class TriageIssues extends LitElement {
   /** The skeleton filling the window while a fresh list loads. */
   @query(".skeleton:not(.more)") accessor skeleton: HTMLElement | null = null;
 
+  @query("#sort-menu") accessor sortMenu: HTMLElement | null = null;
+
+  @query("#group-menu") accessor groupMenu: HTMLElement | null = null;
+
+  /** The rows, whose offset tells the virtualiser where the list starts. */
+  @query('[role="rowgroup"]') accessor rowGroup: HTMLElement | null = null;
+
   readonly #settings = new AtomController(this, () => listSettings);
 
   readonly #collapsed = new AtomController(this, () => collapsedGroups);
@@ -876,8 +883,6 @@ export class TriageIssues extends LitElement {
     this,
     { count: 0, estimateSize: () => 46, overscan: 10 },
   );
-
-  #list: HTMLElement | undefined;
 
   /** The settings the shown rows were loaded for. */
   #shownSettings: ListSettings | undefined;
@@ -1125,22 +1130,19 @@ export class TriageIssues extends LitElement {
   #renderMenus() {
     const settings = this.#settings.value;
 
-    const item = (title: string, checked: boolean, change: () => void) => html`
+    const item = (
+      menu: "sortMenu" | "groupMenu",
+      title: string,
+      checked: boolean,
+      change: () => void,
+    ) => html`
       <button
         class="menu-item"
         role="menuitemradio"
         aria-checked=${checked}
-        @click=${(event: Event) => {
+        @click=${() => {
           change();
-
-          const menu =
-            event.currentTarget instanceof Element
-              ? event.currentTarget.closest("[popover]")
-              : null;
-
-          if (menu instanceof HTMLElement) {
-            menu.hidePopover();
-          }
+          this[menu]?.hidePopover();
         }}
       >
         <span class="tick">${checked ? icon(mdiCheck) : nothing}</span>
@@ -1151,20 +1153,22 @@ export class TriageIssues extends LitElement {
     return html`
       <div id="sort-menu" class="menu" role="menu" popover>
         ${Object.entries(sortTitles).map(([sort, title]) =>
-          item(title, sort === settings.sort, () => this.#update({ sort })),
+          item("sortMenu", title, sort === settings.sort, () =>
+            this.#update({ sort }),
+          ),
         )}
         <hr />
-        ${item("Ascending", settings.order === "asc", () =>
+        ${item("sortMenu", "Ascending", settings.order === "asc", () =>
           this.#update({ order: "asc" }),
         )}
-        ${item("Descending", settings.order !== "asc", () =>
+        ${item("sortMenu", "Descending", settings.order !== "asc", () =>
           this.#update({ order: "desc" }),
         )}
       </div>
       <div id="group-menu" class="menu" role="menu" popover>
         ${[["", "Nothing"] as const, ...Object.entries(groupTitles)].map(
           ([group, title]) =>
-            item(title, group === (settings.group ?? ""), () =>
+            item("groupMenu", title, group === (settings.group ?? ""), () =>
               this.#update({ group }),
             ),
         )}
@@ -1326,7 +1330,7 @@ export class TriageIssues extends LitElement {
       count: rows.length,
       estimateSize: () => estimate,
       getItemKey: (index) => rows[index]?.id ?? index,
-      scrollMargin: this.#list?.offsetTop ?? 0,
+      scrollMargin: this.rowGroup?.offsetTop ?? 0,
     });
 
     const items = virtualizer.getVirtualItems();
@@ -1350,9 +1354,6 @@ export class TriageIssues extends LitElement {
           )}
         </div>
         <div
-          ${ref((element) => {
-            this.#list = element instanceof HTMLElement ? element : undefined;
-          })}
           style="position: relative; height: ${virtualizer.getTotalSize()}px"
           role="rowgroup"
         >
