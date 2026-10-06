@@ -12,9 +12,9 @@ See [Privacy](/privacy) for exactly what each of them is sent, and [Configuratio
 | Option | Where data goes | Cost |
 | --- | --- | --- |
 | Arch Linux user service | Your machine | Free |
-| Container, with Docker Compose | Your machine, plus Cloudflare if you use a Cloudflare Tunnel | Free |
+| Container, with Docker Compose | Your machine, plus Cloudflare if you use a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/) | Free |
 | Home Assistant app | Your Home Assistant | Free |
-| Cloudflare (planned) | Your Cloudflare account | Cloudflare's pricing |
+| Cloudflare (planned) | Your Cloudflare account | [Cloudflare Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) |
 
 Hosts and workers only need the server's URL, so you can move it later without changing anything else.
 
@@ -26,9 +26,9 @@ Decision models decide which issues are worth fixing. Set `TRIAGE_DECISION_PROVI
 | --- | --- | --- |
 | [Ollaya](https://ollaya.dev/library), such as [`laya`](https://ollaya.dev/library/laya) or [`winnow`](https://ollaya.dev/library/winnow) | Your machine | Free |
 | [Ollama](https://ollama.com/search?c=decision) 0.35 or later, such as [`nimble`](https://ollama.com/library/nimble) or [`tev1`](https://ollama.com/library/tev1) | Your machine | Free |
-| TypeSafe's API | TypeSafe | TypeSafe's pricing |
-| Jev on OpenCode Zen | OpenCode | OpenCode Zen's pricing |
-| Clef on Cloudflare Workers AI | Your Cloudflare account | Workers AI's free daily allowance, then its pricing |
+| [TypeSafe](https://typesafe.ai/)'s API | TypeSafe | TypeSafe's pricing |
+| Jev on [OpenCode Zen](https://opencode.ai/docs/zen/) | OpenCode | [OpenCode Zen's pricing](https://opencode.ai/docs/zen/#pricing) |
+| Clef on Cloudflare Workers AI, [`clef`](https://developers.cloudflare.com/workers-ai/models/clef/) or [`clef-flash`](https://developers.cloudflare.com/workers-ai/models/clef-flash/) | Your Cloudflare account | [Workers AI's](https://developers.cloudflare.com/workers-ai/platform/pricing/) free 10,000 Neurons a day, then its pricing |
 
 ## Language models
 
@@ -36,13 +36,13 @@ Language models suggest fixes. Set `TRIAGE_LLM_PROVIDER` to `openai` for any Ope
 
 | Option | Where data goes | Cost |
 | --- | --- | --- |
-| Ollama, LM Studio or llama.cpp | Your machine | Free |
-| OpenAI | OpenAI | OpenAI's pricing |
-| Anthropic | Anthropic | Anthropic's pricing |
-| OpenRouter | OpenRouter and the model's provider | OpenRouter's pricing |
-| OpenCode Zen, through either API | OpenCode | OpenCode Zen's pricing |
-| GitHub Models | GitHub | GitHub's free allowance, then its pricing |
-| Workers AI | Your Cloudflare account | Workers AI's free daily allowance, then its pricing |
+| [Ollama](https://ollama.com/library), [LM Studio](https://lmstudio.ai/models) or [llama.cpp](https://github.com/ggml-org/llama.cpp) | Your machine | Free |
+| [OpenAI](https://developers.openai.com/api/docs/models) | OpenAI | [OpenAI's pricing](https://openai.com/business/pricing/#api) |
+| [Anthropic](https://platform.claude.com/docs/en/models/overview) | Anthropic | [Anthropic's pricing](https://platform.claude.com/docs/en/about-claude/pricing) |
+| [OpenRouter](https://openrouter.ai/models) | OpenRouter and the model's provider | Each model's price on OpenRouter |
+| [OpenCode Zen](https://opencode.ai/docs/zen/), through either API | OpenCode | [OpenCode Zen's pricing](https://opencode.ai/docs/zen/#pricing) |
+| [GitHub Models](https://docs.github.com/en/github-models) | GitHub | GitHub's free allowance, then its pricing |
+| [Workers AI](https://developers.cloudflare.com/workers-ai/models/) | Your Cloudflare account | [Workers AI's](https://developers.cloudflare.com/workers-ai/platform/pricing/) free 10,000 Neurons a day, then its pricing |
 
 One Ollama can serve both the decision model and the language model.
 
