@@ -48,6 +48,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { marked } from "marked";
 import { AtomController, registry } from "./AtomController.js";
 import { parts, t } from "./i18n.js";
+import { shared } from "./styles.js";
 import "./triage-skeleton.js";
 import { homeHref, issue, issueEvents, setLabel, setStatus } from "./triage.js";
 import {
@@ -60,7 +61,6 @@ import {
   renderDefect,
   renderError,
   severityLabel,
-  shared,
   stateBadge,
 } from "./ui.js";
 

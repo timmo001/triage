@@ -50,6 +50,7 @@ import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
 import { AtomController, registry } from "./AtomController.js";
 import { t } from "./i18n.js";
+import { shared } from "./styles.js";
 import {
   type BulkAction,
   bulkAction,
@@ -73,7 +74,6 @@ import {
   icon,
   renderDefect,
   renderError,
-  shared,
   stateBadge,
 } from "./ui.js";
 
@@ -709,12 +709,18 @@ export class TriageIssues extends LitElement {
         }
 
         .options:popover-open {
+          display: flex;
+          flex-direction: column;
           inset: 0 auto 0 0;
           width: 20rem;
           height: 100%;
           max-height: none;
           border-width: 0 var(--triage-border-width) 0 0;
           border-radius: 0;
+        }
+
+        .options triage-filter[expanded] {
+          flex: 1 0 auto;
         }
       }
 

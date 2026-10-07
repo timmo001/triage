@@ -3,7 +3,7 @@ title: Components
 description: The badges, event cards, skeletons and other shared pieces of the web UI, and the tokens they use.
 ---
 
-The web UI's shared pieces live in [`web/src/ui.ts`](https://github.com/timmo001/triage/blob/main/web/src/ui.ts) and take their sizes and colours from the [design tokens](/design). Icons come from [Material Design Icons](https://pictogrammers.com/library/mdi/).
+The web UI's shared pieces live in [`web/src/ui.ts`](https://github.com/timmo001/triage/blob/main/web/src/ui.ts), with their styles in [`web/src/styles.ts`](https://github.com/timmo001/triage/blob/main/web/src/styles.ts), and take their sizes and colours from the [design tokens](/design). Icons come from [Material Design Icons](https://pictogrammers.com/library/mdi/).
 
 ## Badges
 

@@ -8,7 +8,8 @@ import { VirtualizerController } from "@tanstack/lit-virtual";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
 import { t } from "./i18n.js";
-import { badge, icon, shared } from "./ui.js";
+import { shared } from "./styles.js";
+import { badge, icon } from "./ui.js";
 import "./triage-skeleton.js";
 
 export interface FilterOption {
@@ -28,8 +29,9 @@ const skeletonWidths = ["7rem", "5rem", "8rem", "6rem"];
 
 /**
  * One of the issue list's filters: a list of options to tick, matching
- * issues with any of them. Every filter is the same height and scrolls its
- * options inside it. Fires `filter-change` with the ticked values, empty
+ * issues with any of them. Every filter is at least the same height and
+ * scrolls its options inside it, growing to fill any room the page gives
+ * it. Fires `filter-change` with the ticked values, empty
  * when everything is ticked, and `filter-toggle` with whether to show the
  * options.
  *
@@ -40,6 +42,11 @@ export class TriageFilter extends LitElement {
   static override styles = [
     shared,
     css`
+      :host {
+        display: flex;
+        flex-direction: column;
+      }
+
       .header {
         display: flex;
         align-items: center;
@@ -93,6 +100,7 @@ export class TriageFilter extends LitElement {
       }
 
       .scroller {
+        flex: 1 0 auto;
         height: ${shownRows * rowHeight + listPadding * 2}px;
         margin-inline: calc(-1 * var(--triage-filter-inset, 0rem));
         padding-inline: var(--triage-filter-inset, 0rem);

@@ -2,8 +2,8 @@ import { css, html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
 import { registry } from "./AtomController.js";
 import { parts, t } from "./i18n.js";
+import { shared } from "./styles.js";
 import { token } from "./triage.js";
-import { shared } from "./ui.js";
 
 @customElement("triage-sign-in")
 export class TriageSignIn extends LitElement {
