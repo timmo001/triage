@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Event } from "@timmo001/effect-triage";
-import { Effect, Option } from "effect";
+import { ConfigProvider, Effect, Layer, Option } from "effect";
 import { type ListOptions, Store } from "./Store.js";
 
 const log = (id: string, timestamp: number) =>
@@ -249,6 +249,35 @@ describe("Store", () => {
     expect(result.quiet).toStartWith("sshd");
     expect(result.counts).toMatchObject({ ongoing: 1, quiet: 1 });
     expect(result.found).toEqual(Option.some("quiet"));
+  });
+
+  test("takes the quiet window from TRIAGE_QUIET_HOURS", async () => {
+    const day = 24 * 60 * 60 * 1000;
+
+    const counts = await Effect.gen(function* () {
+      const store = yield* Store;
+      const now = Date.now();
+
+      yield* store.add([
+        log("old", now - 20 * day),
+        log("recent", now - 2 * day),
+      ]);
+
+      return (yield* store.issueCounts({})).states;
+    }).pipe(
+      Effect.provide(
+        Store.layerFile(":memory:").pipe(
+          Layer.provide(
+            ConfigProvider.layer(
+              ConfigProvider.fromEnv({ env: { TRIAGE_QUIET_HOURS: "24" } }),
+            ),
+          ),
+        ),
+      ),
+      Effect.runPromise,
+    );
+
+    expect(counts).toMatchObject({ ongoing: 0, quiet: 2 });
   });
 
   test("finds other errors from the same program, resolved ones first", async () => {

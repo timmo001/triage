@@ -38,6 +38,8 @@ Environment variables win over the file. The Home Assistant app uses this for it
 | `TRIAGE_INGRESS_MCP_FROM` | `172.30.32.1`, Home Assistant Core | The address that may use the ingress port's [MCP server](/agents) at `/mcp` without a token |
 | `TRIAGE_DECIDE_DAILY` | `100` | The most issues each decision model may decide on in any 24 hours, by the server and its workers together |
 | `TRIAGE_SUGGEST_DAILY` | `5` | The most suggestions each language model may make in any 24 hours, by the server and its workers together |
+| `TRIAGE_NEW_HOURS` | `24` | How long an issue stays [new](/issues#states) after it's first seen |
+| `TRIAGE_QUIET_HOURS` | `72` | How long an issue goes without events before it's [quiet](/issues#states), and how long it stays regressed |
 
 ## Workers and admins
 

@@ -89,26 +89,55 @@ const IssueRow = Schema.Struct({
   regressed_at: Schema.NullOr(Schema.Finite),
 });
 
-const state = (row: typeof IssueRow.Type, now: number): Issue.State => {
+/** How long issues stay new, and how long without events before they're quiet. */
+interface Windows {
+  readonly newMillis: number;
+  readonly quietMillis: number;
+}
+
+const hours = (name: string, fallback: number) =>
+  Config.schema(Schema.Int.check(Schema.isGreaterThan(0)), name).pipe(
+    Config.withDefault(fallback / (60 * 60 * 1000)),
+    Config.map((value) => value * 60 * 60 * 1000),
+  );
+
+/**
+ * The state windows from `$TRIAGE_NEW_HOURS` and `$TRIAGE_QUIET_HOURS`, which
+ * is also how long an issue stays regressed.
+ */
+const stateWindows = Config.all({
+  newMillis: hours("TRIAGE_NEW_HOURS", Issue.newMillis),
+  quietMillis: hours("TRIAGE_QUIET_HOURS", Issue.recentMillis),
+});
+
+const state = (
+  row: typeof IssueRow.Type,
+  now: number,
+  windows: Windows,
+): Issue.State => {
   if (row.status !== "open") {
     return row.status;
   }
 
   if (
     row.regressed_at !== null &&
-    now - row.regressed_at < Issue.recentMillis
+    now - row.regressed_at < windows.quietMillis
   ) {
     return "regressed";
   }
 
-  if (now - row.first_seen < Issue.newMillis) {
+  if (now - row.first_seen < windows.newMillis) {
     return "new";
   }
 
-  return now - row.last_seen < Issue.recentMillis ? "ongoing" : "quiet";
+  return now - row.last_seen < windows.quietMillis ? "ongoing" : "quiet";
 };
 
-const toIssue = (row: typeof IssueRow.Type, now: number): Issue.Issue => ({
+const toIssue = (
+  row: typeof IssueRow.Type,
+  now: number,
+  windows: Windows,
+): Issue.Issue => ({
   id: row.id,
   fingerprint: row.fingerprint,
   kind: row.kind,
@@ -116,7 +145,7 @@ const toIssue = (row: typeof IssueRow.Type, now: number): Issue.Issue => ({
   firstSeen: row.first_seen,
   lastSeen: row.last_seen,
   count: row.count,
-  state: state(row, now),
+  state: state(row, now, windows),
 });
 
 const SummaryRow = Schema.Struct({
@@ -129,9 +158,10 @@ const SummaryRow = Schema.Struct({
 const toSummary = (
   row: typeof SummaryRow.Type,
   now: number,
+  windows: Windows,
 ): Api.IssueSummary =>
   Object.assign(
-    toIssue(row, now),
+    toIssue(row, now, windows),
     { hosts: row.hosts },
     row.worth === null ? {} : { worth: row.worth },
     row.label === null
@@ -666,6 +696,7 @@ export class Store extends Context.Service<
 >()("triage/store/Store") {
   static readonly make = Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    const windows = yield* stateWindows;
 
     const cursor = Effect.fn("Store.cursor")(
       function* (source: string) {
@@ -796,9 +827,9 @@ export class Store extends Context.Service<
         ) AS hosts, CASE
           WHEN status != 'open' THEN status
           WHEN regressed_at IS NOT NULL
-            AND ${now} - regressed_at < ${Issue.recentMillis} THEN 'regressed'
-          WHEN ${now} - first_seen < ${Issue.newMillis} THEN 'new'
-          WHEN ${now} - last_seen < ${Issue.recentMillis} THEN 'ongoing'
+            AND ${now} - regressed_at < ${windows.quietMillis} THEN 'regressed'
+          WHEN ${now} - first_seen < ${windows.newMillis} THEN 'new'
+          WHEN ${now} - last_seen < ${windows.quietMillis} THEN 'ongoing'
           ELSE 'quiet'
         END AS state
         FROM issues
@@ -867,7 +898,7 @@ export class Store extends Context.Service<
           `,
         );
 
-        return rows.map((row) => toSummary(row, now));
+        return rows.map((row) => toSummary(row, now, windows));
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -963,7 +994,7 @@ export class Store extends Context.Service<
         const rows = yield* issueEvents({ id, limit, offset: 0 });
 
         return Option.some({
-          issue: toIssue(row.value, yield* Clock.currentTimeMillis),
+          issue: toIssue(row.value, yield* Clock.currentTimeMillis, windows),
           events: rows.map((event) => event.data),
         });
       },
@@ -1078,7 +1109,7 @@ export class Store extends Context.Service<
           yield* Effect.forEach(rows, (similarRow) =>
             issueSuggestions(similarRow.id).pipe(
               Effect.map((suggestions): Api.SimilarIssue =>
-                Object.assign(toSummary(similarRow, now), {
+                Object.assign(toSummary(similarRow, now, windows), {
                   suggestions: suggestions.map(toSuggestion),
                 }),
               ),
@@ -1206,7 +1237,7 @@ export class Store extends Context.Service<
         const rows = yield* listUndecided({ model, limit });
         const now = yield* Clock.currentTimeMillis;
 
-        return rows.map((row) => toIssue(row, now));
+        return rows.map((row) => toIssue(row, now, windows));
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -1336,7 +1367,7 @@ export class Store extends Context.Service<
         const rows = yield* listUnsuggested(options);
         const now = yield* Clock.currentTimeMillis;
 
-        return rows.map((row) => toIssue(row, now));
+        return rows.map((row) => toIssue(row, now, windows));
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );

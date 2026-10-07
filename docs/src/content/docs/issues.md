@@ -30,6 +30,8 @@ triage issues --server   # the server's
 | Resolved  | Fixed, as far as you know                                          |
 | Muted     | Hidden from decision and language models, however often it happens |
 
+The 24 and 72 hours are the defaults. Change them with [`TRIAGE_NEW_HOURS` and `TRIAGE_QUIET_HOURS`](/configuration#server).
+
 ```bash
 triage resolve <issue>...
 triage mute <issue>...

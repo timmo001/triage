@@ -31,8 +31,12 @@ options:
   trust_proxy: false
   decide_daily: 100
   suggest_daily: 5
+  new_hours: 24
+  quiet_hours: 72
 schema:
   server_admin_token: password?
   trust_proxy: bool
   decide_daily: int(0,)
   suggest_daily: int(0,)
+  new_hours: int(1,)
+  quiet_hours: int(1,)

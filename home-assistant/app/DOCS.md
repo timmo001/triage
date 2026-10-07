@@ -33,5 +33,7 @@ These match the server's [settings](https://triage.timmo.dev/configuration#serve
 - **trust_proxy**: trust `X-Forwarded-Host` and `X-Forwarded-For` from a reverse proxy.
 - **decide_daily**: the most issues each decision model may decide on in any 24 hours, across all workers.
 - **suggest_daily**: the most fixes each language model may suggest in any 24 hours, across all workers.
+- **new_hours**: how long an issue stays new after it's first seen.
+- **quiet_hours**: how long an issue goes without events before it's quiet, and how long it stays regressed.
 
 The database is kept in the app's data, and the app stops briefly during backups so it's copied consistently. Machines keep their events until the server is back.
