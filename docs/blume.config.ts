@@ -1,91 +1,43 @@
+import { docsConfig } from "@timmo001/docs-kit/blume";
 import { defineConfig } from "blume";
-import { cloudflare } from "blume/deploy";
 import commandPages from "./commands-sidebar.json" with { type: "json" };
 
-export default defineConfig({
-  title: "Triage",
-  description:
-    "Capture crashes and errors from your machines, decide which are worth fixing, and suggest fixes.",
-  logo: {
-    image: {
-      alt: "Triage",
-      dark: "/logo-dark.svg",
-      light: "/logo-light.svg",
+export default defineConfig(
+  docsConfig({
+    title: "Triage",
+    description:
+      "Capture crashes and errors from your machines, decide which are worth fixing, and suggest fixes.",
+    site: "triage.timmo.dev",
+    github: { owner: "timmo001", repo: "triage" },
+    redirects: [{ from: "/setup/hardware", to: "/hardware" }],
+    navigation: {
+      sidebar: [
+        "/",
+        "/hardware",
+        "/install",
+        {
+          label: "Setup",
+          items: ["/setup/server", "/setup/hosts", "/setup/workers"],
+        },
+        "/configuration",
+        "/issues",
+        "/choices",
+        "/privacy",
+        "/libraries",
+        {
+          label: "Commands",
+          root: "/commands",
+          items: commandPages.filter((page) => page !== "/commands"),
+          display: "group",
+          collapsed: true,
+        },
+      ],
     },
-    text: "Triage",
-  },
-  content: {
-    root: "src/content/docs",
-  },
-  markdown: {
-    externalLinks: true,
-  },
-  redirects: [{ from: "/setup/hardware", to: "/hardware" }],
-  github: {
-    owner: "timmo001",
-    repo: "triage",
-    branch: "main",
-    dir: "docs",
-  },
-  navigation: {
-    repo: true,
-    sidebar: [
-      "/",
-      "/hardware",
-      "/install",
-      {
-        label: "Setup",
-        items: ["/setup/server", "/setup/hosts", "/setup/workers"],
+    theme: {
+      accent: {
+        light: "#a0661c",
+        dark: "#e6ad55",
       },
-      "/configuration",
-      "/issues",
-      "/choices",
-      "/privacy",
-      "/libraries",
-      {
-        label: "Commands",
-        root: "/commands",
-        items: commandPages.filter((page) => page !== "/commands"),
-        display: "group",
-        collapsed: true,
-      },
-    ],
-  },
-  theme: {
-    accent: {
-      light: "#a0661c",
-      dark: "#e6ad55",
     },
-  },
-  ai: {
-    assistant: {
-      enabled: false,
-    },
-  },
-  agents: {
-    agentReadability: true,
-    contentSignals: {
-      aiInput: true,
-      aiTrain: false,
-      search: true,
-    },
-    llmsTxt: true,
-    mcp: {
-      enabled: true,
-      route: "/mcp",
-    },
-    webmcp: true,
-  },
-  deployment: cloudflare({
-    site: "https://triage.timmo.dev",
   }),
-  feedback: false,
-  lastModified: "git",
-  seo: {
-    og: {
-      enabled: true,
-      logo: "src/assets/logo.svg",
-      site: "triage.timmo.dev",
-    },
-  },
-});
+);
