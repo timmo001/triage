@@ -18,6 +18,7 @@ import packageJson from "../package.json" with { type: "json" };
 import { Attribution } from "./collect/Attribution.js";
 import { Collector } from "./collect/Collector.js";
 import { Journal } from "./journal/Journal.js";
+import { formatLine } from "./logger.js";
 import { IssueTools, IssueToolsLayer, mcpOptions } from "./mcp/IssueTools.js";
 import { layerOptions } from "./options.js";
 import { Redactor } from "./redact.js";
@@ -537,9 +538,7 @@ const mcp = Command.make(
           Layer.provide(BunStdio.layer),
         ),
       ).pipe(
-        Effect.provide(
-          Logger.layer([Logger.withConsoleError(Logger.defaultLogger)]),
-        ),
+        Effect.provide(Logger.layer([Logger.withConsoleError(formatLine)])),
       ),
     );
   }),
@@ -670,14 +669,35 @@ const serve = Command.make(
     ...processFlags,
   },
   Effect.fnUntraced(function* (input) {
+    const app = Layer.merge(
+      Server.layer(input),
+      yield* processLoops(input),
+    ).pipe(
+      Layer.provide(
+        Work.layerStore({
+          by: "server",
+          decideDaily: input.decideDaily,
+          suggestDaily: input.suggestDaily,
+        }),
+      ),
+    );
+
+    // Layers release in the reverse of the order they're built in, so the
+    // server's own finalizers run between "Stopping" and "Stopped".
     return yield* Layer.launch(
-      Layer.merge(Server.layer(input), yield* processLoops(input)).pipe(
+      Layer.effectDiscard(
+        Effect.acquireRelease(Effect.logInfo("Started"), () =>
+          Effect.logInfo("Stopping"),
+        ),
+      ).pipe(
+        Layer.provide(app),
         Layer.provide(
-          Work.layerStore({
-            by: "server",
-            decideDaily: input.decideDaily,
-            suggestDaily: input.suggestDaily,
-          }),
+          Layer.effectDiscard(
+            Effect.acquireRelease(
+              Effect.logInfo(`Starting triage ${packageJson.version}`),
+              () => Effect.logInfo("Stopped"),
+            ),
+          ),
         ),
       ),
     );
@@ -891,6 +911,7 @@ triage.pipe(
     Layer.mergeAll(
       BunServices.layer,
       layerOptions.pipe(Layer.provide(BunServices.layer)),
+      Logger.layer([Logger.withConsoleLog(formatLine)]),
     ),
   ),
   BunRuntime.runMain({
