@@ -13,7 +13,7 @@ Every `triage mcp` command and its help, as `--help` prints it. Each also accept
 
 ```text
 DESCRIPTION
-  Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed
+  Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed, and resolve, mute or label them
 
 USAGE
   triage mcp [flags]

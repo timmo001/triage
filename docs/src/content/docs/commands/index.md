@@ -58,5 +58,5 @@ SUBCOMMANDS
   mute         Mute issues, so they're never decided on or suggested fixes for, however often they happen
   reopen       Reopen resolved or muted issues
   agreement    Compare each decision model with the hand labels: how often it's sure enough to act on, and how often it's right when it is
-  mcp          Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed
+  mcp          Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed, and resolve, mute or label them
 ```

@@ -18,7 +18,7 @@ watchdog: http://[HOST]:[PORT:7171]/api/health
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:clipboard-pulse-outline
-# Announces the MCP server on the ingress port, so Assist can read issues.
+# Announces the MCP server on the ingress port, so Assist can read and change issues.
 discovery:
   - mcp
 environment:

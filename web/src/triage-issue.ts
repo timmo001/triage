@@ -103,7 +103,7 @@ const kinds: Record<Issue.Kind, string> = {
 
 /** What to paste into an agent so it reads the issue through triage's MCP server. */
 const agentMessage = (issue: Issue.Issue) =>
-  `Triage issue ${issue.id}, ${issue.title}: ${location.href}\n\nRead it and all its events with the triage MCP server's get_issue and get_issue_events tools, and see how similar issues were fixed with find_similar_issues.`;
+  `Triage issue ${issue.id}, ${issue.title}: ${location.href}\n\nRead it and all its events with the triage MCP server's get_issue and get_issue_events tools, and see how similar issues were fixed with find_similar_issues. Once it's fixed on every host it happened on, ask me whether to resolve it with set_issue_status.`;
 
 @customElement("triage-issue")
 export class TriageIssue extends LitElement {

@@ -544,7 +544,7 @@ const mcp = Command.make(
   }),
 ).pipe(
   Command.withDescription(
-    "Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed",
+    "Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed, and resolve, mute or label them",
   ),
 );
 

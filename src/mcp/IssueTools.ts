@@ -140,12 +140,49 @@ const FindSimilarIssues = Tool.make("find_similar_issues", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
-/** Tools for agents to find and read a server's issues and their events. */
+const SetIssueStatus = Tool.make("set_issue_status", {
+  description: `Resolve, mute or reopen a triage issue, like its page's buttons. Resolve it once it's fixed on every host in get_issue's hosts, after asking the user: if it happens again it opens as regressed. Mute it to stop decision and language models looking at it however often it happens. Reopen a resolved or muted issue with open.`,
+  parameters: Schema.Struct({
+    issue: IssueParameter,
+    status: Issue.Status.annotate({
+      description: "resolved, muted, or open to reopen it",
+    }),
+  }),
+  success: Schema.Struct({ id: Schema.String, status: Issue.Status }),
+  failure: IssueToolError,
+  failureMode: "return",
+})
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true)
+  .annotate(Tool.OpenWorld, false);
+
+const LabelIssue = Tool.make("label_issue", {
+  description: `Label a triage issue worth fixing or noise, like its page's buttons. Labels are what decision models are compared against.`,
+  parameters: Schema.Struct({
+    issue: IssueParameter,
+    label: Api.Label.annotate({ description: "worth or noise" }),
+  }),
+  success: Schema.Struct({ id: Schema.String, label: Api.Label }),
+  failure: IssueToolError,
+  failureMode: "return",
+})
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true)
+  .annotate(Tool.OpenWorld, false);
+
+/**
+ * Tools for agents to find and read a server's issues and their events, and to
+ * resolve, mute, reopen and label them.
+ */
 export const IssueTools = Toolkit.make(
   ListIssues,
   GetIssue,
   GetIssueEvents,
   FindSimilarIssues,
+  SetIssueStatus,
+  LabelIssue,
 );
 
 const toIssueToolError = (error: { readonly message: string }) =>
@@ -218,6 +255,30 @@ export const IssueToolsLayer = IssueTools.toLayer(
           return { issues };
         },
       ),
+      set_issue_status: Effect.fn("IssueTools.set_issue_status")(function* ({
+        issue,
+        status,
+      }) {
+        const id = issueId(issue);
+
+        yield* admin
+          .setStatus(id, status)
+          .pipe(Effect.mapError(toIssueToolError));
+
+        return { id, status };
+      }),
+      label_issue: Effect.fn("IssueTools.label_issue")(function* ({
+        issue,
+        label,
+      }) {
+        const id = issueId(issue);
+
+        yield* admin
+          .setLabel(id, label)
+          .pipe(Effect.mapError(toIssueToolError));
+
+        return { id, label };
+      }),
     });
   }),
 );
@@ -227,7 +288,7 @@ export const mcpOptions = {
   name: "triage",
   version: packageJson.version,
   instructions:
-    "Read crashes and errors triage collected from your machines. Find issues with list_issues, or pass get_issue an issue ID or a link to the issue's page, then page through its events with get_issue_events. find_similar_issues shows how issues like it were fixed.",
+    "Read crashes and errors triage collected from your machines. Find issues with list_issues, or pass get_issue an issue ID or a link to the issue's page, then page through its events with get_issue_events. find_similar_issues shows how issues like it were fixed. Once you've fixed an issue, don't wait to be asked to close it. get_issue lists every host it happened on, and each one needs the fix: check it's in place on the hosts you can reach, and ask the user about the others. Then ask the user before resolving it with set_issue_status. Mute an issue that's noise and can't be fixed, rather than resolving it, and label issues worth fixing or noise with label_issue.",
   protocols: [
     McpProtocol.v2026_07_28,
     McpProtocol.v2025_11_25,
