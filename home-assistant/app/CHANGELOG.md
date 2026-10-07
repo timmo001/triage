@@ -1,10 +1,9 @@
-## MCP
-
-- Agents can search issues with `list_issues`, and find issues like one they're looking at with `find_similar_issues`.
-- The server has a matching `GET /api/issues/:id/similar` endpoint, and `@timmo001/effect-triage` adds `SimilarIssue` for it.
-
 ## Home Assistant
 
-- The app withdraws its MCP server from Home Assistant when it stops, and offers it again when it starts.
-- The server exits cleanly when it's stopped, so the Supervisor no longer logs an error each time the app stops or updates.
+- The app keeps its MCP server in Home Assistant when it stops, so once you've added the integration it stays through restarts, updates and backups. 0.10.0 withdrew it on every stop.
+
+## Server
+
+- The server logs when it's starting, started, stopping and stopped.
+- Each log entry is one line, so an HTTP request's method, URL and status sit next to its message instead of below it.
 
