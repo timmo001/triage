@@ -1,13 +1,13 @@
 import {
   mdiChevronDown,
   mdiChevronRight,
+  mdiEyeOutline,
   mdiFilterVariantRemove,
 } from "@mdi/js";
 import { VirtualizerController } from "@tanstack/lit-virtual";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
-import { classMap } from "lit/directives/class-map.js";
-import { icon, shared } from "./ui.js";
+import { badge, icon, shared } from "./ui.js";
 import "./triage-skeleton.js";
 
 export interface FilterOption {
@@ -81,20 +81,14 @@ export class TriageFilter extends LitElement {
         border-color: transparent;
       }
 
-      .badge {
-        min-width: 1.5rem;
-        padding: 0.1rem 0.5rem;
-        font-size: 0.85rem;
-        font-weight: normal;
+      .toggle .badge {
+        margin-inline-start: var(--triage-space-1);
         font-variant-numeric: tabular-nums;
-        text-align: center;
-        color: var(--triage-bg);
-        background: color-mix(in srgb, var(--triage-muted) 60%, transparent);
-        border-radius: 999px;
+        --badge-color: var(--triage-muted);
       }
 
-      .badge.filtering {
-        background: var(--triage-accent);
+      .toggle .badge.filtering {
+        --badge-color: var(--triage-accent);
       }
 
       .scroller {
@@ -317,13 +311,12 @@ export class TriageFilter extends LitElement {
           ${
             this.loading || this.options.length === 0
               ? nothing
-              : html`<span
-                  class=${classMap({
-                    badge: true,
-                    filtering,
-                  })}
-                  title="${shown} of ${this.options.length} shown"
-                  >${shown}/${this.options.length}</span
+              : html`<span title="${shown} of ${this.options.length} shown"
+                  >${badge({
+                    path: mdiEyeOutline,
+                    content: `${shown}/${this.options.length}`,
+                    kind: filtering ? "small filtering" : "small",
+                  })}</span
                 >`
           }
         </button>

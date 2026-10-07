@@ -1,7 +1,15 @@
 import type { Issue } from "@timmo001/effect-triage";
-import { mdiLogout } from "@mdi/js";
+import {
+  mdiAlertDecagramOutline,
+  mdiBellOffOutline,
+  mdiCheckCircleOutline,
+  mdiLogout,
+  mdiProgressClock,
+  mdiSleep,
+  mdiStarFourPointsOutline,
+} from "@mdi/js";
 import { Predicate } from "effect";
-import { css, html, svg } from "lit";
+import { css, html, nothing, svg } from "lit";
 import { registry } from "./AtomController.js";
 import { token } from "./triage.js";
 
@@ -11,9 +19,118 @@ export const icon = (path: string) =>
     ${svg`<path d=${path}></path>`}
   </svg>`;
 
+const dragThreshold = 4;
+
+/**
+ * A `pointerdown` handler that lets a mouse drag a horizontal scroller, as
+ * touch and trackpads already can, after Home Assistant's
+ * DragScrollController. The row gets a `dragging` class while it moves.
+ */
+export const dragScroll = (event: PointerEvent) => {
+  const scroller = event.currentTarget;
+
+  if (
+    event.pointerType !== "mouse" ||
+    event.button !== 0 ||
+    !(scroller instanceof HTMLElement)
+  ) {
+    return;
+  }
+
+  const startX = event.clientX;
+  const startLeft = scroller.scrollLeft;
+  const done = new AbortController();
+  const { signal } = done;
+
+  scroller.addEventListener(
+    "pointermove",
+    (move) => {
+      const distance = move.clientX - startX;
+
+      if (!scroller.hasPointerCapture(move.pointerId)) {
+        if (Math.abs(distance) < dragThreshold) {
+          return;
+        }
+
+        scroller.setPointerCapture(move.pointerId);
+        scroller.classList.add("dragging");
+        getSelection()?.removeAllRanges();
+      }
+
+      scroller.scrollLeft = startLeft - distance;
+    },
+    { signal },
+  );
+
+  for (const type of ["pointerup", "pointercancel"]) {
+    window.addEventListener(
+      type,
+      () => {
+        scroller.classList.remove("dragging");
+        done.abort();
+      },
+      { signal },
+    );
+  }
+};
+
+/**
+ * A pill with an icon and a value, with an optional small label above the
+ * value, after Home Assistant's badges. `kind` adds classes that set
+ * `--badge-color`, or the `small` and `dense` size variants.
+ */
+export const badge = ({
+  path,
+  content,
+  label,
+  kind = "",
+}: {
+  readonly path: string;
+  readonly content: unknown;
+  readonly label?: string;
+  readonly kind?: string;
+}) =>
+  html`<span class="badge ${kind}">
+    ${icon(path)}
+    <span class="badge-info">
+      ${
+        label === undefined
+          ? nothing
+          : html`<span class="badge-label">${label}</span>`
+      }
+      <span class="badge-content">${content}</span>
+    </span>
+  </span>`;
+
+const stateIcons: Record<Issue.State, string> = {
+  regressed: mdiAlertDecagramOutline,
+  new: mdiStarFourPointsOutline,
+  ongoing: mdiProgressClock,
+  quiet: mdiSleep,
+  resolved: mdiCheckCircleOutline,
+  muted: mdiBellOffOutline,
+};
+
 export const shared = css`
   :host {
     display: block;
+  }
+
+  h1 {
+    font-size: var(--triage-font-size-3xl);
+    font-weight: var(--triage-font-weight-bold);
+    line-height: var(--triage-line-height-condensed);
+  }
+
+  h2 {
+    font-size: var(--triage-font-size-2xl);
+    font-weight: var(--triage-font-weight-bold);
+    line-height: var(--triage-line-height-condensed);
+  }
+
+  pre,
+  code {
+    font-family: var(--triage-font-family-code);
   }
 
   a {
@@ -30,11 +147,11 @@ export const shared = css`
   button {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: var(--triage-space-1-5);
     font: inherit;
-    padding: 0.35rem 0.8rem;
-    border: 1px solid var(--triage-border);
-    border-radius: 0.4rem;
+    padding: var(--triage-space-1-5) var(--triage-space-3);
+    border: var(--triage-border-width) solid var(--triage-border);
+    border-radius: var(--triage-border-radius-sm);
     background: var(--triage-surface);
     color: var(--triage-text);
     cursor: pointer;
@@ -46,7 +163,7 @@ export const shared = css`
   }
 
   button.icon-only {
-    padding: 0.35rem;
+    padding: var(--triage-space-1-5);
   }
 
   button[aria-pressed="true"] {
@@ -54,36 +171,104 @@ export const shared = css`
     color: var(--triage-accent);
   }
 
+  .badge {
+    --badge-color: var(--triage-accent);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--triage-space-2);
+    max-width: 100%;
+    min-height: 2.25rem;
+    box-sizing: border-box;
+    padding: var(--triage-space-1) var(--triage-space-4) var(--triage-space-1)
+      var(--triage-space-3);
+    border: var(--triage-border-width) solid var(--triage-border);
+    border-radius: var(--triage-border-radius-pill);
+    background: var(--triage-surface);
+    color: var(--triage-text);
+    vertical-align: middle;
+  }
+
+  .badge > .icon {
+    color: var(--badge-color);
+  }
+
+  .badge-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .badge-label {
+    font-size: var(--triage-font-size-xs);
+    font-weight: var(--triage-font-weight-medium);
+    line-height: var(--triage-line-height-condensed);
+    color: var(--triage-muted);
+  }
+
+  .badge-content {
+    font-size: var(--triage-font-size-s);
+    font-weight: var(--triage-font-weight-medium);
+    line-height: var(--triage-line-height-condensed);
+    overflow-wrap: anywhere;
+  }
+
+  .badge.small {
+    gap: var(--triage-space-1);
+    min-height: 1.75rem;
+    padding: var(--triage-space-0-5) var(--triage-space-2)
+      var(--triage-space-0-5) var(--triage-space-1-5);
+  }
+
+  .badge.small .badge-content {
+    white-space: nowrap;
+  }
+
+  .badge.dense {
+    gap: var(--triage-space-1-5);
+    min-height: 2rem;
+    padding: var(--triage-space-0-5) var(--triage-space-3)
+      var(--triage-space-0-5) var(--triage-space-2);
+  }
+
+  .badge.dense > .icon {
+    width: 1em;
+    height: 1em;
+  }
+
+  .badge.dense .badge-label {
+    font-size: var(--triage-font-size-2xs);
+  }
+
+  .badge.dense .badge-content {
+    font-size: var(--triage-font-size-xs);
+  }
+
   .state {
-    display: inline-block;
-    min-width: 5.5rem;
-    font-size: 0.8rem;
-    font-weight: 600;
     text-transform: capitalize;
   }
 
   .state.new {
-    color: var(--triage-new);
+    --badge-color: var(--triage-new);
   }
 
   .state.regressed {
-    color: var(--triage-regressed);
+    --badge-color: var(--triage-regressed);
   }
 
   .state.ongoing {
-    color: var(--triage-ongoing);
+    --badge-color: var(--triage-ongoing);
   }
 
   .state.quiet {
-    color: var(--triage-quiet);
+    --badge-color: var(--triage-quiet);
   }
 
   .state.resolved {
-    color: var(--triage-resolved);
+    --badge-color: var(--triage-resolved);
   }
 
   .state.muted {
-    color: var(--triage-muted-state);
+    --badge-color: var(--triage-muted-state);
   }
 
   .muted-text {
@@ -91,13 +276,17 @@ export const shared = css`
   }
 
   .message {
-    padding: 2rem 0;
+    padding: var(--triage-space-8) 0;
     color: var(--triage-muted);
   }
 `;
 
 export const stateBadge = (state: Issue.State) =>
-  html`<span class="state ${state}">${state}</span>`;
+  badge({
+    path: stateIcons[state],
+    content: state,
+    kind: `small state ${state}`,
+  });
 
 const percentage = new Intl.NumberFormat(undefined, {
   style: "percent",

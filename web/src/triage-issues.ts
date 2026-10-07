@@ -348,21 +348,21 @@ export class TriageIssues extends LitElement {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 0.5rem;
-        margin: 0.75rem 0;
+        gap: var(--triage-space-2);
+        margin: var(--triage-space-3) 0;
       }
 
       .search {
         flex: 1 1 14rem;
         display: flex;
         align-items: center;
-        gap: 0.4rem;
-        padding: 0 0.6rem;
+        gap: var(--triage-space-1-5);
+        padding: 0 var(--triage-space-2);
         font-size: inherit;
         color: var(--triage-muted);
         background: var(--triage-surface);
-        border: 1px solid var(--triage-border);
-        border-radius: 0.375rem;
+        border: var(--triage-border-width) solid var(--triage-border);
+        border-radius: var(--triage-border-radius-sm);
       }
 
       .search:focus-within {
@@ -372,7 +372,7 @@ export class TriageIssues extends LitElement {
       .search input {
         flex: 1;
         min-width: 0;
-        padding: 0.35rem 0;
+        padding: var(--triage-space-1-5) 0;
         font: inherit;
         color: var(--triage-text);
         background: none;
@@ -383,8 +383,8 @@ export class TriageIssues extends LitElement {
       label {
         display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
-        font-size: 0.85rem;
+        gap: var(--triage-space-1-5);
+        font-size: var(--triage-font-size-s);
       }
 
       .bar {
@@ -392,9 +392,9 @@ export class TriageIssues extends LitElement {
         top: 0;
         z-index: 2;
         margin-inline: calc(-1 * var(--triage-gutter, 0rem));
-        padding: 0.5rem var(--triage-gutter, 0rem);
+        padding: var(--triage-space-2) var(--triage-gutter, 0rem);
         background: var(--triage-bg);
-        border-bottom: 1px solid var(--triage-border);
+        border-bottom: var(--triage-border-width) solid var(--triage-border);
         container: bar / inline-size;
       }
 
@@ -439,11 +439,11 @@ export class TriageIssues extends LitElement {
 
         .bar .toolbar > button > .count {
           position: absolute;
-          top: -0.4rem;
-          right: -0.4rem;
+          top: calc(-1 * var(--triage-space-1-5));
+          right: calc(-1 * var(--triage-space-1-5));
           min-width: 1rem;
-          padding: 0 0.25rem;
-          font-size: 0.7rem;
+          padding: 0 var(--triage-space-1);
+          font-size: var(--triage-font-size-xs);
           line-height: 1rem;
           color: var(--triage-bg);
           background: var(--triage-accent);
@@ -456,18 +456,18 @@ export class TriageIssues extends LitElement {
       }
 
       .bar .selection {
-        margin: 0.5rem 0 0;
+        margin: var(--triage-space-2) 0 0;
       }
 
       .list {
-        margin-top: 0.75rem;
+        margin-top: var(--triage-space-3);
       }
 
       .load-failed {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 0.75rem;
+        gap: var(--triage-space-3);
       }
 
       .options:popover-open,
@@ -478,27 +478,28 @@ export class TriageIssues extends LitElement {
         scrollbar-width: thin;
         color: inherit;
         background: var(--triage-surface);
-        border: 1px solid var(--triage-border);
+        border: var(--triage-border-width) solid var(--triage-border);
       }
 
       .options:popover-open {
         inset: auto 0 0;
         width: 100%;
         max-height: 85vh;
-        padding: 1rem;
-        border-radius: 0.75rem 0.75rem 0 0;
-        --triage-filter-inset: 1rem;
+        padding: var(--triage-space-4);
+        border-radius: var(--triage-border-radius-lg)
+          var(--triage-border-radius-lg) 0 0;
+        --triage-filter-inset: var(--triage-space-4);
       }
 
       .options::backdrop,
       .menu::backdrop {
-        background: rgb(0 0 0 / 40%);
+        background: var(--triage-scrim);
       }
 
       .sheet-head {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: var(--triage-space-2);
       }
 
       .sheet-head > .icon-only {
@@ -509,7 +510,7 @@ export class TriageIssues extends LitElement {
       .options .sheet-head h2 {
         flex: 1;
         margin: 0;
-        font-size: 1rem;
+        font-size: var(--triage-font-size-m);
         text-transform: none;
         letter-spacing: 0;
         color: var(--triage-text);
@@ -517,9 +518,9 @@ export class TriageIssues extends LitElement {
 
       .menu:popover-open {
         min-width: 15rem;
-        padding: 0.35rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 40%);
+        padding: var(--triage-space-1-5);
+        border-radius: var(--triage-border-radius-md);
+        box-shadow: var(--triage-shadow);
       }
 
       #sort-menu {
@@ -532,23 +533,23 @@ export class TriageIssues extends LitElement {
 
       .menu {
         inset: auto;
-        top: calc(anchor(bottom) + 0.25rem);
+        top: calc(anchor(bottom) + var(--triage-space-1));
         left: anchor(left);
         position-try-fallbacks: flip-inline;
       }
 
       .menu hr {
-        margin: 0.25rem 0;
+        margin: var(--triage-space-1) 0;
         border: 0;
-        border-top: 1px solid var(--triage-border);
+        border-top: var(--triage-border-width) solid var(--triage-border);
       }
 
       .menu-item {
         display: flex;
         width: 100%;
         min-height: 2.5rem;
-        gap: 0.6rem;
-        padding: 0.5rem 0.75rem;
+        gap: var(--triage-space-2);
+        padding: var(--triage-space-2) var(--triage-space-3);
         background: none;
         border: 0;
         text-align: start;
@@ -571,10 +572,10 @@ export class TriageIssues extends LitElement {
       .options h2 {
         display: flex;
         align-items: center;
-        gap: 0.4rem;
-        margin: 0.75rem 0 0;
-        font-size: 0.8rem;
-        font-weight: 600;
+        gap: var(--triage-space-1-5);
+        margin: var(--triage-space-3) 0 0;
+        font-size: var(--triage-font-size-xs);
+        font-weight: var(--triage-font-weight-semibold);
         text-transform: uppercase;
         letter-spacing: 0.04em;
         color: var(--triage-muted);
@@ -582,32 +583,32 @@ export class TriageIssues extends LitElement {
 
       .count {
         min-width: 1.5rem;
-        padding: 0.05rem 0.45rem;
-        font-size: 0.8rem;
+        padding: var(--triage-space-0-5) var(--triage-space-1-5);
+        font-size: var(--triage-font-size-xs);
         font-variant-numeric: tabular-nums;
         text-align: center;
-        border-radius: 999px;
+        border-radius: var(--triage-border-radius-pill);
         background: var(--triage-border);
       }
 
       .selection {
-        padding: 0.5rem 0.75rem;
+        padding: var(--triage-space-2) var(--triage-space-3);
         background: var(--triage-surface);
-        border: 1px solid var(--triage-accent);
-        border-radius: 0.5rem;
+        border: var(--triage-border-width) solid var(--triage-accent);
+        border-radius: var(--triage-border-radius-md);
       }
 
       .list {
         container-type: inline-size;
         background: var(--triage-surface);
-        border: 1px solid var(--triage-border);
-        border-radius: 0.5rem;
+        border: var(--triage-border-width) solid var(--triage-border);
+        border-radius: var(--triage-border-radius-md);
       }
 
       .skeleton {
         box-sizing: border-box;
         overflow: hidden;
-        animation: fade-in 0.3s ease-in both;
+        animation: fade-in var(--triage-duration-normal) ease-in both;
       }
 
       .skeleton .row {
@@ -641,17 +642,30 @@ export class TriageIssues extends LitElement {
       .row {
         display: grid;
         grid-template-columns:
-          1.5rem 5.5rem minmax(0, 1fr)
+          1.5rem 7rem minmax(0, 1fr)
           6rem 4rem 4rem minmax(0, 8rem) 8rem;
-        gap: 0.75rem;
-        align-items: start;
-        padding: 0.6rem 0.75rem;
-        border-bottom: 1px solid var(--triage-border);
+        gap: var(--triage-space-3);
+        align-items: center;
+        padding: var(--triage-space-2) var(--triage-space-3);
+        border-bottom: var(--triage-border-width) solid var(--triage-border);
+      }
+
+      .row > input[type="checkbox"],
+      .group > input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+        margin: 0;
+        justify-self: center;
+        accent-color: var(--triage-accent);
+      }
+
+      .group > input[type="checkbox"] {
+        margin-inline: var(--triage-space-1);
       }
 
       @container (width < 60rem) {
         .row {
-          grid-template-columns: 1.5rem 5.5rem minmax(0, 1fr) 4rem 4rem 8rem;
+          grid-template-columns: 1.5rem 7rem minmax(0, 1fr) 4rem 4rem 8rem;
         }
 
         .wide {
@@ -661,11 +675,7 @@ export class TriageIssues extends LitElement {
 
       .secondary {
         display: none;
-        margin-top: 0.25rem;
-      }
-
-      .secondary .state {
-        min-width: 0;
+        margin-top: var(--triage-space-1);
       }
 
       @container (width < 40rem) {
@@ -693,7 +703,7 @@ export class TriageIssues extends LitElement {
           width: 20rem;
           height: 100%;
           max-height: none;
-          border-width: 0 1px 0 0;
+          border-width: 0 var(--triage-border-width) 0 0;
           border-radius: 0;
         }
       }
@@ -713,14 +723,16 @@ export class TriageIssues extends LitElement {
           inset: auto 0 0;
           width: 100%;
           max-height: 85vh;
-          padding-block: 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
-          border-radius: 0.75rem 0.75rem 0 0;
+          padding-block: var(--triage-space-3)
+            calc(var(--triage-space-3) + env(safe-area-inset-bottom));
+          border-radius: var(--triage-border-radius-lg)
+            var(--triage-border-radius-lg) 0 0;
         }
       }
 
       .head {
-        font-size: 0.8rem;
-        font-weight: 600;
+        font-size: var(--triage-font-size-xs);
+        font-weight: var(--triage-font-weight-semibold);
         color: var(--triage-muted);
       }
 
@@ -736,12 +748,12 @@ export class TriageIssues extends LitElement {
       .group {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        padding: 0 0 0 0.75rem;
-        font-size: 0.95rem;
-        font-weight: 600;
+        gap: var(--triage-space-3);
+        padding: 0 0 0 var(--triage-space-3);
+        font-size: var(--triage-font-size-m);
+        font-weight: var(--triage-font-weight-semibold);
         background: var(--triage-bg);
-        border-bottom: 1px solid var(--triage-border);
+        border-bottom: var(--triage-border-width) solid var(--triage-border);
       }
 
       .group-name {
@@ -750,8 +762,9 @@ export class TriageIssues extends LitElement {
 
       .group-toggle {
         flex: 1;
-        gap: 0.5rem;
-        padding: 0.65rem 0.75rem 0.65rem 0;
+        gap: var(--triage-space-2);
+        padding: var(--triage-space-3) var(--triage-space-3)
+          var(--triage-space-3) 0;
         font-weight: inherit;
         background: none;
         border: 0;
@@ -767,8 +780,8 @@ export class TriageIssues extends LitElement {
 
       .group-toggle .muted-text {
         margin-inline-start: auto;
-        font-size: 0.85rem;
-        font-weight: normal;
+        font-size: var(--triage-font-size-s);
+        font-weight: var(--triage-font-weight-normal);
       }
 
       .title a {
@@ -787,7 +800,7 @@ export class TriageIssues extends LitElement {
       }
 
       .small {
-        font-size: 0.85rem;
+        font-size: var(--triage-font-size-s);
       }
 
       .head .small {

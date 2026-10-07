@@ -1,10 +1,37 @@
-import { type Api, Event, type Issue } from "@timmo001/effect-triage";
 import {
+  type Api,
+  Event,
+  type Issue,
+  type Severity,
+} from "@timmo001/effect-triage";
+import {
+  mdiAlertCircleOutline,
+  mdiAlertOctagonOutline,
+  mdiAlertOutline,
+  mdiApplicationOutline,
   mdiBellOffOutline,
   mdiBellOutline,
+  mdiBugOutline,
   mdiCheckCircleOutline,
   mdiChevronLeft,
+  mdiChevronRight,
+  mdiChip,
+  mdiClockOutline,
+  mdiCogOutline,
+  mdiContentCopy,
+  mdiExitToApp,
+  mdiFileCogOutline,
+  mdiHistory,
+  mdiInformationOutline,
+  mdiLayersTripleOutline,
+  mdiLightningBolt,
+  mdiLinux,
+  mdiNotebookOutline,
+  mdiPackageVariantClosed,
+  mdiPower,
   mdiRestore,
+  mdiServer,
+  mdiSkullOutline,
   mdiThumbDownOutline,
   mdiThumbUpOutline,
 } from "@mdi/js";
@@ -12,13 +39,15 @@ import DOMPurify from "dompurify";
 import { Predicate } from "effect";
 import { AsyncResult } from "effect/reactivity";
 import { css, html, LitElement } from "lit";
-import { customElement, property } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { marked } from "marked";
 import { AtomController, registry } from "./AtomController.js";
 import { homeHref, issue, setLabel, setStatus } from "./triage.js";
 import {
   ago,
+  badge,
+  dragScroll,
   formatPercent,
   formatTime,
   icon,
@@ -68,6 +97,10 @@ const kinds: Record<Issue.Kind, string> = {
   LogError: "Log error",
 };
 
+/** What to paste into an agent so it reads the issue through triage's MCP server. */
+const agentMessage = (issue: Issue.Issue) =>
+  `Triage issue ${issue.id}, ${issue.title}: ${location.href}\n\nRead it and all its events with the triage MCP server's get_issue and get_issue_events tools.`;
+
 @customElement("triage-issue")
 export class TriageIssue extends LitElement {
   static override styles = [
@@ -76,9 +109,9 @@ export class TriageIssue extends LitElement {
       .back {
         display: inline-flex;
         align-items: center;
-        gap: 0.2rem;
-        margin-top: 1rem;
-        margin-inline-start: -0.3rem;
+        gap: var(--triage-space-1);
+        margin-top: var(--triage-space-4);
+        margin-inline-start: calc(-1 * var(--triage-space-1));
         text-decoration: none;
       }
 
@@ -93,8 +126,8 @@ export class TriageIssue extends LitElement {
       dl {
         display: grid;
         grid-template-columns: max-content 1fr;
-        gap: 0.4rem 1.5rem;
-        margin: 0 0 1rem;
+        gap: var(--triage-space-1-5) var(--triage-space-6);
+        margin: 0 0 var(--triage-space-4);
       }
 
       dt {
@@ -110,19 +143,24 @@ export class TriageIssue extends LitElement {
         margin: 0;
         padding: 0;
         display: grid;
-        gap: 0.2rem;
+        gap: var(--triage-space-1);
       }
 
       .hosts .muted-text {
-        margin-left: 0.5rem;
-        font-size: 0.85rem;
+        margin-left: var(--triage-space-2);
+        font-size: var(--triage-font-size-s);
       }
 
       .actions {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 2rem;
+        gap: var(--triage-space-2);
+        margin-bottom: var(--triage-space-8);
+      }
+
+      .actions.status {
+        margin-bottom: var(--triage-space-3);
       }
 
       .cards {
@@ -130,65 +168,251 @@ export class TriageIssue extends LitElement {
         margin: 0;
         padding: 0;
         display: grid;
-        gap: 0.75rem;
+        gap: var(--triage-space-3);
       }
 
       .cards > li {
-        padding: 0.75rem 1rem;
-        border: 1px solid var(--triage-border);
-        border-radius: 0.5rem;
+        min-width: 0;
+        padding: var(--triage-space-3) var(--triage-space-4);
+        border: var(--triage-border-width) solid var(--triage-border);
+        border-radius: var(--triage-border-radius-md);
         background: var(--triage-surface);
       }
 
       .cards > li > header {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.25rem 1rem;
-        font-size: 0.85rem;
+        align-items: center;
+        gap: var(--triage-space-1) var(--triage-space-4);
+        font-size: var(--triage-font-size-s);
         color: var(--triage-muted);
       }
 
+      .cards .badge {
+        background: var(--triage-bg);
+      }
+
+      .severity {
+        text-transform: capitalize;
+      }
+
+      .severity.emerg,
+      .severity.alert,
+      .severity.crit,
+      .severity.err {
+        --badge-color: var(--triage-regressed);
+      }
+
+      .severity.warning {
+        --badge-color: var(--triage-ongoing);
+      }
+
+      .severity.notice,
+      .severity.info {
+        --badge-color: var(--triage-new);
+      }
+
+      .severity.debug {
+        --badge-color: var(--triage-muted);
+      }
+
       pre {
-        margin: 0.5rem 0 0;
+        margin: var(--triage-space-2) 0 0;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
-        font-size: 0.85rem;
+        font-size: var(--triage-font-size-s);
+      }
+
+      .agent {
+        display: block;
+        max-width: 36rem;
+        margin-bottom: var(--triage-space-8);
+        padding: var(--triage-space-1-5) var(--triage-space-2);
+        text-align: start;
+        background: var(--triage-bg);
+      }
+
+      .agent:hover {
+        border-color: var(--triage-accent);
+      }
+
+      .agent .muted-text {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--triage-space-1);
+        font-size: var(--triage-font-size-xs);
+      }
+
+      .agent pre {
+        margin-top: var(--triage-space-1);
+        font-size: inherit;
+      }
+
+      .agent pre,
+      .agent code {
+        font-family: inherit;
       }
 
       details {
-        margin-top: 0.5rem;
-        font-size: 0.85rem;
+        margin-top: var(--triage-space-3);
+        border: var(--triage-border-width) solid var(--triage-border);
+        border-radius: var(--triage-border-radius-sm);
+      }
+
+      summary {
+        display: flex;
+        align-items: center;
+        gap: var(--triage-space-1);
+        padding: var(--triage-space-1-5) var(--triage-space-2);
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+      }
+
+      summary .preview {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color: var(--triage-muted);
+      }
+
+      summary:hover .preview {
+        color: inherit;
+      }
+
+      summary::-webkit-details-marker {
+        display: none;
+      }
+
+      summary:hover {
+        color: var(--triage-accent);
+      }
+
+      summary .icon {
+        color: var(--triage-accent);
+      }
+
+      summary .icon:first-child {
+        color: var(--triage-muted);
+        transition: transform var(--triage-duration-fast);
+      }
+
+      details[open] summary .icon:first-child {
+        transform: rotate(90deg);
+      }
+
+      details pre {
+        margin: 0;
+        padding: var(--triage-space-2) var(--triage-space-3);
+        border-top: var(--triage-border-width) solid var(--triage-border);
+        max-height: 24rem;
+        overflow: auto;
       }
 
       .event-fields {
-        margin: 0.5rem 0 0;
-        gap: 0.15rem 1rem;
-        font-size: 0.8rem;
+        display: flex;
+        gap: var(--triage-space-1-5);
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+        mask-image: linear-gradient(
+          to right,
+          transparent,
+          black var(--triage-scroll-fade-start),
+          black calc(100% - var(--triage-scroll-fade-end)),
+          transparent
+        );
+        animation: scroll-fade linear both;
+        animation-timeline: scroll(self inline);
       }
 
-      .event-fields dd {
-        overflow-wrap: anywhere;
+      .event-fields > .badge {
+        flex: none;
+        max-width: none;
+      }
+
+      .event-fields {
+        container-type: scroll-state;
+      }
+
+      @container scroll-state(scrollable: inline) {
+        .event-fields > .badge {
+          cursor: grab;
+        }
+      }
+
+      .event-fields.dragging {
+        user-select: none;
+      }
+
+      .event-fields.dragging > .badge {
+        cursor: grabbing;
+      }
+
+      @keyframes scroll-fade {
+        from {
+          --triage-scroll-fade-end: var(--triage-space-8);
+        }
+
+        10% {
+          --triage-scroll-fade-start: var(--triage-space-8);
+        }
+
+        90% {
+          --triage-scroll-fade-end: var(--triage-space-8);
+        }
+
+        to {
+          --triage-scroll-fade-start: var(--triage-space-8);
+        }
+      }
+
+      .event-severity {
+        display: flex;
+        align-items: center;
+        gap: var(--triage-space-1);
+        font-size: var(--triage-font-size-s);
+        font-weight: var(--triage-font-weight-semibold);
+        color: var(--badge-color);
+      }
+
+      .event-message {
+        margin-top: var(--triage-space-1);
+        font-family: inherit;
+        font-size: var(--triage-font-size-l);
+        font-weight: var(--triage-font-weight-medium);
+      }
+
+      .event-time {
+        display: flex;
+        align-items: center;
+        gap: var(--triage-space-1);
+        margin: var(--triage-space-1) 0 var(--triage-space-3);
+        font-size: var(--triage-font-size-s);
+        color: var(--triage-muted);
       }
 
       table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 2rem;
+        margin-bottom: var(--triage-space-8);
         background: var(--triage-surface);
-        border: 1px solid var(--triage-border);
-        border-radius: 0.5rem;
+        border: var(--triage-border-width) solid var(--triage-border);
+        border-radius: var(--triage-border-radius-md);
       }
 
       th,
       td {
-        padding: 0.5rem 0.75rem;
-        border-bottom: 1px solid var(--triage-border);
+        padding: var(--triage-space-2) var(--triage-space-3);
+        border-bottom: var(--triage-border-width) solid var(--triage-border);
         text-align: left;
       }
 
       th {
-        font-size: 0.8rem;
-        font-weight: 600;
+        font-size: var(--triage-font-size-xs);
+        font-weight: var(--triage-font-weight-semibold);
         color: var(--triage-muted);
       }
 
@@ -201,7 +425,7 @@ export class TriageIssue extends LitElement {
       }
 
       .suggestions {
-        margin-bottom: 2rem;
+        margin-bottom: var(--triage-space-8);
       }
 
       .suggestion {
@@ -209,21 +433,23 @@ export class TriageIssue extends LitElement {
       }
 
       .suggestion :is(h1, h2, h3, h4, h5, h6) {
-        margin: 1rem 0 0.5rem;
-        font-size: 1rem;
+        margin: var(--triage-space-4) 0 var(--triage-space-2);
+        font-size: var(--triage-font-size-m);
       }
 
       .suggestion pre {
         overflow-x: auto;
         white-space: pre;
-        padding: 0.5rem 0.75rem;
-        border-radius: 0.4rem;
+        padding: var(--triage-space-2) var(--triage-space-3);
+        border-radius: var(--triage-border-radius-sm);
         background: var(--triage-bg);
       }
     `,
   ];
 
   @property() accessor issueId = "";
+
+  @state() accessor copied = false;
 
   readonly #detail = new AtomController(this, () => issue(this.issueId));
 
@@ -260,7 +486,7 @@ export class TriageIssue extends LitElement {
             <dt>Hosts</dt>
             <dd>${renderHosts(value.hosts)}</dd>
           </dl>
-          <div class="actions">
+          <div class="actions status">
             ${actions[value.issue.state].map(
               ([label, status, path]) => html`
                 <button
@@ -272,6 +498,13 @@ export class TriageIssue extends LitElement {
               `,
             )}
           </div>
+          <button class="agent" @click=${() => this.#copyForAgent(value.issue)}>
+            <span class="muted-text">
+              ${icon(mdiContentCopy)}
+              ${this.copied ? "Copied" : "Copy for agent"}
+            </span>
+            <pre><code>${agentMessage(value.issue)}</code></pre>
+          </button>
           <h2>Decisions</h2>
           ${renderDecisions(value.decisions)}
           <div class="actions" role="group" aria-label="Your label">
@@ -297,6 +530,18 @@ export class TriageIssue extends LitElement {
         `,
       })}
     `;
+  }
+
+  #copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  async #copyForAgent(issue: Issue.Issue) {
+    await navigator.clipboard.writeText(agentMessage(issue));
+
+    this.copied = true;
+    clearTimeout(this.#copyTimer);
+    this.#copyTimer = setTimeout(() => {
+      this.copied = false;
+    }, 2000);
   }
 
   #changeStatus(id: string, status: Issue.Status) {
@@ -415,65 +660,81 @@ const renderHosts = (hosts: ReadonlyArray<Api.HostCount>) => html`
   </ul>
 `;
 
-type Field = readonly [label: string, value?: string];
+type Field = readonly [label: string, icon: string, value?: string];
 
 // Everything stored about where an event came from, in the order people look
 // for it.
 const eventFields = (event: Event.Event) => {
   const fields: ReadonlyArray<Field> = [
-    ["Host", event.host],
-    ["Source", event.source],
-    ["Program", event.identifier],
+    ["Host", mdiServer, event.host],
+    ["Source", mdiNotebookOutline, event.source],
+    ["Program", mdiApplicationOutline, event.identifier],
     [
       "Unit",
+      mdiCogOutline,
       event.unit === undefined || event.scope === undefined
         ? event.unit
         : `${event.unit} (${event.scope})`,
     ],
     ...Event.Event.match<ReadonlyArray<Field>>(event, {
       Crash: (crash) => [
-        ["Executable", crash.executable],
-        ["Signal", crash.signal],
+        ["Executable", mdiFileCogOutline, crash.executable],
+        ["Signal", mdiLightningBolt, crash.signal],
       ],
-      UnitFailure: (failure) => [["Result", failure.result]],
-      OutOfMemory: (oom) => [["Killed", oom.process]],
+      UnitFailure: (failure) => [["Result", mdiExitToApp, failure.result]],
+      OutOfMemory: (oom) => [["Killed", mdiSkullOutline, oom.process]],
       LogError: () => [],
     }),
     [
       "Package",
+      mdiPackageVariantClosed,
       event.package === undefined
         ? undefined
         : `${event.package.name} ${event.package.version}`,
     ],
-    ["OS", event.system?.os],
-    ["Kernel", event.system?.kernel],
-    ["Boot", event.bootId],
+    ["OS", mdiLinux, event.system?.os],
+    ["Kernel", mdiChip, event.system?.kernel],
+    ["Boot", mdiPower, event.bootId],
   ];
 
-  return fields.flatMap(([label, value]) =>
-    value === undefined ? [] : [[label, value] as const],
+  return fields.flatMap(([label, path, value]) =>
+    value === undefined ? [] : [[label, path, value] as const],
   );
+};
+
+const severityIcons: Record<Severity.Severity, string> = {
+  emerg: mdiAlertOctagonOutline,
+  alert: mdiAlertOctagonOutline,
+  crit: mdiAlertOctagonOutline,
+  err: mdiAlertCircleOutline,
+  warning: mdiAlertOutline,
+  notice: mdiInformationOutline,
+  info: mdiInformationOutline,
+  debug: mdiBugOutline,
 };
 
 const renderEvent = (event: Event.Event) => html`
   <li>
-    <header>
-      <time title=${formatTime(event.timestamp)}>${ago(event.timestamp)}</time>
-      <span>${event.severity}</span>
-    </header>
-    <pre>${event.message}</pre>
-    <dl class="event-fields">
-      ${eventFields(event).map(
-        ([label, value]) =>
-          html`<dt>${label}</dt>
-            <dd>${value}</dd>`,
+    <div class="event-severity severity ${event.severity}">
+      ${icon(severityIcons[event.severity])} ${event.severity}
+    </div>
+    <pre class="event-message">${event.message}</pre>
+    <time class="event-time" title=${formatTime(event.timestamp)}
+      >${icon(mdiClockOutline)} ${ago(event.timestamp)}</time
+    >
+    <div class="event-fields" @pointerdown=${dragScroll}>
+      ${eventFields(event).map(([label, path, value]) =>
+        badge({ path, label, content: value, kind: "dense" }),
       )}
-    </dl>
+    </div>
     ${
       Predicate.isTagged(event, "Crash") && event.frames.length > 0
         ? html`<details>
-            <summary>Stack trace</summary>
-            <pre>${event.frames.map(formatFrame).join("\n")}</pre>
+            <summary title="Stack trace" aria-label="Stack trace">
+              ${icon(mdiChevronRight)} ${icon(mdiLayersTripleOutline)}
+              <code class="preview">${formatFrame(event.frames[0])}</code>
+            </summary>
+            <pre><code>${event.frames.map(formatFrame).join("\n")}</code></pre>
           </details>`
         : null
     }
@@ -481,8 +742,14 @@ const renderEvent = (event: Event.Event) => html`
       event.breadcrumbs === undefined || event.breadcrumbs.length === 0
         ? null
         : html`<details>
-            <summary>What it logged before</summary>
-            <pre>${event.breadcrumbs.join("\n")}</pre>
+            <summary
+              title="What it logged before"
+              aria-label="What it logged before"
+            >
+              ${icon(mdiChevronRight)} ${icon(mdiHistory)}
+              <code class="preview">${event.breadcrumbs.at(-1)}</code>
+            </summary>
+            <pre><code>${event.breadcrumbs.join("\n")}</code></pre>
           </details>`
     }
   </li>

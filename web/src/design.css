@@ -1,0 +1,139 @@
+/*
+ * Design tokens, after Home Assistant's core.globals.ts and
+ * typography.globals.ts, in rem so everything follows the browser's font size.
+ * Components use these instead of raw values.
+ */
+:root {
+  /*
+   * Colours, in OKLCH. The base values match the sRGB palette. Wide gamut
+   * displays, HDR ones included, get more vivid accent and state colours
+   * below.
+   */
+  --triage-bg: oklch(98.5% 0 0);
+  --triage-surface: oklch(100% 0 0);
+  --triage-text: oklch(21% 0.006 286);
+  --triage-muted: oklch(55.2% 0.014 286);
+  --triage-border: oklch(92% 0.004 287);
+  --triage-accent: oklch(56.1% 0.113 67);
+  --triage-new: oklch(54.6% 0.215 263);
+  --triage-regressed: oklch(57.7% 0.215 27);
+  --triage-ongoing: oklch(66.6% 0.157 58);
+  --triage-quiet: color-mix(
+    in oklch,
+    var(--triage-ongoing) 20%,
+    var(--triage-muted)
+  );
+  --triage-resolved: oklch(62.7% 0.17 149);
+  --triage-muted-state: oklch(55.2% 0.014 286);
+  --triage-scrim: oklch(0% 0 0 / 40%);
+  --triage-shadow: 0 0.5rem 1.5rem oklch(0% 0 0 / 40%);
+
+  /* Type */
+  --triage-font-family-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --triage-font-family-code:
+    ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", monospace;
+
+  --triage-font-size-scale: 1;
+  --triage-font-size-2xs: calc(0.6875rem * var(--triage-font-size-scale));
+  --triage-font-size-xs: calc(0.75rem * var(--triage-font-size-scale));
+  --triage-font-size-s: calc(0.875rem * var(--triage-font-size-scale));
+  --triage-font-size-m: calc(1rem * var(--triage-font-size-scale));
+  --triage-font-size-l: calc(1.125rem * var(--triage-font-size-scale));
+  --triage-font-size-xl: calc(1.25rem * var(--triage-font-size-scale));
+  --triage-font-size-2xl: calc(1.5rem * var(--triage-font-size-scale));
+  --triage-font-size-3xl: calc(2rem * var(--triage-font-size-scale));
+  --triage-font-size-4xl: calc(2.5rem * var(--triage-font-size-scale));
+
+  --triage-font-weight-normal: 400;
+  --triage-font-weight-medium: 500;
+  --triage-font-weight-semibold: 600;
+  --triage-font-weight-bold: 700;
+
+  --triage-line-height-condensed: 1.2;
+  --triage-line-height-normal: 1.5;
+  --triage-line-height-expanded: 2;
+
+  /* Spacing, in quarter rem steps like Home Assistant's 4px ones */
+  --triage-space-0-5: 0.125rem;
+  --triage-space-1: 0.25rem;
+  --triage-space-1-5: 0.375rem;
+  --triage-space-2: 0.5rem;
+  --triage-space-3: 0.75rem;
+  --triage-space-4: 1rem;
+  --triage-space-5: 1.25rem;
+  --triage-space-6: 1.5rem;
+  --triage-space-8: 2rem;
+  --triage-space-10: 2.5rem;
+  --triage-space-12: 3rem;
+
+  /* Shape */
+  --triage-border-width: 1px;
+  --triage-border-radius-xs: 0.25rem;
+  --triage-border-radius-sm: 0.375rem;
+  --triage-border-radius-md: 0.5rem;
+  --triage-border-radius-lg: 0.75rem;
+  --triage-border-radius-pill: 9999px;
+
+  /* Motion */
+  --triage-duration-fast: 150ms;
+  --triage-duration-normal: 250ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --triage-bg: oklch(17.9% 0.004 286);
+    --triage-surface: oklch(22.8% 0.006 286);
+    --triage-text: oklch(96.7% 0.001 288);
+    --triage-muted: oklch(71.2% 0.013 286);
+    --triage-border: oklch(30.3% 0.009 286);
+    --triage-accent: oklch(78.4% 0.124 76);
+    --triage-new: oklch(71.4% 0.143 255);
+    --triage-regressed: oklch(71.1% 0.166 22);
+    --triage-ongoing: oklch(83.7% 0.164 84);
+    --triage-resolved: oklch(80% 0.182 152);
+    --triage-muted-state: oklch(71.2% 0.013 286);
+  }
+}
+
+@media (color-gamut: p3) {
+  :root {
+    --triage-accent: oklch(56.1% 0.13 67);
+    --triage-new: oklch(54.6% 0.245 263);
+    --triage-regressed: oklch(57.7% 0.245 27);
+    --triage-ongoing: oklch(66.6% 0.179 58);
+    --triage-resolved: oklch(62.7% 0.194 149);
+  }
+}
+
+@media (color-gamut: p3) and (prefers-color-scheme: dark) {
+  :root {
+    --triage-accent: oklch(78.4% 0.145 76);
+    --triage-new: oklch(70.7% 0.165 255);
+    --triage-regressed: oklch(70.4% 0.191 22);
+    --triage-ongoing: oklch(82.8% 0.189 84);
+    --triage-resolved: oklch(79.2% 0.209 152);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --triage-duration-fast: 1ms;
+    --triage-duration-normal: 1ms;
+  }
+}
+
+/*
+ * The fade at each end of a horizontal scroller, driven by its scroll
+ * position. Registered here because @property doesn't work in shadow roots.
+ */
+@property --triage-scroll-fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --triage-scroll-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}

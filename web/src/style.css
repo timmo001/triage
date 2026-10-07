@@ -1,46 +1,13 @@
+@import "./design.css";
+
 :root {
-  --triage-bg: #fafafa;
-  --triage-surface: #ffffff;
-  --triage-text: #18181b;
-  --triage-muted: #71717a;
-  --triage-border: #e4e4e7;
-  --triage-accent: #a0661c;
-  --triage-new: #2563eb;
-  --triage-regressed: #dc2626;
-  --triage-ongoing: #d97706;
-  --triage-quiet: color-mix(
-    in srgb,
-    var(--triage-ongoing) 20%,
-    var(--triage-muted)
-  );
-  --triage-resolved: #16a34a;
-  --triage-muted-state: #71717a;
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--triage-font-family-body);
+  font-size: var(--triage-font-size-m);
   color: var(--triage-text);
   background: var(--triage-bg);
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--triage-muted) 45%, transparent)
+  scrollbar-color: color-mix(in oklch, var(--triage-muted) 45%, transparent)
     transparent;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --triage-bg: #111113;
-    --triage-surface: #1c1c1f;
-    --triage-text: #f4f4f5;
-    --triage-muted: #a1a1aa;
-    --triage-border: #2e2e33;
-    --triage-accent: #e6ad55;
-    --triage-new: #60a5fa;
-    --triage-regressed: #f87171;
-    --triage-ongoing: #fbbf24;
-    --triage-resolved: #4ade80;
-    --triage-muted-state: #a1a1aa;
-  }
 }
 
 body {
