@@ -29,21 +29,25 @@ import {
   mdiNotebookOutline,
   mdiPackageVariantClosed,
   mdiPower,
+  mdiRefresh,
   mdiRestore,
   mdiServer,
   mdiSkullOutline,
   mdiThumbDownOutline,
   mdiThumbUpOutline,
 } from "@mdi/js";
+import { WindowVirtualizerController } from "@tanstack/lit-virtual";
 import DOMPurify from "dompurify";
-import { Predicate } from "effect";
+import { Option, Predicate } from "effect";
 import { AsyncResult } from "effect/reactivity";
-import { css, html, LitElement } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { css, html, LitElement, nothing, type TemplateResult } from "lit";
+import { customElement, property, query, state } from "lit/decorators.js";
+import { ref } from "lit/directives/ref.js";
+import { repeat } from "lit/directives/repeat.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { marked } from "marked";
 import { AtomController, registry } from "./AtomController.js";
-import { homeHref, issue, setLabel, setStatus } from "./triage.js";
+import { homeHref, issue, issueEvents, setLabel, setStatus } from "./triage.js";
 import {
   ago,
   badge,
@@ -177,6 +181,20 @@ export class TriageIssue extends LitElement {
         border: var(--triage-border-width) solid var(--triage-border);
         border-radius: var(--triage-border-radius-md);
         background: var(--triage-surface);
+      }
+
+      .cards.events {
+        display: block;
+        position: relative;
+      }
+
+      .cards.events > li {
+        position: absolute;
+        inset: 0 0 auto;
+      }
+
+      .events-end {
+        margin-top: var(--triage-space-3);
       }
 
       .cards > li > header {
@@ -457,6 +475,17 @@ export class TriageIssue extends LitElement {
 
   readonly #setLabel = new AtomController(this, () => setLabel);
 
+  readonly #events = new AtomController(this, () => issueEvents(this.issueId));
+
+  readonly #virtualizer = new WindowVirtualizerController<HTMLLIElement>(this, {
+    count: 0,
+    estimateSize: () => 160,
+    overscan: 4,
+  });
+
+  /** The events list, whose position tells the virtualiser where it starts. */
+  @query(".cards.events") accessor eventList: HTMLOListElement | null = null;
+
   override render() {
     return html`
       <a class="back" href=${homeHref}
@@ -523,13 +552,131 @@ export class TriageIssue extends LitElement {
           </div>
           <h2>Suggested fixes</h2>
           ${renderSuggestions(value.suggestions)}
-          <h2>Latest events</h2>
-          <ol class="cards">
-            ${value.events.map(renderEvent)}
-          </ol>
+          <h2>Events</h2>
+          ${this.#renderEvents()}
         `,
       })}
     `;
+  }
+
+  #renderEvents() {
+    return AsyncResult.matchWithError(this.#events.value, {
+      onInitial: renderLoading,
+      onError: (error) =>
+        Predicate.isTagged(error, "NoSuchElementError")
+          ? html`<p class="message">No events.</p>`
+          : this.#renderEventsFailure(renderError(error)),
+      onDefect: () => this.#renderEventsFailure(renderDefect()),
+      onSuccess: ({ value }) =>
+        this.#renderEventList(
+          value.items,
+          value.done ? nothing : renderLoading(),
+        ),
+    });
+  }
+
+  /** Keeps the events already loaded when a later page fails. */
+  #renderEventsFailure(failure: TemplateResult) {
+    const result = this.#events.value;
+
+    if (!AsyncResult.isFailure(result)) {
+      return failure;
+    }
+
+    return Option.match(result.previousSuccess, {
+      onNone: () => failure,
+      onSome: ({ value }) =>
+        this.#renderEventList(
+          value.items,
+          html`<p class="message">
+            Couldn't load more events.
+            <button @click=${() => registry.refresh(issueEvents(this.issueId))}>
+              ${icon(mdiRefresh)} Retry
+            </button>
+          </p>`,
+        ),
+    });
+  }
+
+  #renderEventList(
+    events: ReadonlyArray<Event.Event>,
+    end: TemplateResult | typeof nothing,
+  ) {
+    const list = this.eventList;
+    const virtualizer = this.#virtualizer.getVirtualizer();
+
+    virtualizer.setOptions({
+      ...virtualizer.options,
+      count: events.length,
+      getItemKey: (index) => events[index]?.id ?? index,
+      gap: list === null ? 0 : Number.parseFloat(getComputedStyle(list).rowGap),
+      scrollMargin:
+        list === null ? 0 : list.getBoundingClientRect().top + window.scrollY,
+    });
+
+    return html`
+      <ol class="cards events" style="height: ${virtualizer.getTotalSize()}px">
+        ${repeat(
+          virtualizer.getVirtualItems(),
+          (item) => item.key,
+          (item) => {
+            const event = events[item.index];
+
+            return event === undefined
+              ? nothing
+              : html`
+                  <li
+                    data-index=${item.index}
+                    aria-setsize=${events.length}
+                    aria-posinset=${item.index + 1}
+                    style="transform: translateY(${
+                      item.start - virtualizer.options.scrollMargin
+                    }px)"
+                    ${ref((element) => {
+                      if (element instanceof HTMLLIElement) {
+                        virtualizer.measureElement(element);
+                      }
+                    })}
+                  >
+                    ${renderEvent(event)}
+                  </li>
+                `;
+          },
+        )}
+      </ol>
+      <div class="events-end">${end}</div>
+    `;
+  }
+
+  override updated() {
+    const result = this.#events.value;
+
+    if (!AsyncResult.isSuccess(result) || result.waiting || result.value.done) {
+      return;
+    }
+
+    // Fetch the next page as the last loaded events scroll into view, once the
+    // virtualiser knows where the list starts.
+    const virtualizer = this.#virtualizer.getVirtualizer();
+    const list = this.eventList;
+
+    if (list === null) {
+      return;
+    }
+
+    const top = list.getBoundingClientRect().top + window.scrollY;
+
+    if (Math.abs(top - virtualizer.options.scrollMargin) >= 1) {
+      this.requestUpdate();
+
+      return;
+    }
+
+    const last = virtualizer.getVirtualItems().at(-1);
+
+    if (last !== undefined && last.index >= virtualizer.options.count - 3) {
+      registry.set(issueEvents(this.issueId), undefined);
+    }
   }
 
   #copyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -714,45 +861,43 @@ const severityIcons: Record<Severity.Severity, string> = {
 };
 
 const renderEvent = (event: Event.Event) => html`
-  <li>
-    <div class="event-severity severity ${event.severity}">
-      ${icon(severityIcons[event.severity])} ${event.severity}
-    </div>
-    <pre class="event-message">${event.message}</pre>
-    <time class="event-time" title=${formatTime(event.timestamp)}
-      >${icon(mdiClockOutline)} ${ago(event.timestamp)}</time
-    >
-    <div class="event-fields" @pointerdown=${dragScroll}>
-      ${eventFields(event).map(([label, path, value]) =>
-        badge({ path, label, content: value, kind: "dense" }),
-      )}
-    </div>
-    ${
-      Predicate.isTagged(event, "Crash") && event.frames.length > 0
-        ? html`<details>
-            <summary title="Stack trace" aria-label="Stack trace">
-              ${icon(mdiChevronRight)} ${icon(mdiLayersTripleOutline)}
-              <code class="preview">${formatFrame(event.frames[0])}</code>
-            </summary>
-            <pre><code>${event.frames.map(formatFrame).join("\n")}</code></pre>
-          </details>`
-        : null
-    }
-    ${
-      event.breadcrumbs === undefined || event.breadcrumbs.length === 0
-        ? null
-        : html`<details>
-            <summary
-              title="What it logged before"
-              aria-label="What it logged before"
-            >
-              ${icon(mdiChevronRight)} ${icon(mdiHistory)}
-              <code class="preview">${event.breadcrumbs.at(-1)}</code>
-            </summary>
-            <pre><code>${event.breadcrumbs.join("\n")}</code></pre>
-          </details>`
-    }
-  </li>
+  <div class="event-severity severity ${event.severity}">
+    ${icon(severityIcons[event.severity])} ${event.severity}
+  </div>
+  <pre class="event-message">${event.message}</pre>
+  <time class="event-time" title=${formatTime(event.timestamp)}
+    >${icon(mdiClockOutline)} ${ago(event.timestamp)}</time
+  >
+  <div class="event-fields" @pointerdown=${dragScroll}>
+    ${eventFields(event).map(([label, path, value]) =>
+      badge({ path, label, content: value, kind: "dense" }),
+    )}
+  </div>
+  ${
+    Predicate.isTagged(event, "Crash") && event.frames.length > 0
+      ? html`<details>
+          <summary title="Stack trace" aria-label="Stack trace">
+            ${icon(mdiChevronRight)} ${icon(mdiLayersTripleOutline)}
+            <code class="preview">${formatFrame(event.frames[0])}</code>
+          </summary>
+          <pre><code>${event.frames.map(formatFrame).join("\n")}</code></pre>
+        </details>`
+      : null
+  }
+  ${
+    event.breadcrumbs === undefined || event.breadcrumbs.length === 0
+      ? null
+      : html`<details>
+          <summary
+            title="What it logged before"
+            aria-label="What it logged before"
+          >
+            ${icon(mdiChevronRight)} ${icon(mdiHistory)}
+            <code class="preview">${event.breadcrumbs.at(-1)}</code>
+          </summary>
+          <pre><code>${event.breadcrumbs.join("\n")}</code></pre>
+        </details>`
+  }
 `;
 
 declare global {

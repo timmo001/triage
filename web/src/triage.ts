@@ -223,6 +223,38 @@ export const issue = Atom.family((id: string) =>
   }),
 );
 
+/** How many events each page of an issue's events fetches. */
+const eventPageSize = 20;
+
+/**
+ * An issue's events, newest first, a page at a time. Writing to it fetches the
+ * next page.
+ */
+export const issueEvents = Atom.family((id: string) =>
+  TriageApi.runtime.pull(() =>
+    Stream.paginate(0, (offset) =>
+      TriageApi.use((client) =>
+        client.issues.events({
+          params: { id },
+          query: { limit: eventPageSize, offset },
+        }),
+      ).pipe(
+        asDefects,
+        Effect.map(({ events, total }) => {
+          const next = offset + events.length;
+
+          return [
+            events,
+            events.length === 0 || next >= total
+              ? Option.none()
+              : Option.some(next),
+          ] as const;
+        }),
+      ),
+    ),
+  ),
+);
+
 export const setStatus = TriageApi.mutation("issues", "setStatus");
 
 export const setLabel = TriageApi.mutation("issues", "setLabel");
