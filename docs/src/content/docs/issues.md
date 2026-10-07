@@ -23,10 +23,10 @@ triage issues --server   # the server's
 
 | State     | Means                                                              |
 | --------- | ------------------------------------------------------------------ |
-| New       | First seen in the last 72 hours                                    |
-| Ongoing   | Seen before that, and still happening in the last week             |
-| Quiet     | Still open, but nothing in the last week                           |
-| Regressed | Happened again after it was resolved, in the last week             |
+| New       | First seen in the last 24 hours                                    |
+| Ongoing   | Seen before that, and still happening in the last 72 hours         |
+| Quiet     | Still open, but nothing in the last 72 hours                       |
+| Regressed | Happened again after it was resolved, in the last 72 hours         |
 | Resolved  | Fixed, as far as you know                                          |
 | Muted     | Hidden from decision and language models, however often it happens |
 

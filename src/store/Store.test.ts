@@ -206,7 +206,7 @@ describe("Store", () => {
     expect(result.unlabelledCounts.total).toBe(2);
   });
 
-  test("makes issues quiet after a week without events", async () => {
+  test("makes issues quiet after 72 hours without events", async () => {
     const day = 24 * 60 * 60 * 1000;
 
     const result = await Effect.gen(function* () {
@@ -226,7 +226,7 @@ describe("Store", () => {
 
       yield* store.add([
         event("sshd", 20 * day),
-        event("sshd", 8 * day),
+        event("sshd", 4 * day),
         event("cups", 20 * day),
         event("cups", day),
       ]);
