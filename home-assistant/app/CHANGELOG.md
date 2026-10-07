@@ -1,12 +1,16 @@
+## Languages
+
+- The web UI comes in English, German, Spanish, French, Italian, Japanese, Dutch, Polish, Brazilian Portuguese and Simplified Chinese. It's English unless an admin picks another with `TRIAGE_LANGUAGE`, `triage serve --language` or the Home Assistant app's **language** option. See [Languages](https://triage.timmo.dev/languages/).
+- The translations are AI-generated, so some may read oddly. Corrections and new languages are very welcome.
+- The Home Assistant app's options have names and descriptions, in the same languages.
+
 ## Issues
 
-- Errors and OOM kills group across hosts, like crashes and unit failures already did. The same error on two machines is now one issue, showing both hosts. Existing per-host issues merge when the server updates.
-- Crash frames group by module file name rather than full path, so `/opt/google/chrome/chrome` and `chrome` match. Existing crash issues split this way merge too.
-- When issues merge, the result is muted if any was muted, otherwise open if any was open. It keeps the latest label, and the latest decision and suggestion from each model.
-- Issues count as new for 72 hours instead of a week.
-- Similar issues for an error are other errors from the same program, and for an OOM kill, other OOM kills.
+- Issues count as new for 24 hours instead of 72, and go quiet after 72 hours without events instead of a week. A resolved issue that comes back stays regressed for 72 hours too.
+- Admins can change both with `TRIAGE_NEW_HOURS` and `TRIAGE_QUIET_HOURS`, or the app's **new_hours** and **quiet_hours** options.
 
 ## Libraries
 
-- `onHost` is removed from `@timmo001/effect-triage`, as no fingerprint includes the host any more.
+- `@timmo001/effect-triage` adds the `Translations`, `Message` and `PluralForm` schemas, and a `GET /api/translations` endpoint to the `system` group.
+- `newMillis` and `recentMillis` are now 24 and 72 hours, and are the defaults rather than fixed values.
 
