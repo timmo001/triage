@@ -53,6 +53,6 @@ The server also serves the tools at `/mcp`, over Streamable HTTP, to anything wi
 
 ## Home Assistant
 
-The [Home Assistant app](/setup/server#home-assistant) announces its MCP server to Home Assistant, which offers to add it under **Settings > Devices & services**. Once it's added, turn on its tools for your conversation agent, and Assist can read issues too. The app withdraws the announcement when it stops, which removes the integration, so Home Assistant offers it again each time the app starts.
+The [Home Assistant app](/setup/server#home-assistant) announces its MCP server to Home Assistant, which offers to add it under **Settings > Devices & services**. Once it's added, turn on its tools for your conversation agent, and Assist can read issues too.
 
 Home Assistant reaches it on the app's ingress port, which lets Home Assistant Core use `/mcp` without a token. If Home Assistant can't connect, the app's log says which address it refused: set `TRIAGE_INGRESS_MCP_FROM` to it.

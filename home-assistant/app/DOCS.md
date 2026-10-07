@@ -23,7 +23,7 @@ The server speaks plain HTTP on port 7171, so tokens are only as private as your
 
 ## Assist
 
-The app announces its [MCP server](https://triage.timmo.dev/agents) to Home Assistant, which offers to add it under **Settings > Devices & services**. Add it, then turn on its tools for your conversation agent, and Assist can read issues and their events. The app withdraws the announcement when it stops, which removes the integration, so Home Assistant offers it again each time the app starts.
+The app announces its [MCP server](https://triage.timmo.dev/agents) to Home Assistant, which offers to add it under **Settings > Devices & services**. Add it, then turn on its tools for your conversation agent, and Assist can read issues and their events.
 
 ## Options
 
