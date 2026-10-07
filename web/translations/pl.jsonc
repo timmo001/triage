@@ -1,0 +1,226 @@
+// The web UI's text in Polish, translated from en.jsonc.
+// Corrections are welcome: see https://triage.timmo.dev/languages/
+//
+// The comments describe the English text. Keep placeholders in braces, such
+// as {count}, exactly as they are, though they can move within the sentence,
+// and give plural messages `other` plus every form the language uses.
+//
+// Run `mise run translations:check` after changing a translation.
+{
+  // Shared across the UI.
+  "loading": "Wczytywanie…",
+  "refresh": "Odśwież",
+  "retry": "Spróbuj ponownie",
+  "close": "Zamknij",
+  // Stands in for a missing value, such as a stack frame's module or who asked
+  // for a decision.
+  "unknown": "nieznane",
+  "signOut": "Wyloguj",
+  // An issue's number of events, also filled into other messages as {events}.
+  "events": {
+    "one": "{count} zdarzenie",
+    "few": "{count} zdarzenia",
+    "many": "{count} zdarzeń",
+    "other": "{count} zdarzenia"
+  },
+
+  // The sign-in page. {command} is the CLI command that adds an admin token.
+  "signIn.title": "Logowanie",
+  "signIn.token": "Token administratora",
+  "signIn.hint": "Utwórz go poleceniem {command}. Jest przechowywany w tej przeglądarce.",
+  "signIn.submit": "Zaloguj",
+
+  // Errors shown in place of a page.
+  "error.tokenRefused": "Serwer nie zaakceptował tego tokenu administratora.",
+  "error.issueNotFound": "Nie ma takiego problemu.",
+  "error.generic": "Coś poszło nie tak.",
+  "error.unreachable": "Nie udało się połączyć z serwerem triage.",
+
+  // An issue's state. Regressed came back after being resolved; quiet hasn't
+  // happened for a while; muted is noise that's been silenced.
+  "state.regressed": "Powrócił",
+  "state.new": "Nowy",
+  "state.ongoing": "Trwający",
+  "state.quiet": "Ucichły",
+  "state.resolved": "Rozwiązany",
+  "state.muted": "Wyciszony",
+
+  // What kind of problem an issue is, for one issue.
+  "kind.Crash": "Awaria",
+  "kind.UnitFailure": "Błąd jednostki",
+  "kind.OutOfMemory": "Brak pamięci",
+  "kind.LogError": "Błąd w dzienniku",
+
+  // The same kinds as a heading for a group of issues.
+  "kinds.Crash": "Awarie",
+  "kinds.UnitFailure": "Błędy jednostek",
+  "kinds.OutOfMemory": "Brak pamięci",
+  "kinds.LogError": "Błędy w dzienniku",
+
+  // The label an admin gives an issue, which decision models learn from.
+  "label.worth": "Warte naprawy",
+  "label.noise": "Szum",
+  "label.none": "Bez etykiety",
+
+  // Buttons that change an issue's state.
+  "action.resolve": "Rozwiąż",
+  "action.mute": "Wycisz",
+  "action.reopen": "Otwórz ponownie",
+  "action.unmute": "Wyłącz wyciszenie",
+
+  // How serious a decision model thinks an issue is.
+  "severity.none": "Brak",
+  "severity.minor": "Niska",
+  "severity.major": "Wysoka",
+  "severity.critical": "Krytyczna",
+
+  // What a decision model thinks most likely caused an issue.
+  "cause.application": "Aplikacja",
+  "cause.configuration": "Konfiguracja",
+  "cause.hardware": "Sprzęt",
+  "cause.user": "Użytkownik",
+  "cause.transient": "Przejściowa",
+  "cause.other": "Inna",
+
+  // An event's log level, from the system journal.
+  "level.emerg": "Awaria systemu",
+  "level.alert": "Alarm",
+  "level.crit": "Krytyczny",
+  "level.err": "Błąd",
+  "level.warning": "Ostrzeżenie",
+  "level.notice": "Uwaga",
+  "level.info": "Informacja",
+  "level.debug": "Debugowanie",
+
+  // The issue list. {percent} is a formatted percentage, such as 85%.
+  "issues.title": "Problemy",
+  "issues.search": "Szukaj w tytułach",
+  "issues.worth": "{percent} warte naprawy",
+  "issues.loading": "Wczytywanie problemów",
+  "issues.loadingMore": "Wczytywanie kolejnych problemów",
+  "issues.loadMoreFailed": "Nie udało się wczytać kolejnych problemów.",
+  "issues.none": "Brak problemów.",
+
+  // The issue list's column headings, kept short.
+  "column.state": "Stan",
+  "column.issue": "Problem",
+  "column.kind": "Rodzaj",
+  "column.label": "Etykieta",
+  "column.worth": "Wartość",
+  "column.events": "Zdarzenia",
+  "column.hosts": "Hosty",
+  "column.lastSeen": "Ostatnio",
+  "column.firstSeen": "Po raz pierwszy",
+
+  // The issue list's filters. {filter} is one of the filter names below, and
+  // {shown} and {count} are numbers of filter options.
+  "filters": "Filtry",
+  "filters.clear": "Wyczyść",
+  "filter.state": "Stan",
+  "filter.host": "Host",
+  "filter.kind": "Rodzaj",
+  "filter.label": "Etykieta",
+  "filter.shown": "Pokazano {shown} z {count}",
+  "filter.clear": "Wyczyść filtr",
+  "filter.clearNamed": "Wyczyść filtr {filter}",
+  "filter.loading": "Wczytywanie: {filter}",
+
+  // Sorting the issue list.
+  "sort.by": "Sortuj według",
+  "sort.lastSeen": "Ostatnio",
+  "sort.firstSeen": "Po raz pierwszy",
+  "sort.worth": "Warte naprawy",
+  "sort.count": "Zdarzenia",
+  "sort.title": "Tytuł",
+  "sort.ascending": "Rosnąco",
+  "sort.descending": "Malejąco",
+
+  // Grouping the issue list. group.loaded counts the issues loaded in a group.
+  "group.by": "Grupuj według",
+  "group.button": "Grupuj",
+  "group.nothing": "Brak",
+  "group.state": "Stan",
+  "group.kind": "Rodzaj",
+  "group.label": "Etykieta",
+  "group.loaded": {
+    "one": "Wczytano {count}",
+    "few": "Wczytano {count}",
+    "many": "Wczytano {count}",
+    "other": "Wczytano {count}"
+  },
+
+  // Selecting issues to change several at once. {group} is a group's heading,
+  // such as a state, and {title} is an issue's title.
+  "selection.label": "Zaznaczone problemy",
+  "selection.count": {
+    "one": "Zaznaczono {count}",
+    "few": "Zaznaczono {count}",
+    "many": "Zaznaczono {count}",
+    "other": "Zaznaczono {count}"
+  },
+  "selection.clear": "Wyczyść zaznaczenie",
+  "selection.all": "Zaznacz wszystkie wczytane problemy",
+  "selection.allShort": "Zaznacz wszystko",
+  "selection.group": "Zaznacz wszystkie wczytane problemy w grupie {group}",
+  "selection.issue": "Zaznacz {title}",
+
+  // An issue's page.
+  "issue.back": "Wszystkie problemy",
+  "issue.loading": "Wczytywanie problemu",
+  "issue.state": "Stan",
+  "issue.kind": "Rodzaj",
+  "issue.eventCount": "Zdarzenia",
+  "issue.firstSeen": "Po raz pierwszy",
+  "issue.lastSeen": "Ostatnio",
+  "issue.hosts": "Hosty",
+  // Next to a host's name. {events} is the events message, and {first} and
+  // {last} are relative times, such as "3 days ago".
+  "issue.hostSeen": "{events}, pierwsze {first}, ostatnie {last}",
+  // Copies the issue as text to paste into a coding agent.
+  "issue.copyForAgent": "Kopiuj dla agenta",
+  "issue.copied": "Skopiowano",
+  "issue.decisions": "Decyzje",
+  "issue.yourLabel": "Twoja etykieta",
+  "issue.suggestions": "Sugerowane poprawki",
+  "issue.eventList": "Zdarzenia",
+  "issue.loadingEvents": "Wczytywanie zdarzeń",
+  "issue.noEvents": "Brak zdarzeń.",
+  "issue.loadMoreFailed": "Nie udało się wczytać kolejnych zdarzeń.",
+  // When a decision was made. {ago} is a relative time, such as "3 days ago",
+  // and {events} is the events message, for how many the issue had then.
+  "issue.agoAt": "{ago}, przy {events}",
+  "issue.stackTrace": "Ślad stosu",
+  // The log lines a program wrote just before the event.
+  "issue.breadcrumbs": "Co zapisał wcześniej",
+
+  // The decision models' verdicts on an issue, as table headings. "Decided by"
+  // heads the worker that asked the model.
+  "decisions.none": "Żaden model decyzyjny jeszcze tego nie ocenił.",
+  "decisions.model": "Model",
+  "decisions.worth": "Warte naprawy",
+  "decisions.severity": "Waga",
+  "decisions.cause": "Prawdopodobna przyczyna",
+  "decisions.by": "Zdecydował",
+  "decisions.decided": "Kiedy",
+
+  // Fixes a language model suggested. {by} is the worker that asked the model,
+  // or `server` or `cli`, and {events} is the events message, for how many the
+  // issue had then.
+  "suggestions.none": "Żaden model językowy nie zasugerował jeszcze poprawki.",
+  "suggestions.by": "zlecił: {by}",
+  "suggestions.at": "przy {events}",
+
+  // An event's details, as labels next to their values.
+  "field.host": "Host",
+  "field.source": "Źródło",
+  "field.program": "Program",
+  "field.unit": "Jednostka",
+  "field.executable": "Plik wykonywalny",
+  "field.signal": "Sygnał",
+  "field.result": "Wynik",
+  "field.killed": "Zabity",
+  "field.package": "Pakiet",
+  "field.os": "System",
+  "field.kernel": "Jądro",
+  "field.boot": "Rozruch"
+}

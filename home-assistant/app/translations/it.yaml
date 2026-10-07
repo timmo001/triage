@@ -1,0 +1,52 @@
+# The app's option names and descriptions in Home Assistant, in Italian,
+# translated from en.yaml. Corrections are welcome: see
+# https://triage.timmo.dev/languages/
+#
+# Run `mise run translations:check` after changing a translation.
+configuration:
+  # An admin token for setting up the server before any admin exists.
+  server_admin_token:
+    name: Token di amministrazione del server
+    description: >-
+      Un token di amministrazione di almeno 32 caratteri che il server accetta
+      sempre, per gestire host, worker e amministratori con --server. Non
+      viene salvato né elencato. Lascialo vuoto dopo aver aggiunto un tuo
+      amministratore.
+  trust_proxy:
+    name: Fidati del reverse proxy
+    description: >-
+      Fidati di X-Forwarded-Host e X-Forwarded-For. Attivalo solo quando un
+      reverse proxy è l’unico modo per raggiungere il server.
+  # Decision models judge whether an issue is worth fixing.
+  decide_daily:
+    name: Limite giornaliero di decisioni
+    description: >-
+      Il numero massimo di problemi che ogni modello decisionale può valutare
+      in 24 ore, tra il server e i suoi worker.
+  # Language models suggest fixes.
+  suggest_daily:
+    name: Limite giornaliero di suggerimenti
+    description: >-
+      Il numero massimo di correzioni che ogni modello linguistico può
+      suggerire in 24 ore, tra il server e i suoi worker.
+  new_hours:
+    name: Ore in cui un problema resta nuovo
+    description: >-
+      Per quanto tempo un problema conta come nuovo dopo la prima volta che
+      viene visto.
+  # Quiet and regressed are issue states, as the web UI names them.
+  quiet_hours:
+    name: Ore prima che un problema diventi silenzioso
+    description: >-
+      Per quanto tempo un problema può restare senza eventi prima di essere
+      silenzioso. Un problema risolto che ritorna resta anche regredito per
+      questo tempo.
+  # Home Assistant shows the language codes as they are, so the description
+  # names them. Keep the language names in their own languages.
+  language:
+    name: Lingua
+    description: >-
+      La lingua dell’interfaccia web: de Deutsch, en English, es Español, fr
+      Français, it Italiano, ja 日本語, nl Nederlands, pl Polski, pt-BR
+      Português (Brasil) o zh-Hans 简体中文. Le traduzioni sono generate
+      dall’IA, quindi qualcosa potrebbe suonare strano.

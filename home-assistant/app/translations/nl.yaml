@@ -1,0 +1,50 @@
+# The app's option names and descriptions in Home Assistant, in Dutch,
+# translated from en.yaml. Corrections are welcome: see
+# https://triage.timmo.dev/languages/
+#
+# Run `mise run translations:check` after changing a translation.
+configuration:
+  # An admin token for setting up the server before any admin exists.
+  server_admin_token:
+    name: Beheerderstoken van de server
+    description: >-
+      Een beheerderstoken van minstens 32 tekens dat de server altijd
+      accepteert, om hosts, workers en beheerders te beheren met --server.
+      Het wordt niet opgeslagen of getoond. Laat het leeg zodra je een eigen
+      beheerder hebt toegevoegd.
+  trust_proxy:
+    name: Reverse proxy vertrouwen
+    description: >-
+      X-Forwarded-Host en X-Forwarded-For vertrouwen. Zet dit alleen aan als
+      de server uitsluitend via een reverse proxy bereikbaar is.
+  # Decision models judge whether an issue is worth fixing.
+  decide_daily:
+    name: Dagelijkse beslissingslimiet
+    description: >-
+      Het maximale aantal problemen dat elk beslissingsmodel in 24 uur mag
+      beoordelen, door de server en zijn workers samen.
+  # Language models suggest fixes.
+  suggest_daily:
+    name: Dagelijkse suggestielimiet
+    description: >-
+      Het maximale aantal oplossingen dat elk taalmodel in 24 uur mag
+      voorstellen, door de server en zijn workers samen.
+  new_hours:
+    name: Uren dat een probleem nieuw blijft
+    description: Hoe lang een probleem als nieuw geldt nadat het voor het eerst is gezien.
+  # Quiet and regressed are issue states, as the web UI names them.
+  quiet_hours:
+    name: Uren voordat een probleem rustig wordt
+    description: >-
+      Hoe lang een probleem zonder gebeurtenissen kan blijven voordat het
+      rustig is. Een opgelost probleem dat terugkomt, blijft ook zo lang
+      teruggekeerd.
+  # Home Assistant shows the language codes as they are, so the description
+  # names them. Keep the language names in their own languages.
+  language:
+    name: Taal
+    description: >-
+      De taal van de webinterface: de Deutsch, en English, es Español, fr
+      Français, it Italiano, ja 日本語, nl Nederlands, pl Polski, pt-BR
+      Português (Brasil) of zh-Hans 简体中文. De vertalingen zijn door AI
+      gegenereerd, dus sommige teksten kunnen vreemd klinken.

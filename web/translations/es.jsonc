@@ -1,0 +1,223 @@
+// The web UI's text in Spanish, translated from en.jsonc.
+// Corrections are welcome: see https://triage.timmo.dev/languages/
+//
+// The comments describe the English text. Keep placeholders in braces, such
+// as {count}, exactly as they are, though they can move within the sentence,
+// and give plural messages `other` plus every form the language uses.
+//
+// Run `mise run translations:check` after changing a translation.
+{
+  // Shared across the UI.
+  "loading": "Cargando…",
+  "refresh": "Actualizar",
+  "retry": "Reintentar",
+  "close": "Cerrar",
+  // Stands in for a missing value, such as a stack frame's module or who asked
+  // for a decision.
+  "unknown": "desconocido",
+  "signOut": "Cerrar sesión",
+  // An issue's number of events, also filled into other messages as {events}.
+  "events": {
+    "one": "{count} evento",
+    "many": "{count} de eventos",
+    "other": "{count} eventos"
+  },
+
+  // The sign-in page. {command} is the CLI command that adds an admin token.
+  "signIn.title": "Iniciar sesión",
+  "signIn.token": "Token de administrador",
+  "signIn.hint": "Crea uno con {command}. Se guarda en este navegador.",
+  "signIn.submit": "Iniciar sesión",
+
+  // Errors shown in place of a page.
+  "error.tokenRefused": "El servidor no aceptó este token de administrador.",
+  "error.issueNotFound": "Esa incidencia no existe.",
+  "error.generic": "Algo salió mal.",
+  "error.unreachable": "No se pudo conectar con el servidor de triage.",
+
+  // An issue's state. Regressed came back after being resolved; quiet hasn't
+  // happened for a while; muted is noise that's been silenced.
+  "state.regressed": "Reaparecida",
+  "state.new": "Nueva",
+  "state.ongoing": "En curso",
+  "state.quiet": "Tranquila",
+  "state.resolved": "Resuelta",
+  "state.muted": "Silenciada",
+
+  // What kind of problem an issue is, for one issue.
+  "kind.Crash": "Fallo",
+  "kind.UnitFailure": "Fallo de unidad",
+  "kind.OutOfMemory": "Sin memoria",
+  "kind.LogError": "Error de registro",
+
+  // The same kinds as a heading for a group of issues.
+  "kinds.Crash": "Fallos",
+  "kinds.UnitFailure": "Fallos de unidad",
+  "kinds.OutOfMemory": "Sin memoria",
+  "kinds.LogError": "Errores de registro",
+
+  // The label an admin gives an issue, which decision models learn from.
+  "label.worth": "Merece arreglarse",
+  "label.noise": "Ruido",
+  "label.none": "Sin etiqueta",
+
+  // Buttons that change an issue's state.
+  "action.resolve": "Resolver",
+  "action.mute": "Silenciar",
+  "action.reopen": "Reabrir",
+  "action.unmute": "Dejar de silenciar",
+
+  // How serious a decision model thinks an issue is.
+  "severity.none": "Ninguna",
+  "severity.minor": "Leve",
+  "severity.major": "Grave",
+  "severity.critical": "Crítica",
+
+  // What a decision model thinks most likely caused an issue.
+  "cause.application": "Aplicación",
+  "cause.configuration": "Configuración",
+  "cause.hardware": "Hardware",
+  "cause.user": "Usuario",
+  "cause.transient": "Pasajera",
+  "cause.other": "Otra",
+
+  // An event's log level, from the system journal.
+  "level.emerg": "Emergencia",
+  "level.alert": "Alerta",
+  "level.crit": "Crítico",
+  "level.err": "Error",
+  "level.warning": "Advertencia",
+  "level.notice": "Aviso",
+  "level.info": "Info",
+  "level.debug": "Depuración",
+
+  // The issue list. {percent} is a formatted percentage, such as 85%.
+  "issues.title": "Incidencias",
+  "issues.search": "Buscar en los títulos",
+  "issues.worth": "{percent} merece arreglarse",
+  "issues.loading": "Cargando incidencias",
+  "issues.loadingMore": "Cargando más incidencias",
+  "issues.loadMoreFailed": "No se pudieron cargar más incidencias.",
+  "issues.none": "No hay incidencias aquí.",
+
+  // The issue list's column headings, kept short.
+  "column.state": "Estado",
+  "column.issue": "Incidencia",
+  "column.kind": "Tipo",
+  "column.label": "Etiqueta",
+  "column.worth": "Merece",
+  "column.events": "Eventos",
+  "column.hosts": "Equipos",
+  "column.lastSeen": "Visto por última vez",
+  "column.firstSeen": "Visto por primera vez",
+
+  // The issue list's filters. {filter} is one of the filter names below, and
+  // {shown} and {count} are numbers of filter options.
+  "filters": "Filtros",
+  "filters.clear": "Borrar",
+  "filter.state": "Estado",
+  "filter.host": "Equipo",
+  "filter.kind": "Tipo",
+  "filter.label": "Etiqueta",
+  "filter.shown": "{shown} de {count} mostrados",
+  "filter.clear": "Borrar filtro",
+  "filter.clearNamed": "Borrar el filtro {filter}",
+  "filter.loading": "Cargando {filter}",
+
+  // Sorting the issue list.
+  "sort.by": "Ordenar por",
+  "sort.lastSeen": "Visto por última vez",
+  "sort.firstSeen": "Visto por primera vez",
+  "sort.worth": "Merece arreglarse",
+  "sort.count": "Eventos",
+  "sort.title": "Título",
+  "sort.ascending": "Ascendente",
+  "sort.descending": "Descendente",
+
+  // Grouping the issue list. group.loaded counts the issues loaded in a group.
+  "group.by": "Agrupar por",
+  "group.button": "Agrupar",
+  "group.nothing": "Nada",
+  "group.state": "Estado",
+  "group.kind": "Tipo",
+  "group.label": "Etiqueta",
+  "group.loaded": {
+    "one": "{count} cargada",
+    "many": "{count} cargadas",
+    "other": "{count} cargadas"
+  },
+
+  // Selecting issues to change several at once. {group} is a group's heading,
+  // such as a state, and {title} is an issue's title.
+  "selection.label": "Incidencias seleccionadas",
+  "selection.count": {
+    "one": "{count} seleccionada",
+    "many": "{count} seleccionadas",
+    "other": "{count} seleccionadas"
+  },
+  "selection.clear": "Borrar selección",
+  "selection.all": "Seleccionar todas las incidencias cargadas",
+  "selection.allShort": "Seleccionar todo",
+  "selection.group": "Seleccionar todas las incidencias cargadas de {group}",
+  "selection.issue": "Seleccionar {title}",
+
+  // An issue's page.
+  "issue.back": "Todas las incidencias",
+  "issue.loading": "Cargando la incidencia",
+  "issue.state": "Estado",
+  "issue.kind": "Tipo",
+  "issue.eventCount": "Eventos",
+  "issue.firstSeen": "Visto por primera vez",
+  "issue.lastSeen": "Visto por última vez",
+  "issue.hosts": "Equipos",
+  // Next to a host's name. {events} is the events message, and {first} and
+  // {last} are relative times, such as "3 days ago".
+  "issue.hostSeen": "{events}, primero {first}, último {last}",
+  // Copies the issue as text to paste into a coding agent.
+  "issue.copyForAgent": "Copiar para un agente",
+  "issue.copied": "Copiado",
+  "issue.decisions": "Decisiones",
+  "issue.yourLabel": "Tu etiqueta",
+  "issue.suggestions": "Arreglos sugeridos",
+  "issue.eventList": "Eventos",
+  "issue.loadingEvents": "Cargando eventos",
+  "issue.noEvents": "No hay eventos.",
+  "issue.loadMoreFailed": "No se pudieron cargar más eventos.",
+  // When a decision was made. {ago} is a relative time, such as "3 days ago",
+  // and {events} is the events message, for how many the issue had then.
+  "issue.agoAt": "{ago}, con {events}",
+  "issue.stackTrace": "Traza de la pila",
+  // The log lines a program wrote just before the event.
+  "issue.breadcrumbs": "Lo que registró antes",
+
+  // The decision models' verdicts on an issue, as table headings. "Decided by"
+  // heads the worker that asked the model.
+  "decisions.none": "Ningún modelo de decisión la ha revisado todavía.",
+  "decisions.model": "Modelo",
+  "decisions.worth": "Merece arreglarse",
+  "decisions.severity": "Gravedad",
+  "decisions.cause": "Causa probable",
+  "decisions.by": "Decidido por",
+  "decisions.decided": "Decidido",
+
+  // Fixes a language model suggested. {by} is the worker that asked the model,
+  // or `server` or `cli`, and {events} is the events message, for how many the
+  // issue had then.
+  "suggestions.none": "Ningún modelo de lenguaje ha sugerido un arreglo todavía.",
+  "suggestions.by": "por {by}",
+  "suggestions.at": "con {events}",
+
+  // An event's details, as labels next to their values.
+  "field.host": "Equipo",
+  "field.source": "Origen",
+  "field.program": "Programa",
+  "field.unit": "Unidad",
+  "field.executable": "Ejecutable",
+  "field.signal": "Señal",
+  "field.result": "Resultado",
+  "field.killed": "Terminado",
+  "field.package": "Paquete",
+  "field.os": "Sistema",
+  "field.kernel": "Kernel",
+  "field.boot": "Arranque"
+}

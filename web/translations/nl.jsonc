@@ -1,0 +1,217 @@
+// The web UI's text in Dutch, translated from en.jsonc.
+// Corrections are welcome: see https://triage.timmo.dev/languages/
+//
+// The comments describe the English text. Keep placeholders in braces, such
+// as {count}, exactly as they are, though they can move within the sentence,
+// and give plural messages `other` plus every form the language uses.
+//
+// Run `mise run translations:check` after changing a translation.
+{
+  // Shared across the UI.
+  "loading": "Laden…",
+  "refresh": "Vernieuwen",
+  "retry": "Opnieuw proberen",
+  "close": "Sluiten",
+  // Stands in for a missing value, such as a stack frame's module or who asked
+  // for a decision.
+  "unknown": "onbekend",
+  "signOut": "Afmelden",
+  // An issue's number of events, also filled into other messages as {events}.
+  "events": {
+    "one": "{count} gebeurtenis",
+    "other": "{count} gebeurtenissen"
+  },
+
+  // The sign-in page. {command} is the CLI command that adds an admin token.
+  "signIn.title": "Aanmelden",
+  "signIn.token": "Beheerderstoken",
+  "signIn.hint": "Maak er een aan met {command}. Het wordt in deze browser bewaard.",
+  "signIn.submit": "Aanmelden",
+
+  // Errors shown in place of a page.
+  "error.tokenRefused": "De server heeft dit beheerderstoken niet geaccepteerd.",
+  "error.issueNotFound": "Dit probleem bestaat niet.",
+  "error.generic": "Er ging iets mis.",
+  "error.unreachable": "Kan de triage-server niet bereiken.",
+
+  // An issue's state. Regressed came back after being resolved; quiet hasn't
+  // happened for a while; muted is noise that's been silenced.
+  "state.regressed": "Teruggekeerd",
+  "state.new": "Nieuw",
+  "state.ongoing": "Lopend",
+  "state.quiet": "Rustig",
+  "state.resolved": "Opgelost",
+  "state.muted": "Gedempt",
+
+  // What kind of problem an issue is, for one issue.
+  "kind.Crash": "Crash",
+  "kind.UnitFailure": "Unit-fout",
+  "kind.OutOfMemory": "Geheugen vol",
+  "kind.LogError": "Logfout",
+
+  // The same kinds as a heading for a group of issues.
+  "kinds.Crash": "Crashes",
+  "kinds.UnitFailure": "Unit-fouten",
+  "kinds.OutOfMemory": "Geheugen vol",
+  "kinds.LogError": "Logfouten",
+
+  // The label an admin gives an issue, which decision models learn from.
+  "label.worth": "Het oplossen waard",
+  "label.noise": "Ruis",
+  "label.none": "Geen label",
+
+  // Buttons that change an issue's state.
+  "action.resolve": "Oplossen",
+  "action.mute": "Dempen",
+  "action.reopen": "Heropenen",
+  "action.unmute": "Dempen opheffen",
+
+  // How serious a decision model thinks an issue is.
+  "severity.none": "Geen",
+  "severity.minor": "Klein",
+  "severity.major": "Groot",
+  "severity.critical": "Kritiek",
+
+  // What a decision model thinks most likely caused an issue.
+  "cause.application": "Applicatie",
+  "cause.configuration": "Configuratie",
+  "cause.hardware": "Hardware",
+  "cause.user": "Gebruiker",
+  "cause.transient": "Tijdelijk",
+  "cause.other": "Overig",
+
+  // An event's log level, from the system journal.
+  "level.emerg": "Noodgeval",
+  "level.alert": "Alarm",
+  "level.crit": "Kritiek",
+  "level.err": "Fout",
+  "level.warning": "Waarschuwing",
+  "level.notice": "Melding",
+  "level.info": "Info",
+  "level.debug": "Debug",
+
+  // The issue list. {percent} is a formatted percentage, such as 85%.
+  "issues.title": "Problemen",
+  "issues.search": "Titels doorzoeken",
+  "issues.worth": "{percent} het oplossen waard",
+  "issues.loading": "Problemen laden",
+  "issues.loadingMore": "Meer problemen laden",
+  "issues.loadMoreFailed": "Kon niet meer problemen laden.",
+  "issues.none": "Geen problemen hier.",
+
+  // The issue list's column headings, kept short.
+  "column.state": "Status",
+  "column.issue": "Probleem",
+  "column.kind": "Soort",
+  "column.label": "Label",
+  "column.worth": "Waard",
+  "column.events": "Gebeurtenissen",
+  "column.hosts": "Hosts",
+  "column.lastSeen": "Laatst gezien",
+  "column.firstSeen": "Eerst gezien",
+
+  // The issue list's filters. {filter} is one of the filter names below, and
+  // {shown} and {count} are numbers of filter options.
+  "filters": "Filters",
+  "filters.clear": "Wissen",
+  "filter.state": "Status",
+  "filter.host": "Host",
+  "filter.kind": "Soort",
+  "filter.label": "Label",
+  "filter.shown": "{shown} van {count} getoond",
+  "filter.clear": "Filter wissen",
+  "filter.clearNamed": "Filter {filter} wissen",
+  "filter.loading": "{filter} laden",
+
+  // Sorting the issue list.
+  "sort.by": "Sorteren op",
+  "sort.lastSeen": "Laatst gezien",
+  "sort.firstSeen": "Eerst gezien",
+  "sort.worth": "Het oplossen waard",
+  "sort.count": "Gebeurtenissen",
+  "sort.title": "Titel",
+  "sort.ascending": "Oplopend",
+  "sort.descending": "Aflopend",
+
+  // Grouping the issue list. group.loaded counts the issues loaded in a group.
+  "group.by": "Groeperen op",
+  "group.button": "Groeperen",
+  "group.nothing": "Niets",
+  "group.state": "Status",
+  "group.kind": "Soort",
+  "group.label": "Label",
+  "group.loaded": { "one": "{count} geladen", "other": "{count} geladen" },
+
+  // Selecting issues to change several at once. {group} is a group's heading,
+  // such as a state, and {title} is an issue's title.
+  "selection.label": "Geselecteerde problemen",
+  "selection.count": {
+    "one": "{count} geselecteerd",
+    "other": "{count} geselecteerd"
+  },
+  "selection.clear": "Selectie wissen",
+  "selection.all": "Alle geladen problemen selecteren",
+  "selection.allShort": "Alles selecteren",
+  "selection.group": "Alle geladen problemen in {group} selecteren",
+  "selection.issue": "{title} selecteren",
+
+  // An issue's page.
+  "issue.back": "Alle problemen",
+  "issue.loading": "Probleem laden",
+  "issue.state": "Status",
+  "issue.kind": "Soort",
+  "issue.eventCount": "Gebeurtenissen",
+  "issue.firstSeen": "Eerst gezien",
+  "issue.lastSeen": "Laatst gezien",
+  "issue.hosts": "Hosts",
+  // Next to a host's name. {events} is the events message, and {first} and
+  // {last} are relative times, such as "3 days ago".
+  "issue.hostSeen": "{events}, eerst {first}, laatst {last}",
+  // Copies the issue as text to paste into a coding agent.
+  "issue.copyForAgent": "Kopiëren voor agent",
+  "issue.copied": "Gekopieerd",
+  "issue.decisions": "Beslissingen",
+  "issue.yourLabel": "Jouw label",
+  "issue.suggestions": "Voorgestelde oplossingen",
+  "issue.eventList": "Gebeurtenissen",
+  "issue.loadingEvents": "Gebeurtenissen laden",
+  "issue.noEvents": "Geen gebeurtenissen.",
+  "issue.loadMoreFailed": "Kon niet meer gebeurtenissen laden.",
+  // When a decision was made. {ago} is a relative time, such as "3 days ago",
+  // and {events} is the events message, for how many the issue had then.
+  "issue.agoAt": "{ago}, bij {events}",
+  "issue.stackTrace": "Stacktrace",
+  // The log lines a program wrote just before the event.
+  "issue.breadcrumbs": "Wat het eerder logde",
+
+  // The decision models' verdicts on an issue, as table headings. "Decided by"
+  // heads the worker that asked the model.
+  "decisions.none": "Nog geen beslismodel heeft hiernaar gekeken.",
+  "decisions.model": "Model",
+  "decisions.worth": "Het oplossen waard",
+  "decisions.severity": "Ernst",
+  "decisions.cause": "Waarschijnlijke oorzaak",
+  "decisions.by": "Besloten door",
+  "decisions.decided": "Besloten",
+
+  // Fixes a language model suggested. {by} is the worker that asked the model,
+  // or `server` or `cli`, and {events} is the events message, for how many the
+  // issue had then.
+  "suggestions.none": "Nog geen taalmodel heeft een oplossing voorgesteld.",
+  "suggestions.by": "door {by}",
+  "suggestions.at": "bij {events}",
+
+  // An event's details, as labels next to their values.
+  "field.host": "Host",
+  "field.source": "Bron",
+  "field.program": "Programma",
+  "field.unit": "Unit",
+  "field.executable": "Uitvoerbaar bestand",
+  "field.signal": "Signaal",
+  "field.result": "Resultaat",
+  "field.killed": "Beëindigd",
+  "field.package": "Pakket",
+  "field.os": "Besturingssysteem",
+  "field.kernel": "Kernel",
+  "field.boot": "Opstart"
+}

@@ -1,0 +1,52 @@
+# The app's option names and descriptions in Home Assistant, in Brazilian
+# Portuguese, translated from en.yaml. Corrections are welcome: see
+# https://triage.timmo.dev/languages/
+#
+# Run `mise run translations:check` after changing a translation.
+configuration:
+  # An admin token for setting up the server before any admin exists.
+  server_admin_token:
+    name: Token de administrador do servidor
+    description: >-
+      Um token de administrador com pelo menos 32 caracteres que o servidor
+      sempre aceita, para gerenciar hosts, workers e administradores com
+      --server. Ele não é salvo nem listado. Deixe vazio depois de adicionar
+      seu próprio administrador.
+  trust_proxy:
+    name: Confiar no proxy reverso
+    description: >-
+      Confiar em X-Forwarded-Host e X-Forwarded-For. Ative isso somente
+      quando um proxy reverso for a única forma de acessar o servidor.
+  # Decision models judge whether an issue is worth fixing.
+  decide_daily:
+    name: Limite diário de decisões
+    description: >-
+      O máximo de problemas que cada modelo de decisão pode avaliar em 24
+      horas, somando o servidor e seus workers.
+  # Language models suggest fixes.
+  suggest_daily:
+    name: Limite diário de sugestões
+    description: >-
+      O máximo de correções que cada modelo de linguagem pode sugerir em 24
+      horas, somando o servidor e seus workers.
+  new_hours:
+    name: Horas em que um problema continua novo
+    description: >-
+      Por quanto tempo um problema conta como novo depois de ser visto pela
+      primeira vez.
+  # Quiet and regressed are issue states, as the web UI names them.
+  quiet_hours:
+    name: Horas até um problema ficar silencioso
+    description: >-
+      Por quanto tempo um problema pode ficar sem eventos antes de ficar
+      silencioso. Um problema resolvido que volta também fica como regrediu
+      por esse tempo.
+  # Home Assistant shows the language codes as they are, so the description
+  # names them. Keep the language names in their own languages.
+  language:
+    name: Idioma
+    description: >-
+      O idioma da interface web: de Deutsch, en English, es Español, fr
+      Français, it Italiano, ja 日本語, nl Nederlands, pl Polski, pt-BR
+      Português (Brasil) ou zh-Hans 简体中文. As traduções são geradas por
+      IA, então algumas partes podem soar estranhas.

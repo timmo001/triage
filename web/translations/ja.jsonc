@@ -1,0 +1,211 @@
+// The web UI's text in Japanese, translated from en.jsonc.
+// Corrections are welcome: see https://triage.timmo.dev/languages/
+//
+// The comments describe the English text. Keep placeholders in braces, such
+// as {count}, exactly as they are, though they can move within the sentence,
+// and give plural messages `other` plus every form the language uses.
+//
+// Run `mise run translations:check` after changing a translation.
+{
+  // Shared across the UI.
+  "loading": "読み込み中…",
+  "refresh": "更新",
+  "retry": "再試行",
+  "close": "閉じる",
+  // Stands in for a missing value, such as a stack frame's module or who asked
+  // for a decision.
+  "unknown": "不明",
+  "signOut": "サインアウト",
+  // An issue's number of events, also filled into other messages as {events}.
+  "events": { "other": "{count} 件のイベント" },
+
+  // The sign-in page. {command} is the CLI command that adds an admin token.
+  "signIn.title": "サインイン",
+  "signIn.token": "管理者トークン",
+  "signIn.hint": "{command} で作成できます。このブラウザに保存されます。",
+  "signIn.submit": "サインイン",
+
+  // Errors shown in place of a page.
+  "error.tokenRefused": "サーバーがこの管理者トークンを受け付けませんでした。",
+  "error.issueNotFound": "その問題は存在しません。",
+  "error.generic": "問題が発生しました。",
+  "error.unreachable": "triage サーバーに接続できませんでした。",
+
+  // An issue's state. Regressed came back after being resolved; quiet hasn't
+  // happened for a while; muted is noise that's been silenced.
+  "state.regressed": "再発",
+  "state.new": "新規",
+  "state.ongoing": "継続中",
+  "state.quiet": "沈静",
+  "state.resolved": "解決済み",
+  "state.muted": "ミュート",
+
+  // What kind of problem an issue is, for one issue.
+  "kind.Crash": "クラッシュ",
+  "kind.UnitFailure": "ユニットの失敗",
+  "kind.OutOfMemory": "メモリ不足",
+  "kind.LogError": "ログのエラー",
+
+  // The same kinds as a heading for a group of issues.
+  "kinds.Crash": "クラッシュ",
+  "kinds.UnitFailure": "ユニットの失敗",
+  "kinds.OutOfMemory": "メモリ不足",
+  "kinds.LogError": "ログのエラー",
+
+  // The label an admin gives an issue, which decision models learn from.
+  "label.worth": "修正する価値あり",
+  "label.noise": "ノイズ",
+  "label.none": "ラベルなし",
+
+  // Buttons that change an issue's state.
+  "action.resolve": "解決",
+  "action.mute": "ミュート",
+  "action.reopen": "再オープン",
+  "action.unmute": "ミュート解除",
+
+  // How serious a decision model thinks an issue is.
+  "severity.none": "なし",
+  "severity.minor": "軽度",
+  "severity.major": "重大",
+  "severity.critical": "致命的",
+
+  // What a decision model thinks most likely caused an issue.
+  "cause.application": "アプリケーション",
+  "cause.configuration": "設定",
+  "cause.hardware": "ハードウェア",
+  "cause.user": "ユーザー",
+  "cause.transient": "一時的",
+  "cause.other": "その他",
+
+  // An event's log level, from the system journal.
+  "level.emerg": "緊急",
+  "level.alert": "警報",
+  "level.crit": "致命的",
+  "level.err": "エラー",
+  "level.warning": "警告",
+  "level.notice": "通知",
+  "level.info": "情報",
+  "level.debug": "デバッグ",
+
+  // The issue list. {percent} is a formatted percentage, such as 85%.
+  "issues.title": "問題",
+  "issues.search": "タイトルを検索",
+  "issues.worth": "修正する価値 {percent}",
+  "issues.loading": "問題を読み込み中",
+  "issues.loadingMore": "さらに問題を読み込み中",
+  "issues.loadMoreFailed": "さらに問題を読み込めませんでした。",
+  "issues.none": "問題はありません。",
+
+  // The issue list's column headings, kept short.
+  "column.state": "状態",
+  "column.issue": "問題",
+  "column.kind": "種類",
+  "column.label": "ラベル",
+  "column.worth": "価値",
+  "column.events": "イベント",
+  "column.hosts": "ホスト",
+  "column.lastSeen": "最終発生",
+  "column.firstSeen": "初回発生",
+
+  // The issue list's filters. {filter} is one of the filter names below, and
+  // {shown} and {count} are numbers of filter options.
+  "filters": "フィルター",
+  "filters.clear": "クリア",
+  "filter.state": "状態",
+  "filter.host": "ホスト",
+  "filter.kind": "種類",
+  "filter.label": "ラベル",
+  "filter.shown": "{count} 件中 {shown} 件を表示",
+  "filter.clear": "フィルターをクリア",
+  "filter.clearNamed": "{filter}のフィルターをクリア",
+  "filter.loading": "{filter}を読み込み中",
+
+  // Sorting the issue list.
+  "sort.by": "並べ替え",
+  "sort.lastSeen": "最終発生",
+  "sort.firstSeen": "初回発生",
+  "sort.worth": "修正する価値",
+  "sort.count": "イベント",
+  "sort.title": "タイトル",
+  "sort.ascending": "昇順",
+  "sort.descending": "降順",
+
+  // Grouping the issue list. group.loaded counts the issues loaded in a group.
+  "group.by": "グループ化",
+  "group.button": "グループ",
+  "group.nothing": "なし",
+  "group.state": "状態",
+  "group.kind": "種類",
+  "group.label": "ラベル",
+  "group.loaded": { "other": "{count} 件読み込み済み" },
+
+  // Selecting issues to change several at once. {group} is a group's heading,
+  // such as a state, and {title} is an issue's title.
+  "selection.label": "選択した問題",
+  "selection.count": { "other": "{count} 件選択" },
+  "selection.clear": "選択を解除",
+  "selection.all": "読み込んだ問題をすべて選択",
+  "selection.allShort": "すべて選択",
+  "selection.group": "読み込んだ{group}の問題をすべて選択",
+  "selection.issue": "{title} を選択",
+
+  // An issue's page.
+  "issue.back": "すべての問題",
+  "issue.loading": "問題を読み込み中",
+  "issue.state": "状態",
+  "issue.kind": "種類",
+  "issue.eventCount": "イベント",
+  "issue.firstSeen": "初回発生",
+  "issue.lastSeen": "最終発生",
+  "issue.hosts": "ホスト",
+  // Next to a host's name. {events} is the events message, and {first} and
+  // {last} are relative times, such as "3 days ago".
+  "issue.hostSeen": "{events}、初回 {first}、最終 {last}",
+  // Copies the issue as text to paste into a coding agent.
+  "issue.copyForAgent": "エージェント用にコピー",
+  "issue.copied": "コピーしました",
+  "issue.decisions": "判定",
+  "issue.yourLabel": "あなたのラベル",
+  "issue.suggestions": "提案された修正",
+  "issue.eventList": "イベント",
+  "issue.loadingEvents": "イベントを読み込み中",
+  "issue.noEvents": "イベントはありません。",
+  "issue.loadMoreFailed": "さらにイベントを読み込めませんでした。",
+  // When a decision was made. {ago} is a relative time, such as "3 days ago",
+  // and {events} is the events message, for how many the issue had then.
+  "issue.agoAt": "{ago}、{events}の時点",
+  "issue.stackTrace": "スタックトレース",
+  // The log lines a program wrote just before the event.
+  "issue.breadcrumbs": "直前のログ",
+
+  // The decision models' verdicts on an issue, as table headings. "Decided by"
+  // heads the worker that asked the model.
+  "decisions.none": "まだどの判定モデルも確認していません。",
+  "decisions.model": "モデル",
+  "decisions.worth": "修正する価値",
+  "decisions.severity": "重大度",
+  "decisions.cause": "考えられる原因",
+  "decisions.by": "判定者",
+  "decisions.decided": "判定日時",
+
+  // Fixes a language model suggested. {by} is the worker that asked the model,
+  // or `server` or `cli`, and {events} is the events message, for how many the
+  // issue had then.
+  "suggestions.none": "まだどの言語モデルも修正を提案していません。",
+  "suggestions.by": "依頼者: {by}",
+  "suggestions.at": "{events}の時点",
+
+  // An event's details, as labels next to their values.
+  "field.host": "ホスト",
+  "field.source": "ソース",
+  "field.program": "プログラム",
+  "field.unit": "ユニット",
+  "field.executable": "実行ファイル",
+  "field.signal": "シグナル",
+  "field.result": "結果",
+  "field.killed": "強制終了",
+  "field.package": "パッケージ",
+  "field.os": "OS",
+  "field.kernel": "カーネル",
+  "field.boot": "ブート"
+}

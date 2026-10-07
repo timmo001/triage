@@ -1,0 +1,49 @@
+# The app's option names and descriptions in Home Assistant, in Polish,
+# translated from en.yaml. Corrections are welcome: see
+# https://triage.timmo.dev/languages/
+#
+# Run `mise run translations:check` after changing a translation.
+configuration:
+  # An admin token for setting up the server before any admin exists.
+  server_admin_token:
+    name: Token administratora serwera
+    description: >-
+      Token administratora o długości co najmniej 32 znaków, który serwer
+      zawsze akceptuje, do zarządzania hostami, workerami i administratorami
+      przez --server. Nie jest zapisywany ani wyświetlany. Zostaw puste, gdy
+      dodasz własnego administratora.
+  trust_proxy:
+    name: Ufaj odwrotnemu proxy
+    description: >-
+      Ufaj nagłówkom X-Forwarded-Host i X-Forwarded-For. Włącz to tylko
+      wtedy, gdy odwrotne proxy jest jedyną drogą do serwera.
+  # Decision models judge whether an issue is worth fixing.
+  decide_daily:
+    name: Dzienny limit decyzji
+    description: >-
+      Maksymalna liczba problemów, które każdy model decyzyjny może ocenić w
+      ciągu 24 godzin, łącznie przez serwer i jego workery.
+  # Language models suggest fixes.
+  suggest_daily:
+    name: Dzienny limit sugestii
+    description: >-
+      Maksymalna liczba poprawek, które każdy model językowy może
+      zasugerować w ciągu 24 godzin, łącznie przez serwer i jego workery.
+  new_hours:
+    name: Godziny, przez które problem jest nowy
+    description: Jak długo problem jest uznawany za nowy od pierwszego wystąpienia.
+  # Quiet and regressed are issue states, as the web UI names them.
+  quiet_hours:
+    name: Godziny do ucichnięcia problemu
+    description: >-
+      Jak długo problem może trwać bez zdarzeń, zanim ucichnie. Rozwiązany
+      problem, który wraca, przez ten czas ma też stan „powrócił”.
+  # Home Assistant shows the language codes as they are, so the description
+  # names them. Keep the language names in their own languages.
+  language:
+    name: Język
+    description: >-
+      Język interfejsu WWW: de Deutsch, en English, es Español, fr Français,
+      it Italiano, ja 日本語, nl Nederlands, pl Polski, pt-BR Português
+      (Brasil) lub zh-Hans 简体中文. Tłumaczenia zostały wygenerowane przez
+      AI, więc niektóre teksty mogą brzmieć nienaturalnie.

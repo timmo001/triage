@@ -1,0 +1,223 @@
+// The web UI's text in Italian, translated from en.jsonc.
+// Corrections are welcome: see https://triage.timmo.dev/languages/
+//
+// The comments describe the English text. Keep placeholders in braces, such
+// as {count}, exactly as they are, though they can move within the sentence,
+// and give plural messages `other` plus every form the language uses.
+//
+// Run `mise run translations:check` after changing a translation.
+{
+  // Shared across the UI.
+  "loading": "Caricamento…",
+  "refresh": "Aggiorna",
+  "retry": "Riprova",
+  "close": "Chiudi",
+  // Stands in for a missing value, such as a stack frame's module or who asked
+  // for a decision.
+  "unknown": "sconosciuto",
+  "signOut": "Esci",
+  // An issue's number of events, also filled into other messages as {events}.
+  "events": {
+    "one": "{count} evento",
+    "many": "{count} di eventi",
+    "other": "{count} eventi"
+  },
+
+  // The sign-in page. {command} is the CLI command that adds an admin token.
+  "signIn.title": "Accedi",
+  "signIn.token": "Token di amministrazione",
+  "signIn.hint": "Aggiungine uno con {command}. Viene conservato in questo browser.",
+  "signIn.submit": "Accedi",
+
+  // Errors shown in place of a page.
+  "error.tokenRefused": "Il server non ha accettato questo token di amministrazione.",
+  "error.issueNotFound": "Questo problema non esiste.",
+  "error.generic": "Qualcosa è andato storto.",
+  "error.unreachable": "Impossibile raggiungere il server triage.",
+
+  // An issue's state. Regressed came back after being resolved; quiet hasn't
+  // happened for a while; muted is noise that's been silenced.
+  "state.regressed": "Regredito",
+  "state.new": "Nuovo",
+  "state.ongoing": "In corso",
+  "state.quiet": "Silenzioso",
+  "state.resolved": "Risolto",
+  "state.muted": "Silenziato",
+
+  // What kind of problem an issue is, for one issue.
+  "kind.Crash": "Arresto anomalo",
+  "kind.UnitFailure": "Errore dell’unità",
+  "kind.OutOfMemory": "Memoria esaurita",
+  "kind.LogError": "Errore nel log",
+
+  // The same kinds as a heading for a group of issues.
+  "kinds.Crash": "Arresti anomali",
+  "kinds.UnitFailure": "Errori delle unità",
+  "kinds.OutOfMemory": "Memoria esaurita",
+  "kinds.LogError": "Errori nel log",
+
+  // The label an admin gives an issue, which decision models learn from.
+  "label.worth": "Da correggere",
+  "label.noise": "Rumore",
+  "label.none": "Senza etichetta",
+
+  // Buttons that change an issue's state.
+  "action.resolve": "Risolvi",
+  "action.mute": "Silenzia",
+  "action.reopen": "Riapri",
+  "action.unmute": "Riattiva",
+
+  // How serious a decision model thinks an issue is.
+  "severity.none": "Nessuna",
+  "severity.minor": "Minore",
+  "severity.major": "Grave",
+  "severity.critical": "Critica",
+
+  // What a decision model thinks most likely caused an issue.
+  "cause.application": "Applicazione",
+  "cause.configuration": "Configurazione",
+  "cause.hardware": "Hardware",
+  "cause.user": "Utente",
+  "cause.transient": "Temporanea",
+  "cause.other": "Altro",
+
+  // An event's log level, from the system journal.
+  "level.emerg": "Emergenza",
+  "level.alert": "Allarme",
+  "level.crit": "Critico",
+  "level.err": "Errore",
+  "level.warning": "Avviso",
+  "level.notice": "Nota",
+  "level.info": "Info",
+  "level.debug": "Debug",
+
+  // The issue list. {percent} is a formatted percentage, such as 85%.
+  "issues.title": "Problemi",
+  "issues.search": "Cerca nei titoli",
+  "issues.worth": "{percent} da correggere",
+  "issues.loading": "Caricamento dei problemi",
+  "issues.loadingMore": "Caricamento di altri problemi",
+  "issues.loadMoreFailed": "Impossibile caricare altri problemi.",
+  "issues.none": "Nessun problema qui.",
+
+  // The issue list's column headings, kept short.
+  "column.state": "Stato",
+  "column.issue": "Problema",
+  "column.kind": "Tipo",
+  "column.label": "Etichetta",
+  "column.worth": "Da correggere",
+  "column.events": "Eventi",
+  "column.hosts": "Host",
+  "column.lastSeen": "Ultima volta",
+  "column.firstSeen": "Prima volta",
+
+  // The issue list's filters. {filter} is one of the filter names below, and
+  // {shown} and {count} are numbers of filter options.
+  "filters": "Filtri",
+  "filters.clear": "Cancella",
+  "filter.state": "Stato",
+  "filter.host": "Host",
+  "filter.kind": "Tipo",
+  "filter.label": "Etichetta",
+  "filter.shown": "{shown} di {count} mostrati",
+  "filter.clear": "Cancella filtro",
+  "filter.clearNamed": "Cancella il filtro {filter}",
+  "filter.loading": "Caricamento di {filter}",
+
+  // Sorting the issue list.
+  "sort.by": "Ordina per",
+  "sort.lastSeen": "Ultima volta",
+  "sort.firstSeen": "Prima volta",
+  "sort.worth": "Da correggere",
+  "sort.count": "Eventi",
+  "sort.title": "Titolo",
+  "sort.ascending": "Crescente",
+  "sort.descending": "Decrescente",
+
+  // Grouping the issue list. group.loaded counts the issues loaded in a group.
+  "group.by": "Raggruppa per",
+  "group.button": "Raggruppa",
+  "group.nothing": "Niente",
+  "group.state": "Stato",
+  "group.kind": "Tipo",
+  "group.label": "Etichetta",
+  "group.loaded": {
+    "one": "{count} caricato",
+    "many": "{count} caricati",
+    "other": "{count} caricati"
+  },
+
+  // Selecting issues to change several at once. {group} is a group's heading,
+  // such as a state, and {title} is an issue's title.
+  "selection.label": "Problemi selezionati",
+  "selection.count": {
+    "one": "{count} selezionato",
+    "many": "{count} selezionati",
+    "other": "{count} selezionati"
+  },
+  "selection.clear": "Cancella selezione",
+  "selection.all": "Seleziona tutti i problemi caricati",
+  "selection.allShort": "Seleziona tutto",
+  "selection.group": "Seleziona tutti i problemi caricati in {group}",
+  "selection.issue": "Seleziona {title}",
+
+  // An issue's page.
+  "issue.back": "Tutti i problemi",
+  "issue.loading": "Caricamento del problema",
+  "issue.state": "Stato",
+  "issue.kind": "Tipo",
+  "issue.eventCount": "Eventi",
+  "issue.firstSeen": "Prima volta",
+  "issue.lastSeen": "Ultima volta",
+  "issue.hosts": "Host",
+  // Next to a host's name. {events} is the events message, and {first} and
+  // {last} are relative times, such as "3 days ago".
+  "issue.hostSeen": "{events}, la prima {first}, l’ultima {last}",
+  // Copies the issue as text to paste into a coding agent.
+  "issue.copyForAgent": "Copia per l’agente",
+  "issue.copied": "Copiato",
+  "issue.decisions": "Decisioni",
+  "issue.yourLabel": "La tua etichetta",
+  "issue.suggestions": "Correzioni suggerite",
+  "issue.eventList": "Eventi",
+  "issue.loadingEvents": "Caricamento degli eventi",
+  "issue.noEvents": "Nessun evento.",
+  "issue.loadMoreFailed": "Impossibile caricare altri eventi.",
+  // When a decision was made. {ago} is a relative time, such as "3 days ago",
+  // and {events} is the events message, for how many the issue had then.
+  "issue.agoAt": "{ago}, a {events}",
+  "issue.stackTrace": "Stack trace",
+  // The log lines a program wrote just before the event.
+  "issue.breadcrumbs": "Cosa ha registrato prima",
+
+  // The decision models' verdicts on an issue, as table headings. "Decided by"
+  // heads the worker that asked the model.
+  "decisions.none": "Nessun modello decisionale lo ha ancora esaminato.",
+  "decisions.model": "Modello",
+  "decisions.worth": "Da correggere",
+  "decisions.severity": "Gravità",
+  "decisions.cause": "Causa probabile",
+  "decisions.by": "Deciso da",
+  "decisions.decided": "Deciso",
+
+  // Fixes a language model suggested. {by} is the worker that asked the model,
+  // or `server` or `cli`, and {events} is the events message, for how many the
+  // issue had then.
+  "suggestions.none": "Nessun modello linguistico ha ancora suggerito una correzione.",
+  "suggestions.by": "da {by}",
+  "suggestions.at": "a {events}",
+
+  // An event's details, as labels next to their values.
+  "field.host": "Host",
+  "field.source": "Origine",
+  "field.program": "Programma",
+  "field.unit": "Unità",
+  "field.executable": "Eseguibile",
+  "field.signal": "Segnale",
+  "field.result": "Risultato",
+  "field.killed": "Terminato",
+  "field.package": "Pacchetto",
+  "field.os": "Sistema operativo",
+  "field.kernel": "Kernel",
+  "field.boot": "Avvio"
+}

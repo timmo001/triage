@@ -1,0 +1,53 @@
+# The app's option names and descriptions in Home Assistant, in French,
+# translated from en.yaml. Corrections are welcome: see
+# https://triage.timmo.dev/languages/
+#
+# Run `mise run translations:check` after changing a translation.
+configuration:
+  # An admin token for setting up the server before any admin exists.
+  server_admin_token:
+    name: Jeton d’administration du serveur
+    description: >-
+      Un jeton d’administration d’au moins 32 caractères que le serveur
+      accepte toujours, pour gérer les hôtes, les workers et les
+      administrateurs avec --server. Il n’est ni enregistré ni listé.
+      Laissez-le vide une fois que vous avez ajouté votre propre
+      administrateur.
+  trust_proxy:
+    name: Faire confiance au proxy inverse
+    description: >-
+      Faire confiance à X-Forwarded-Host et X-Forwarded-For. N’activez cette
+      option que si un proxy inverse est le seul moyen d’atteindre le serveur.
+  # Decision models judge whether an issue is worth fixing.
+  decide_daily:
+    name: Limite quotidienne de décisions
+    description: >-
+      Le nombre maximal de problèmes que chaque modèle de décision peut
+      évaluer en 24 heures, par le serveur et ses workers ensemble.
+  # Language models suggest fixes.
+  suggest_daily:
+    name: Limite quotidienne de suggestions
+    description: >-
+      Le nombre maximal de corrections que chaque modèle de langage peut
+      suggérer en 24 heures, par le serveur et ses workers ensemble.
+  new_hours:
+    name: Heures pendant lesquelles un problème reste nouveau
+    description: >-
+      Combien de temps un problème est considéré comme nouveau après sa
+      première apparition.
+  # Quiet and regressed are issue states, as the web UI names them.
+  quiet_hours:
+    name: Heures avant qu’un problème devienne calme
+    description: >-
+      Combien de temps un problème peut rester sans événement avant d’être
+      calme. Un problème résolu qui revient reste aussi régressé pendant ce
+      temps.
+  # Home Assistant shows the language codes as they are, so the description
+  # names them. Keep the language names in their own languages.
+  language:
+    name: Langue
+    description: >-
+      La langue de l’interface web : de Deutsch, en English, es Español, fr
+      Français, it Italiano, ja 日本語, nl Nederlands, pl Polski, pt-BR
+      Português (Brasil) ou zh-Hans 简体中文. Les traductions sont générées
+      par IA, certaines formulations peuvent donc sembler étranges.

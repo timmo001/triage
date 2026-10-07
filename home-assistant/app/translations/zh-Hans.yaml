@@ -1,0 +1,42 @@
+# The app's option names and descriptions in Home Assistant, in Simplified
+# Chinese, translated from en.yaml. Corrections are welcome: see
+# https://triage.timmo.dev/languages/
+#
+# Run `mise run translations:check` after changing a translation.
+configuration:
+  # An admin token for setting up the server before any admin exists.
+  server_admin_token:
+    name: 服务器管理员令牌
+    description: >-
+      服务器始终接受的管理员令牌，至少 32 个字符，用于通过 --server
+      管理主机、worker 和管理员。它不会被存储或列出。添加了自己的管理员后请留空。
+  trust_proxy:
+    name: 信任反向代理
+    description: >-
+      信任 X-Forwarded-Host 和 X-Forwarded-For。仅当反向代理是访问服务器的唯一途径时才开启。
+  # Decision models judge whether an issue is worth fixing.
+  decide_daily:
+    name: 每日判定上限
+    description: >-
+      每个判定模型在任意 24 小时内最多可判定的问题数，服务器和 worker 合计。
+  # Language models suggest fixes.
+  suggest_daily:
+    name: 每日建议上限
+    description: >-
+      每个语言模型在任意 24 小时内最多可建议的修复数，服务器和 worker 合计。
+  new_hours:
+    name: 问题保持为新的小时数
+    description: 问题首次出现后被视为新问题的时长。
+  # Quiet and regressed are issue states, as the web UI names them.
+  quiet_hours:
+    name: 问题变为已平息前的小时数
+    description: >-
+      问题在没有事件多久后变为已平息。已解决的问题再次出现时，也会在这段时间内保持已复发状态。
+  # Home Assistant shows the language codes as they are, so the description
+  # names them. Keep the language names in their own languages.
+  language:
+    name: 语言
+    description: >-
+      网页界面的语言：de Deutsch、en English、es Español、fr Français、it
+      Italiano、ja 日本語、nl Nederlands、pl Polski、pt-BR Português (Brasil) 或
+      zh-Hans 简体中文。翻译由 AI 生成，部分内容可能读起来不太自然。

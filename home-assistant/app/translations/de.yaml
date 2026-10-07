@@ -1,0 +1,50 @@
+# The app's option names and descriptions in Home Assistant, in German,
+# translated from en.yaml. Corrections are welcome: see
+# https://triage.timmo.dev/languages/
+#
+# Run `mise run translations:check` after changing a translation.
+configuration:
+  # An admin token for setting up the server before any admin exists.
+  server_admin_token:
+    name: Admin-Token des Servers
+    description: >-
+      Ein Admin-Token mit mindestens 32 Zeichen, das der Server immer
+      akzeptiert, um Hosts, Worker und Admins mit --server zu verwalten. Es
+      wird weder gespeichert noch aufgelistet. Lass es leer, sobald du einen
+      eigenen Admin hinzugefügt hast.
+  trust_proxy:
+    name: Reverse-Proxy vertrauen
+    description: >-
+      X-Forwarded-Host und X-Forwarded-For vertrauen. Schalte das nur ein,
+      wenn der Server ausschließlich über einen Reverse-Proxy erreichbar ist.
+  # Decision models judge whether an issue is worth fixing.
+  decide_daily:
+    name: Tägliches Entscheidungslimit
+    description: >-
+      Wie viele Probleme jedes Entscheidungsmodell in 24 Stunden höchstens
+      bewerten darf, für Server und Worker zusammen.
+  # Language models suggest fixes.
+  suggest_daily:
+    name: Tägliches Vorschlagslimit
+    description: >-
+      Wie viele Korrekturen jedes Sprachmodell in 24 Stunden höchstens
+      vorschlagen darf, für Server und Worker zusammen.
+  new_hours:
+    name: Stunden, die ein Problem neu bleibt
+    description: Wie lange ein Problem nach dem ersten Auftreten als neu gilt.
+  # Quiet and regressed are issue states, as the web UI names them.
+  quiet_hours:
+    name: Stunden, bis ein Problem ruhig wird
+    description: >-
+      Wie lange ein Problem ohne Ereignisse bleiben kann, bevor es als ruhig
+      gilt. Ein gelöstes Problem, das zurückkehrt, bleibt so lange auch
+      „wieder aufgetreten“.
+  # Home Assistant shows the language codes as they are, so the description
+  # names them. Keep the language names in their own languages.
+  language:
+    name: Sprache
+    description: >-
+      Die Sprache der Weboberfläche: de Deutsch, en English, es Español, fr
+      Français, it Italiano, ja 日本語, nl Nederlands, pl Polski, pt-BR
+      Português (Brasil) oder zh-Hans 简体中文. Die Übersetzungen sind
+      KI-generiert, daher kann manches ungewohnt klingen.

@@ -1,0 +1,211 @@
+// The web UI's text in Simplified Chinese, translated from en.jsonc.
+// Corrections are welcome: see https://triage.timmo.dev/languages/
+//
+// The comments describe the English text. Keep placeholders in braces, such
+// as {count}, exactly as they are, though they can move within the sentence,
+// and give plural messages `other` plus every form the language uses.
+//
+// Run `mise run translations:check` after changing a translation.
+{
+  // Shared across the UI.
+  "loading": "正在加载…",
+  "refresh": "刷新",
+  "retry": "重试",
+  "close": "关闭",
+  // Stands in for a missing value, such as a stack frame's module or who asked
+  // for a decision.
+  "unknown": "未知",
+  "signOut": "退出登录",
+  // An issue's number of events, also filled into other messages as {events}.
+  "events": { "other": "{count} 个事件" },
+
+  // The sign-in page. {command} is the CLI command that adds an admin token.
+  "signIn.title": "登录",
+  "signIn.token": "管理员令牌",
+  "signIn.hint": "使用 {command} 添加一个。它会保存在此浏览器中。",
+  "signIn.submit": "登录",
+
+  // Errors shown in place of a page.
+  "error.tokenRefused": "服务器不接受此管理员令牌。",
+  "error.issueNotFound": "没有这个问题。",
+  "error.generic": "出了点问题。",
+  "error.unreachable": "无法连接到 triage 服务器。",
+
+  // An issue's state. Regressed came back after being resolved; quiet hasn't
+  // happened for a while; muted is noise that's been silenced.
+  "state.regressed": "已复发",
+  "state.new": "新",
+  "state.ongoing": "持续中",
+  "state.quiet": "已平息",
+  "state.resolved": "已解决",
+  "state.muted": "已静音",
+
+  // What kind of problem an issue is, for one issue.
+  "kind.Crash": "崩溃",
+  "kind.UnitFailure": "单元失败",
+  "kind.OutOfMemory": "内存不足",
+  "kind.LogError": "日志错误",
+
+  // The same kinds as a heading for a group of issues.
+  "kinds.Crash": "崩溃",
+  "kinds.UnitFailure": "单元失败",
+  "kinds.OutOfMemory": "内存不足",
+  "kinds.LogError": "日志错误",
+
+  // The label an admin gives an issue, which decision models learn from.
+  "label.worth": "值得修复",
+  "label.noise": "噪音",
+  "label.none": "未标记",
+
+  // Buttons that change an issue's state.
+  "action.resolve": "解决",
+  "action.mute": "静音",
+  "action.reopen": "重新打开",
+  "action.unmute": "取消静音",
+
+  // How serious a decision model thinks an issue is.
+  "severity.none": "无",
+  "severity.minor": "轻微",
+  "severity.major": "严重",
+  "severity.critical": "致命",
+
+  // What a decision model thinks most likely caused an issue.
+  "cause.application": "应用程序",
+  "cause.configuration": "配置",
+  "cause.hardware": "硬件",
+  "cause.user": "用户",
+  "cause.transient": "暂时性",
+  "cause.other": "其他",
+
+  // An event's log level, from the system journal.
+  "level.emerg": "紧急",
+  "level.alert": "警报",
+  "level.crit": "严重",
+  "level.err": "错误",
+  "level.warning": "警告",
+  "level.notice": "注意",
+  "level.info": "信息",
+  "level.debug": "调试",
+
+  // The issue list. {percent} is a formatted percentage, such as 85%.
+  "issues.title": "问题",
+  "issues.search": "搜索标题",
+  "issues.worth": "{percent} 值得修复",
+  "issues.loading": "正在加载问题",
+  "issues.loadingMore": "正在加载更多问题",
+  "issues.loadMoreFailed": "无法加载更多问题。",
+  "issues.none": "这里没有问题。",
+
+  // The issue list's column headings, kept short.
+  "column.state": "状态",
+  "column.issue": "问题",
+  "column.kind": "类型",
+  "column.label": "标签",
+  "column.worth": "价值",
+  "column.events": "事件",
+  "column.hosts": "主机",
+  "column.lastSeen": "最后出现",
+  "column.firstSeen": "首次出现",
+
+  // The issue list's filters. {filter} is one of the filter names below, and
+  // {shown} and {count} are numbers of filter options.
+  "filters": "筛选",
+  "filters.clear": "清除",
+  "filter.state": "状态",
+  "filter.host": "主机",
+  "filter.kind": "类型",
+  "filter.label": "标签",
+  "filter.shown": "显示 {shown} / {count}",
+  "filter.clear": "清除筛选",
+  "filter.clearNamed": "清除{filter}筛选",
+  "filter.loading": "正在加载{filter}",
+
+  // Sorting the issue list.
+  "sort.by": "排序方式",
+  "sort.lastSeen": "最后出现",
+  "sort.firstSeen": "首次出现",
+  "sort.worth": "值得修复",
+  "sort.count": "事件",
+  "sort.title": "标题",
+  "sort.ascending": "升序",
+  "sort.descending": "降序",
+
+  // Grouping the issue list. group.loaded counts the issues loaded in a group.
+  "group.by": "分组方式",
+  "group.button": "分组",
+  "group.nothing": "不分组",
+  "group.state": "状态",
+  "group.kind": "类型",
+  "group.label": "标签",
+  "group.loaded": { "other": "已加载 {count} 个" },
+
+  // Selecting issues to change several at once. {group} is a group's heading,
+  // such as a state, and {title} is an issue's title.
+  "selection.label": "已选问题",
+  "selection.count": { "other": "已选 {count} 个" },
+  "selection.clear": "清除选择",
+  "selection.all": "选择所有已加载的问题",
+  "selection.allShort": "全选",
+  "selection.group": "选择所有已加载的{group}问题",
+  "selection.issue": "选择 {title}",
+
+  // An issue's page.
+  "issue.back": "所有问题",
+  "issue.loading": "正在加载问题",
+  "issue.state": "状态",
+  "issue.kind": "类型",
+  "issue.eventCount": "事件",
+  "issue.firstSeen": "首次出现",
+  "issue.lastSeen": "最后出现",
+  "issue.hosts": "主机",
+  // Next to a host's name. {events} is the events message, and {first} and
+  // {last} are relative times, such as "3 days ago".
+  "issue.hostSeen": "{events}，首次 {first}，最后 {last}",
+  // Copies the issue as text to paste into a coding agent.
+  "issue.copyForAgent": "复制给代理",
+  "issue.copied": "已复制",
+  "issue.decisions": "判定",
+  "issue.yourLabel": "你的标签",
+  "issue.suggestions": "建议的修复",
+  "issue.eventList": "事件",
+  "issue.loadingEvents": "正在加载事件",
+  "issue.noEvents": "没有事件。",
+  "issue.loadMoreFailed": "无法加载更多事件。",
+  // When a decision was made. {ago} is a relative time, such as "3 days ago",
+  // and {events} is the events message, for how many the issue had then.
+  "issue.agoAt": "{ago}，当时 {events}",
+  "issue.stackTrace": "堆栈跟踪",
+  // The log lines a program wrote just before the event.
+  "issue.breadcrumbs": "之前的日志",
+
+  // The decision models' verdicts on an issue, as table headings. "Decided by"
+  // heads the worker that asked the model.
+  "decisions.none": "还没有判定模型查看过它。",
+  "decisions.model": "模型",
+  "decisions.worth": "值得修复",
+  "decisions.severity": "严重程度",
+  "decisions.cause": "可能原因",
+  "decisions.by": "判定者",
+  "decisions.decided": "判定时间",
+
+  // Fixes a language model suggested. {by} is the worker that asked the model,
+  // or `server` or `cli`, and {events} is the events message, for how many the
+  // issue had then.
+  "suggestions.none": "还没有语言模型建议修复。",
+  "suggestions.by": "由 {by} 请求",
+  "suggestions.at": "当时 {events}",
+
+  // An event's details, as labels next to their values.
+  "field.host": "主机",
+  "field.source": "来源",
+  "field.program": "程序",
+  "field.unit": "单元",
+  "field.executable": "可执行文件",
+  "field.signal": "信号",
+  "field.result": "结果",
+  "field.killed": "已终止",
+  "field.package": "软件包",
+  "field.os": "操作系统",
+  "field.kernel": "内核",
+  "field.boot": "启动"
+}
