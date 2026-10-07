@@ -1,6 +1,6 @@
 ---
 title: Install
-description: Install Triage from the timmo pacman repository, as a Home Assistant app or container, or from a release.
+description: Install Triage from the timmo pacman repository, as a Home Assistant app or container, with mise, or from a release.
 ---
 
 Triage is a single Linux binary for x86_64 and aarch64. The server also comes as a container image and a Home Assistant app.
@@ -51,6 +51,22 @@ sudo apt install ./triage_<version>_amd64.deb
 # Fedora
 sudo dnf install ./triage-<version>-1.x86_64.rpm
 ```
+
+## mise
+
+[mise](https://mise.jdx.dev) can install the release binary on any distribution, and keep it up to date:
+
+```bash
+mise use -g github:timmo001/triage
+```
+
+Update it with `mise upgrade`. This installs only the `triage` command, without completions or services. To run the agent, copy [`triage-agent.service`](https://github.com/timmo001/triage/blob/main/.scripts/linux/triage-agent.service) to `~/.config/systemd/user/` and point its `ExecStart` at the mise shim:
+
+```ini
+ExecStart=%h/.local/share/mise/shims/triage collect --follow --upload
+```
+
+then run `systemctl --user daemon-reload`.
 
 ## Release archive
 
