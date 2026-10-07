@@ -21,6 +21,10 @@ Open **Triage** in the sidebar to browse issues and resolve or mute them. It's f
 
 The server speaks plain HTTP on port 7171, so tokens are only as private as your network. To reach it from outside, put it behind a reverse proxy or a Cloudflare tunnel for HTTPS, and turn on **trust_proxy** only if that's the only way in.
 
+## Assist
+
+The app announces its [MCP server](https://triage.timmo.dev/agents) to Home Assistant, which offers to add it under **Settings > Devices & services**. Add it, then turn on its tools for your conversation agent, and Assist can read issues and their events.
+
 ## Options
 
 These match the server's [settings](https://triage.timmo.dev/configuration#server) of the same name.

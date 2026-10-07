@@ -21,6 +21,7 @@ export default defineConfig(
         },
         "/configuration",
         "/issues",
+        "/agents",
         "/choices",
         "/privacy",
         "/libraries",

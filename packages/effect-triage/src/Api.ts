@@ -145,6 +145,21 @@ export const IssueDetail = Schema.Struct({
 
 export interface IssueDetail extends Schema.Schema.Type<typeof IssueDetail> {}
 
+/** How many of an issue's latest events come with it. */
+export const latestEvents = 20;
+
+/** The most events one page of an issue's events may hold. */
+export const maxEventPage = 500;
+
+/** A page of an issue's events, newest first. */
+export const IssueEvents = Schema.Struct({
+  /** How many events the issue has in all. */
+  total: Schema.Int,
+  events: Schema.Array(Event),
+});
+
+export interface IssueEvents extends Schema.Schema.Type<typeof IssueEvents> {}
+
 /** How often an issue happened on one host. */
 export const HostCount = Schema.Struct({
   /** The host's enrolled name. */
@@ -402,6 +417,16 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
     HttpApiEndpoint.get("get", "/:id", {
       params: { id: Schema.String },
       success: IssueReview,
+      error: IssueNotFound,
+    }),
+    HttpApiEndpoint.get("events", "/:id/events", {
+      params: { id: Schema.String },
+      query: {
+        limit: Schema.optional(Schema.Int),
+        /** How many of the newest events to skip, for fetching the next page. */
+        offset: Schema.optional(Schema.Int),
+      },
+      success: IssueEvents,
       error: IssueNotFound,
     }),
     HttpApiEndpoint.put("setStatus", "/:id/status", {

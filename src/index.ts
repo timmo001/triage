@@ -1,11 +1,21 @@
-import { BunRuntime, BunServices } from "@effect/platform-bun";
+import { BunRuntime, BunServices, BunStdio } from "@effect/platform-bun";
 import type { Issue } from "@timmo001/effect-triage";
-import { Config, Console, Effect, Layer, Option, Redacted } from "effect";
+import {
+  Config,
+  Console,
+  Effect,
+  Layer,
+  Logger,
+  Option,
+  Redacted,
+} from "effect";
+import { McpServer } from "effect/ai";
 import { Argument, CliError, Command, Flag } from "effect/cli";
 import packageJson from "../package.json" with { type: "json" };
 import { Attribution } from "./collect/Attribution.js";
 import { Collector } from "./collect/Collector.js";
 import { Journal } from "./journal/Journal.js";
+import { IssueTools, IssueToolsLayer, mcpOptions } from "./mcp/IssueTools.js";
 import { layerOptions } from "./options.js";
 import { Redactor } from "./redact.js";
 import { IssueAdmin } from "./server/IssueAdmin.js";
@@ -506,6 +516,36 @@ const agreementCommand = Command.make(
   ),
 );
 
+const mcp = Command.make(
+  "mcp",
+  {
+    server: serverFlag(
+      "Read issues from the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
+  },
+  Effect.fn(function* (input) {
+    // Stdout carries the protocol, so logs go to stderr.
+    return yield* withIssueAdmin(
+      input.server,
+      Layer.launch(
+        McpServer.toolkit(IssueTools).pipe(
+          Layer.provide(IssueToolsLayer),
+          Layer.provide(McpServer.layerStdio(mcpOptions)),
+          Layer.provide(BunStdio.layer),
+        ),
+      ).pipe(
+        Effect.provide(
+          Logger.layer([Logger.withConsoleError(Logger.defaultLogger)]),
+        ),
+      ),
+    );
+  }),
+).pipe(
+  Command.withDescription(
+    "Serve MCP over stdio, so agents can read issues and their events from an issue ID or a link to its page",
+  ),
+);
+
 /** Whether and how this device decides on issues and suggests fixes. */
 const processFlags = {
   decide: Flag.Boolean("decide").pipe(
@@ -591,7 +631,7 @@ const serve = Command.make(
     ),
     ingressPort: Flag.Int("ingress-port").pipe(
       Flag.withDescription(
-        "A second port for Home Assistant ingress, which only answers --ingress-from and needs no admin token",
+        "A second port for Home Assistant ingress, which only answers --ingress-from, and --ingress-mcp-from on /mcp, and needs no admin token",
       ),
       Flag.withFallbackConfig(Config.Int("TRIAGE_INGRESS_PORT")),
       Flag.optional,
@@ -602,6 +642,13 @@ const serve = Command.make(
       ),
       Flag.withFallbackConfig(Config.String("TRIAGE_INGRESS_FROM")),
       Flag.withDefault("172.30.32.2"),
+    ),
+    ingressMcpFrom: Flag.String("ingress-mcp-from").pipe(
+      Flag.withDescription(
+        "The address Home Assistant Core reaches the ingress port from, which may use /mcp there without a token",
+      ),
+      Flag.withFallbackConfig(Config.String("TRIAGE_INGRESS_MCP_FROM")),
+      Flag.withDefault("172.30.32.1"),
     ),
     decideDaily: Flag.Int("decide-daily").pipe(
       Flag.withDescription(
@@ -822,6 +869,7 @@ const triage = Command.make("triage").pipe(
     mute,
     reopen,
     agreementCommand,
+    mcp,
   ]),
 );
 

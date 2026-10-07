@@ -33,8 +33,9 @@ Environment variables win over the file. The Home Assistant app uses this for it
 | `TRIAGE_SERVER_DB` | `$XDG_STATE_HOME/triage/server.db` (`/data/server.db` in the container) | Server database |
 | `TRIAGE_TRUST_PROXY` | `false` | Trust `X-Forwarded-Host` and `X-Forwarded-For`. Only turn this on when the proxy is the only way to reach the server |
 | `TRIAGE_SERVER_ADMIN_TOKEN` | none | An admin token the server always accepts, at least 32 characters, for managing tokens with `--server`. It isn't stored or listed |
-| `TRIAGE_INGRESS_PORT` | none (`8099` in the Home Assistant app) | A second port for Home Assistant ingress, which treats every request as an admin's and only answers `TRIAGE_INGRESS_FROM` |
-| `TRIAGE_INGRESS_FROM` | `172.30.32.2`, Home Assistant's Supervisor | The only address the ingress port answers |
+| `TRIAGE_INGRESS_PORT` | none (`8099` in the Home Assistant app) | A second port for Home Assistant ingress, which treats every request as an admin's and only answers `TRIAGE_INGRESS_FROM`, and `TRIAGE_INGRESS_MCP_FROM` on `/mcp` |
+| `TRIAGE_INGRESS_FROM` | `172.30.32.2`, Home Assistant's Supervisor | The address the ingress port answers |
+| `TRIAGE_INGRESS_MCP_FROM` | `172.30.32.1`, Home Assistant Core | The address that may use the ingress port's [MCP server](/agents) at `/mcp` without a token |
 | `TRIAGE_DECIDE_DAILY` | `100` | The most issues each decision model may decide on in any 24 hours, by the server and its workers together |
 | `TRIAGE_SUGGEST_DAILY` | `5` | The most suggestions each language model may make in any 24 hours, by the server and its workers together |
 

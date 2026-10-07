@@ -8,9 +8,13 @@ import {
   HttpServerResponse,
 } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
+import { McpServer } from "effect/ai";
+import { IssueTools, IssueToolsLayer, mcpOptions } from "../mcp/IssueTools.js";
 import { Store } from "../store/Store.js";
 import { agreement } from "../triage/Triager.js";
 import { Work } from "../triage/Work.js";
+import * as HomeAssistant from "./HomeAssistant.js";
+import { IssueAdmin } from "./IssueAdmin.js";
 import { Tokens } from "./Tokens.js";
 import { bundleWeb } from "./webBundle.js" with { type: "macro" };
 
@@ -18,7 +22,7 @@ const defaultIssues = 50;
 
 const maxIssues = 500;
 
-const issueEvents = 20;
+const defaultEvents = 100;
 
 const HostAuthorizationLayer = Layer.effect(
   Api.HostAuthorization,
@@ -138,7 +142,7 @@ const IssuesHandlers = HttpApiBuilder.group(
       counts: ({ query }) => store.issueCounts(query).pipe(Effect.orDie),
       get: Effect.fn(function* ({ params }) {
         const review = yield* store
-          .review(params.id, issueEvents)
+          .review(params.id, Api.latestEvents)
           .pipe(Effect.orDie);
 
         if (Option.isNone(review)) {
@@ -146,6 +150,20 @@ const IssuesHandlers = HttpApiBuilder.group(
         }
 
         return review.value;
+      }),
+      events: Effect.fn(function* ({ params, query }) {
+        const page = yield* store
+          .events(params.id, {
+            limit: bounded(query.limit, defaultEvents, Api.maxEventPage),
+            offset: Math.max(query.offset ?? 0, 0),
+          })
+          .pipe(Effect.orDie);
+
+        if (Option.isNone(page)) {
+          return yield* new Api.IssueNotFound({ id: params.id });
+        }
+
+        return page.value;
       }),
       setStatus: ({ params, payload }) =>
         store.setStatus(params.id, payload.status).pipe(
@@ -289,7 +307,7 @@ export const routes = apiRoutes(AdminAuthorizationLayer);
 
 /**
  * Admin access for Home Assistant ingress, where Home Assistant has already
- * signed the user in. Only safe behind `onlyFrom`.
+ * signed the user in. Only safe behind `ingressGuard`.
  */
 const IngressAdminAuthorizationLayer = Layer.succeed(
   Api.AdminAuthorization,
@@ -301,20 +319,72 @@ const IngressAdminAuthorizationLayer = Layer.succeed(
   }),
 );
 
-/** Refuses every request that doesn't come from `address`. */
-const onlyFrom =
-  (address: string) =>
+const mcpPath = "/mcp";
+
+/** The MCP server at `/mcp`, reading this server's issues. */
+const mcpRoutes = McpServer.toolkit(IssueTools).pipe(
+  Layer.provide(IssueToolsLayer),
+  Layer.provide(IssueAdmin.layerLocal),
+  Layer.provide(McpServer.layerHttp({ ...mcpOptions, path: mcpPath })),
+);
+
+/** Refuses MCP requests without an admin token. */
+const McpAdminAuthorization = HttpRouter.middleware(
+  Effect.gen(function* () {
+    const tokens = yield* Tokens;
+
+    return (httpEffect) =>
+      Effect.gen(function* () {
+        const request = yield* HttpServerRequest.HttpServerRequest;
+
+        const bearer = /^Bearer (.+)$/i.exec(
+          request.headers["authorization"] ?? "",
+        )?.[1];
+
+        const admin =
+          bearer === undefined
+            ? Option.none()
+            : yield* tokens
+                .authenticate("admin", Redacted.make(bearer))
+                .pipe(Effect.orDie);
+
+        return Option.isNone(admin)
+          ? HttpServerResponse.empty({ status: 401 })
+          : yield* httpEffect;
+      });
+  }),
+).layer;
+
+/**
+ * Lets the Supervisor reach everything on the ingress port, and Home Assistant
+ * Core reach only `/mcp`, so Assist can use triage's tools.
+ */
+const ingressGuard =
+  (options: { readonly supervisor: string; readonly core: string }) =>
   <E, R>(
     httpEffect: Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>,
   ) =>
-    Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) =>
-      Option.exists(
-        request.remoteAddress,
-        (remote) => remote === address || remote === `::ffff:${address}`,
-      )
-        ? httpEffect
-        : Effect.succeed(HttpServerResponse.empty({ status: 403 })),
-    );
+    Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
+      const from = (address: string) =>
+        Option.exists(
+          request.remoteAddress,
+          (remote) => remote === address || remote === `::ffff:${address}`,
+        );
+
+      const mcp = new URL(request.url, "http://triage").pathname === mcpPath;
+
+      if (from(options.supervisor) || (mcp && from(options.core))) {
+        return httpEffect;
+      }
+
+      return (
+        mcp
+          ? Effect.logWarning(
+              `Refused MCP from ${Option.getOrElse(request.remoteAddress, () => "an unknown address")}`,
+            )
+          : Effect.void
+      ).pipe(Effect.as(HttpServerResponse.empty({ status: 403 })));
+    });
 
 const contentTypes = new Map([
   ["html", "text/html; charset=utf-8"],
@@ -373,6 +443,7 @@ const web = (options: { readonly ingress: boolean }) =>
     if (
       path === "api" ||
       path.startsWith("api/") ||
+      path === mcpPath.slice(1) ||
       (path.includes(".") && path !== "index.html")
     ) {
       return Effect.succeed(notFound);
@@ -404,6 +475,11 @@ export interface ServeOptions {
   readonly ingressPort: Option.Option<number>;
   /** The address ingress requests come from: the Supervisor's. */
   readonly ingressFrom: string;
+  /**
+   * The address Home Assistant Core reaches the ingress port from, which may
+   * use `/mcp` there.
+   */
+  readonly ingressMcpFrom: string;
 }
 
 /**
@@ -413,7 +489,11 @@ export interface ServeOptions {
 export const layer = (options: ServeOptions) =>
   Layer.mergeAll(
     HttpRouter.serve(
-      Layer.merge(routes, web({ ingress: false })),
+      Layer.mergeAll(
+        routes,
+        mcpRoutes.pipe(Layer.provide(McpAdminAuthorization)),
+        web({ ingress: false }),
+      ),
       options.trustProxy
         ? { middleware: HttpMiddleware.xForwardedHeaders }
         : {},
@@ -425,16 +505,25 @@ export const layer = (options: ServeOptions) =>
     Option.match(options.ingressPort, {
       onNone: () => Layer.empty,
       onSome: (port) =>
-        HttpRouter.serve(
-          Layer.merge(
-            apiRoutes(IngressAdminAuthorizationLayer),
-            web({ ingress: true }),
+        Layer.merge(
+          HttpRouter.serve(
+            Layer.mergeAll(
+              apiRoutes(IngressAdminAuthorizationLayer),
+              mcpRoutes,
+              web({ ingress: true }),
+            ),
+            {
+              middleware: ingressGuard({
+                supervisor: options.ingressFrom,
+                core: options.ingressMcpFrom,
+              }),
+            },
+          ).pipe(
+            Layer.provide(
+              BunHttpServer.layer({ hostname: options.hostname, port }),
+            ),
           ),
-          { middleware: onlyFrom(options.ingressFrom) },
-        ).pipe(
-          Layer.provide(
-            BunHttpServer.layer({ hostname: options.hostname, port }),
-          ),
+          HomeAssistant.layerDiscovery({ port, path: mcpPath }),
         ),
     }),
   );

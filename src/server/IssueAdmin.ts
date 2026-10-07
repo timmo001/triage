@@ -1,5 +1,5 @@
 import { Api, type Issue, TriageClient } from "@timmo001/effect-triage-client";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { Store } from "../store/Store.js";
 import { agreement } from "../triage/Triager.js";
@@ -20,8 +20,8 @@ export class IssueAdminError extends Schema.TaggedError<IssueAdminError>()(
 const toIssueAdminError = (cause: unknown) => new IssueAdminError({ cause });
 
 /**
- * Lists, labels, resolves, mutes and reopens a server's issues, and compares
- * its decision models with the labels, here or over its API.
+ * Lists, reads, labels, resolves, mutes and reopens a server's issues, and
+ * compares its decision models with the labels, here or over its API.
  */
 export class IssueAdmin extends Context.Service<
   IssueAdmin,
@@ -42,6 +42,15 @@ export class IssueAdmin extends Context.Service<
       ReadonlyArray<Api.Agreement>,
       IssueAdminError
     >;
+    /** An issue with its latest events and what the models made of it. */
+    review(
+      id: string,
+    ): Effect.Effect<Api.IssueReview, Api.IssueNotFound | IssueAdminError>;
+    /** A page of an issue's events, newest first. */
+    events(
+      id: string,
+      page: { readonly limit: number; readonly offset: number },
+    ): Effect.Effect<Api.IssueEvents, Api.IssueNotFound | IssueAdminError>;
   }
 >()("triage/server/IssueAdmin") {
   /** The issues in this machine's server database. */
@@ -71,6 +80,26 @@ export class IssueAdmin extends Context.Service<
           Effect.map(agreement),
           Effect.mapError(toIssueAdminError),
         ),
+        review: (id) =>
+          store.review(id, Api.latestEvents).pipe(
+            Effect.mapError(toIssueAdminError),
+            Effect.flatMap(
+              Option.match({
+                onNone: () => Effect.fail(new Api.IssueNotFound({ id })),
+                onSome: Effect.succeed,
+              }),
+            ),
+          ),
+        events: (id, page) =>
+          store.events(id, page).pipe(
+            Effect.mapError(toIssueAdminError),
+            Effect.flatMap(
+              Option.match({
+                onNone: () => Effect.fail(new Api.IssueNotFound({ id })),
+                onSome: Effect.succeed,
+              }),
+            ),
+          ),
       });
     }),
   );
@@ -114,6 +143,26 @@ export class IssueAdmin extends Context.Service<
               agreement: client.decisions
                 .agreement()
                 .pipe(Effect.mapError(toIssueAdminError)),
+              review: (id) =>
+                client.issues
+                  .get({ params: { id } })
+                  .pipe(
+                    Effect.mapError((error) =>
+                      Schema.is(Api.IssueNotFound)(error)
+                        ? error
+                        : toIssueAdminError(error),
+                    ),
+                  ),
+              events: (id, page) =>
+                client.issues
+                  .events({ params: { id }, query: page })
+                  .pipe(
+                    Effect.mapError((error) =>
+                      Schema.is(Api.IssueNotFound)(error)
+                        ? error
+                        : toIssueAdminError(error),
+                    ),
+                  ),
             });
           }),
         ).pipe(

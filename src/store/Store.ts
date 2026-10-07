@@ -398,6 +398,11 @@ export class Store extends Context.Service<
       id: string,
       events: number,
     ): Effect.Effect<Option.Option<Api.IssueReview>, StoreError>;
+    /** A page of an issue's events, newest first. */
+    events(
+      id: string,
+      page: { readonly limit: number; readonly offset: number },
+    ): Effect.Effect<Option.Option<Api.IssueEvents>, StoreError>;
     /** Add a token. Returns false when the name is already taken in its scope. */
     addToken(
       scope: TokenScope,
@@ -768,10 +773,14 @@ export class Store extends Context.Service<
     });
 
     const issueEvents = SqlSchema.findAll({
-      Request: Schema.Struct({ id: Schema.String, limit: Schema.Int }),
+      Request: Schema.Struct({
+        id: Schema.String,
+        limit: Schema.Int,
+        offset: Schema.Int,
+      }),
       Result: Schema.Struct({ data: EventJson }),
-      execute: ({ id, limit }) =>
-        sql`SELECT data FROM events WHERE issue_id = ${id} ORDER BY timestamp DESC LIMIT ${limit}`,
+      execute: ({ id, limit, offset }) =>
+        sql`SELECT data FROM events WHERE issue_id = ${id} ORDER BY timestamp DESC, host, id LIMIT ${limit} OFFSET ${offset}`,
     });
 
     const issue = Effect.fn("Store.issue")(
@@ -782,10 +791,28 @@ export class Store extends Context.Service<
           return Option.none();
         }
 
-        const rows = yield* issueEvents({ id, limit });
+        const rows = yield* issueEvents({ id, limit, offset: 0 });
 
         return Option.some({
           issue: toIssue(row.value, yield* Clock.currentTimeMillis),
+          events: rows.map((event) => event.data),
+        });
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const events = Effect.fn("Store.events")(
+      function* (id: string, page: { limit: number; offset: number }) {
+        const row = yield* findIssue(id);
+
+        if (Option.isNone(row)) {
+          return Option.none();
+        }
+
+        const rows = yield* issueEvents({ id, ...page });
+
+        return Option.some<Api.IssueEvents>({
+          total: row.value.count,
           events: rows.map((event) => event.data),
         });
       },
@@ -1147,6 +1174,7 @@ export class Store extends Context.Service<
       issueCounts,
       hosts,
       issue,
+      events,
       review,
       addToken,
       tokenName,

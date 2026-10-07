@@ -24,6 +24,7 @@ Each command has its own page with its help, as `triage <command> --help` prints
 | [`mute`](/commands/mute) | None |
 | [`reopen`](/commands/reopen) | None |
 | [`agreement`](/commands/agreement) | None |
+| [`mcp`](/commands/mcp) | None |
 
 ## Global flags
 
@@ -57,4 +58,5 @@ SUBCOMMANDS
   mute         Mute issues, so they're never decided on or suggested fixes for, however often they happen
   reopen       Reopen resolved or muted issues
   agreement    Compare each decision model with the hand labels: how often it's sure enough to act on, and how often it's right when it is
+  mcp          Serve MCP over stdio, so agents can read issues and their events from an issue ID or a link to its page
 ```
