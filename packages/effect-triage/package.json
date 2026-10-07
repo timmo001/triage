@@ -1,6 +1,6 @@
 {
   "name": "@timmo001/effect-triage",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Effect schemas and protocol for triage, which captures crashes and errors and decides which are worth fixing",
   "keywords": [
     "effect",
