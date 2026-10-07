@@ -3,6 +3,7 @@
 # https://triage.timmo.dev/languages/
 #
 # Run `mise run translations:check` after changing a translation.
+---
 configuration:
   # An admin token for setting up the server before any admin exists.
   server_admin_token:

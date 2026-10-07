@@ -10,4 +10,5 @@
 !web/index.html
 !web/favicon.svg
 !web/src/**
+!web/translations/**
 **/*.test.ts
