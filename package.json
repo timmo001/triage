@@ -23,12 +23,12 @@
     "build:packages": "bun run --cwd packages/effect-triage build && bun run --cwd packages/client build"
   },
   "dependencies": {
-    "@effect/ai-anthropic": "4.0.1",
-    "@effect/ai-cloudflare": "4.0.1",
-    "@effect/ai-openai-compat": "4.0.1",
-    "@effect/ai-typesafe": "4.0.1",
-    "@effect/platform-bun": "4.0.1",
-    "@effect/sql-sqlite-bun": "4.0.1",
+    "@effect/ai-anthropic": "4.0.2",
+    "@effect/ai-cloudflare": "4.0.2",
+    "@effect/ai-openai-compat": "4.0.2",
+    "@effect/ai-typesafe": "4.0.2",
+    "@effect/platform-bun": "4.0.2",
+    "@effect/sql-sqlite-bun": "4.0.2",
     "@timmo001/effect-triage": "workspace:*",
     "@timmo001/effect-triage-client": "workspace:*",
     "effect": "4.0.1"

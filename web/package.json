@@ -9,7 +9,7 @@
     "lint:lit": "lit-analyzer \"src/**/*.ts\" --strict"
   },
   "dependencies": {
-    "@effect/platform-browser": "4.0.1",
+    "@effect/platform-browser": "4.0.2",
     "@mdi/js": "7.4.47",
     "@tanstack/lit-table": "9.2.6",
     "@tanstack/lit-virtual": "3.14.2",
