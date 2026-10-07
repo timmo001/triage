@@ -62,6 +62,7 @@ git worktree remove --force "$dir"
 Unit tests aren't real testing. Run the changes against this machine's journal from source, without touching an installed triage:
 
 - Run the CLI with `bun run src/index.ts <command>`, and point anything that writes state at a throwaway database under `/tmp/opencode`.
+- The shell's `TRIAGE_SERVER` and tokens point at the user's production server, and every `--server` command falls back to them. Unset them on each command (`env -u TRIAGE_SERVER -u TRIAGE_ADMIN_TOKEN -u TRIAGE_WORKER_TOKEN -u TRIAGE_TOKEN ...`), or use the `serve:server:*` tasks for the dev server, as `AGENTS.md` describes. Never test against production.
 - Exercise the changed behaviour with real entries: capture recent crashes and errors, then check grouping, redaction and cursor resume by capturing twice.
 - Read the captured events back and confirm nothing secret or personal survived redaction before reporting them.
 

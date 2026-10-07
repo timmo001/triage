@@ -165,4 +165,14 @@ run = "pitchfork stop web"
 [tasks."serve:server:enrol"]
 description = "Enrol a host with the background local server, printing its token"
 usage = 'arg "<name>" help="The host name, such as desktop"'
-run = 'TRIAGE_SERVER_DB="${XDG_STATE_HOME:-$HOME/.local/state}/triage/dev-server.db" bun run src/index.ts hosts add "${usage_name?}"'
+run = 'env -u TRIAGE_SERVER -u TRIAGE_ADMIN_TOKEN TRIAGE_SERVER_DB="${XDG_STATE_HOME:-$HOME/.local/state}/triage/dev-server.db" bun run src/index.ts hosts add "${usage_name?}"'
+
+[tasks."serve:server:admin"]
+description = "Add an admin to the background local server, printing its token"
+usage = 'arg "<name>" help="The admin name, such as agent"'
+run = 'env -u TRIAGE_SERVER -u TRIAGE_ADMIN_TOKEN TRIAGE_SERVER_DB="${XDG_STATE_HOME:-$HOME/.local/state}/triage/dev-server.db" bun run src/index.ts admins add "${usage_name?}"'
+
+[tasks."serve:server:unadmin"]
+description = "Remove an admin from the background local server"
+usage = 'arg "<name>" help="The admin name"'
+run = 'env -u TRIAGE_SERVER -u TRIAGE_ADMIN_TOKEN TRIAGE_SERVER_DB="${XDG_STATE_HOME:-$HOME/.local/state}/triage/dev-server.db" bun run src/index.ts admins remove "${usage_name?}"'

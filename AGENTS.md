@@ -21,11 +21,24 @@
 ## Background Dev Servers
 
 - Start a local server from source with `mise run serve:server`, which runs it through Pitchfork in the background in watch mode and restarts it if it stops responding. Do not run `triage serve` in the foreground from an agent.
-- Use `mise run serve:server:status`, `serve:server:logs`, `serve:server:restart` and `serve:server:stop` to manage it, and `mise run serve:server:enrol <name>` to enrol a host with it.
+- Use `mise run serve:server:status`, `serve:server:logs`, `serve:server:restart` and `serve:server:stop` to manage it, `mise run serve:server:enrol <name>` to enrol a host with it, and `mise run serve:server:admin <name>` and `serve:server:unadmin <name>` to add and remove an admin for testing the admin API or `/mcp`.
 - The daemon is configured in `pitchfork.toml`. It serves `http://127.0.0.1:7172/` from `dev-server.db`, so it never touches a real server's port or database. If 7172 is taken it moves to the next free port; `mise run serve:server:status` shows which. With the Pitchfork proxy enabled it's always at `https://server.triage.localhost`.
 - Start the web UI with `mise run serve:web`, which starts the background server too and runs `scripts/web-dev.ts` through Pitchfork. It serves `http://127.0.0.1:7180/` (`https://web.triage.localhost` through the Pitchfork proxy) and sends API requests to the server on 7172, or `TRIAGE_DEV_API`. Manage it with the matching `serve:web:status`, `serve:web:logs`, `serve:web:restart` and `serve:web:stop` tasks.
 - Test through the Pitchfork proxy's HTTPS addresses, `https://server.triage.localhost` and `https://web.triage.localhost`, in the browser, with curl and anywhere else. Never add the proxy's own port, such as `:8443`, even if Pitchfork prints one: that means the 443 redirect is missing (it's lost on reboot), so run `pitchfork proxy doctor`, then `pitchfork proxy setup -y` to restore it. Use the `127.0.0.1` ports only when the proxy isn't running.
 - Start the docs dev server with `mise run serve:docs:dev`, which runs it through Pitchfork in the background and restarts it if it exits or stops responding. Do not run `mise run docs:dev` or `blume dev` in the foreground from an agent. Manage it with the matching `serve:docs:status`, `serve:docs:logs`, `serve:docs:restart` and `serve:docs:stop` tasks. It serves `http://localhost:4321/`.
+
+## Never Touch The Real Server
+
+- The user's shell sets `TRIAGE_SERVER`, `TRIAGE_ADMIN_TOKEN` and sometimes `TRIAGE_WORKER_TOKEN` or `TRIAGE_TOKEN` for their production server. Every command with `--server` falls back to `TRIAGE_SERVER` when the flag is left out, so `bun run src/index.ts hosts add`, `admins add`, `resolve`, `label`, `decide`, `suggest`, `mcp` and the rest act on production even with `TRIAGE_SERVER_DB` set.
+- From an agent, never run a server or token command against that environment. Use the `serve:server:*` tasks, which unset it. For anything else, unset it on the command itself and point at the dev server or a throwaway database explicitly:
+
+  ```bash
+  env -u TRIAGE_SERVER -u TRIAGE_ADMIN_TOKEN -u TRIAGE_WORKER_TOKEN -u TRIAGE_TOKEN TRIAGE_SERVER_DB=/tmp/opencode/test.db bun run src/index.ts <command>
+  env -u TRIAGE_SERVER TRIAGE_ADMIN_TOKEN=<dev token> bun run src/index.ts <command> --server http://127.0.0.1:7172
+  ```
+
+- Before running one, check `printenv TRIAGE_SERVER` if you aren't sure. A printed URL that isn't `127.0.0.1` or `*.triage.localhost` is production.
+- If a command reaches production by mistake, undo it straight away (for example `admins remove` for a token you added), and tell the user what happened and what you undid.
 
 ## Docs
 
