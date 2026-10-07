@@ -179,6 +179,119 @@ const toSuggestion = (row: typeof SuggestionRow.Type): Api.IssueSuggestion => ({
   text: row.text,
 });
 
+/**
+ * Merge issues into the issue for a fingerprint, creating it when it doesn't
+ * exist. The merged issue is muted if any of them was, open if any was and
+ * resolved otherwise, and keeps the latest decision and suggestion from each
+ * model and the latest label.
+ */
+const mergeIssues = Effect.fnUntraced(function* (
+  key: string,
+  ids: ReadonlyArray<string>,
+) {
+  const sql = yield* SqlClient.SqlClient;
+  const next = Fingerprint.issueId(key);
+  const sources = ids.filter((id) => id !== next);
+
+  if (sources.length === 0) {
+    return;
+  }
+
+  const rows = yield* sql<{
+    status: string;
+    resolved_at: number | null;
+    regressed_at: number | null;
+  }>`
+    SELECT status, resolved_at, regressed_at FROM issues
+    WHERE id IN ${sql.in([next, ...sources])}
+  `;
+
+  const status =
+    ["muted", "open"].find((s) => rows.some((row) => row.status === s)) ??
+    "resolved";
+
+  const latest = (values: ReadonlyArray<number | null>) =>
+    values.reduce<number | null>(
+      (max, value) =>
+        value !== null && (max === null || value > max) ? value : max,
+      null,
+    );
+
+  yield* sql`
+    INSERT OR IGNORE INTO issues (id, fingerprint, kind, title, first_seen,
+      last_seen, count)
+    SELECT ${next}, ${key}, kind, title, first_seen, last_seen, count
+    FROM issues WHERE id = ${sources[0]}
+  `;
+
+  for (const id of sources) {
+    yield* sql`
+      INSERT INTO decisions (issue_id, model, decided_at, decided_by,
+        issue_count, worth, severity, cause, answers)
+      SELECT ${next}, model, decided_at, decided_by, issue_count, worth,
+        severity, cause, answers
+      FROM decisions WHERE issue_id = ${id}
+      ON CONFLICT (issue_id, model) DO UPDATE SET
+        decided_at = excluded.decided_at, decided_by = excluded.decided_by,
+        issue_count = excluded.issue_count, worth = excluded.worth,
+        severity = excluded.severity, cause = excluded.cause,
+        answers = excluded.answers
+      WHERE excluded.decided_at > decisions.decided_at
+    `;
+    yield* sql`
+      INSERT INTO labels (issue_id, worth, labelled_at)
+      SELECT ${next}, worth, labelled_at FROM labels WHERE issue_id = ${id}
+      ON CONFLICT (issue_id) DO UPDATE SET
+        worth = excluded.worth, labelled_at = excluded.labelled_at
+      WHERE excluded.labelled_at > labels.labelled_at
+    `;
+    yield* sql`
+      INSERT INTO suggestions (issue_id, model, suggested_at, suggested_by,
+        issue_count, text, evidence)
+      SELECT ${next}, model, suggested_at, suggested_by, issue_count, text,
+        evidence
+      FROM suggestions WHERE issue_id = ${id}
+      ON CONFLICT (issue_id, model) DO UPDATE SET
+        suggested_at = excluded.suggested_at,
+        suggested_by = excluded.suggested_by,
+        issue_count = excluded.issue_count, text = excluded.text,
+        evidence = excluded.evidence
+      WHERE excluded.suggested_at > suggestions.suggested_at
+    `;
+    yield* sql`UPDATE events SET issue_id = ${next} WHERE issue_id = ${id}`;
+    yield* sql`DELETE FROM decisions WHERE issue_id = ${id}`;
+    yield* sql`DELETE FROM labels WHERE issue_id = ${id}`;
+    yield* sql`DELETE FROM suggestions WHERE issue_id = ${id}`;
+    yield* sql`DELETE FROM issues WHERE id = ${id}`;
+  }
+
+  yield* sql`
+    UPDATE issues SET
+      first_seen = (SELECT MIN(timestamp) FROM events WHERE issue_id = ${next}),
+      last_seen = (SELECT MAX(timestamp) FROM events WHERE issue_id = ${next}),
+      count = (SELECT COUNT(*) FROM events WHERE issue_id = ${next}),
+      status = ${status},
+      resolved_at = ${latest(rows.map((row) => row.resolved_at))},
+      regressed_at = ${latest(rows.map((row) => row.regressed_at))}
+    WHERE id = ${next}
+  `;
+});
+
+/** Merge issues whose fingerprints now map to the same one. */
+const mergeGroups = Effect.fnUntraced(function* (
+  issues: ReadonlyArray<{ id: string; fingerprint: string }>,
+  rekey: (fingerprint: string) => string,
+) {
+  const groups = Map.groupBy(issues, (issue) => rekey(issue.fingerprint));
+
+  for (const [key, group] of groups) {
+    yield* mergeIssues(
+      key,
+      group.map((issue) => issue.id),
+    );
+  }
+});
+
 const migrations = SqliteMigrator.fromRecord({
   "0001_events_and_issues": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -371,6 +484,25 @@ const migrations = SqliteMigrator.fromRecord({
       yield* sql`DELETE FROM suggestions WHERE issue_id = ${id}`;
       yield* sql`DELETE FROM issues WHERE id = ${id}`;
     }
+  }),
+  // Crash frames now name their module by its file name, so a crash reported
+  // with the module's full path joins the issue for the same crash without it.
+  "0011_crash_module_names": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    const crashes = yield* sql<{ id: string; fingerprint: string }>`
+      SELECT id, fingerprint FROM issues
+      WHERE kind = 'Crash' AND fingerprint LIKE '%|/%'
+    `;
+
+    yield* mergeGroups(crashes, (fingerprint) =>
+      fingerprint
+        .split("|")
+        .map((part) =>
+          part.startsWith("/") ? part.slice(part.lastIndexOf("/") + 1) : part,
+        )
+        .join("|"),
+    );
   }),
 });
 

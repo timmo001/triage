@@ -51,6 +51,12 @@ describe("fingerprint", () => {
       "crash|ghostty|SIGSEGV|ghostty|g_main_context_dispatch|main",
     );
     expect(fingerprint({ ...crash, host: "desktop" })).toBe(fingerprint(crash));
+    expect(
+      fingerprint({
+        ...crash,
+        frames: [{ module: "/usr/bin/ghostty" }, ...crash.frames.slice(1)],
+      }),
+    ).toBe(fingerprint(crash));
   });
 
   test("keeps log errors to one host", () => {

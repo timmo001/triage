@@ -68,7 +68,11 @@ export const fingerprint = (event: Event): string =>
         crash.signal,
         ...crash.frames
           .slice(0, crashFrames)
-          .map((frame) => frame.function ?? frame.module ?? "?"),
+          .map(
+            (frame) =>
+              frame.function ??
+              (frame.module === undefined ? "?" : basename(frame.module)),
+          ),
       ].join("|"),
     UnitFailure: (failure) =>
       [
