@@ -1,13 +1,16 @@
 import { BunRuntime, BunServices, BunStdio } from "@effect/platform-bun";
 import type { Issue } from "@timmo001/effect-triage";
 import {
+  Cause,
   Config,
   Console,
   Effect,
+  Exit,
   Layer,
   Logger,
   Option,
   Redacted,
+  Runtime,
 } from "effect";
 import { McpServer } from "effect/ai";
 import { Argument, CliError, Command, Flag } from "effect/cli";
@@ -873,6 +876,15 @@ const triage = Command.make("triage").pipe(
   ]),
 );
 
+// SIGTERM is a request to stop, as from Docker or the Home Assistant
+// Supervisor, so stopping because of it exits with 0. Ctrl-C still exits
+// with 130.
+let terminated = false;
+
+process.once("SIGTERM", () => {
+  terminated = true;
+});
+
 triage.pipe(
   Command.run({ version: packageJson.version }),
   Effect.provide(
@@ -881,5 +893,10 @@ triage.pipe(
       layerOptions.pipe(Layer.provide(BunServices.layer)),
     ),
   ),
-  BunRuntime.runMain,
+  BunRuntime.runMain({
+    teardown: (exit, onExit) =>
+      terminated && Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)
+        ? onExit(0)
+        : Runtime.defaultTeardown(exit, onExit),
+  }),
 );
