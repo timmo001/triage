@@ -61,10 +61,10 @@ tar -xzf triage-<version>-linux-x86_64.tar.gz
 install -Dm755 triage ~/.local/bin/triage
 ```
 
-Release assets come with a `SHA256SUMS` file and a Sigstore bundle. To check an asset was built by this repository's release workflow:
+Release assets come with a `SHA256SUMS` file and a Sigstore bundle. Releases are built by a shared workflow in `timmo001/workflows`, so name it as the signer when you check an asset:
 
 ```bash
-gh attestation verify triage-<version>-linux-x86_64.tar.gz --repo timmo001/triage
+gh attestation verify triage-<version>-linux-x86_64.tar.gz --repo timmo001/triage --signer-repo timmo001/workflows
 ```
 
 ## Build from source
