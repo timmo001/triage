@@ -1,6 +1,7 @@
 import { css, html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
 import { registry } from "./AtomController.js";
+import { parts, t } from "./i18n.js";
 import { token } from "./triage.js";
 import { shared } from "./ui.js";
 
@@ -34,8 +35,8 @@ export class TriageSignIn extends LitElement {
   override render() {
     return html`
       <form @submit=${this.#submit}>
-        <h1>Sign in</h1>
-        <label for="token">Admin token</label>
+        <h1>${t("signIn.title")}</h1>
+        <label for="token">${t("signIn.token")}</label>
         <input
           id="token"
           name="token"
@@ -44,10 +45,11 @@ export class TriageSignIn extends LitElement {
           required
         />
         <p class="muted-text">
-          Add one with <code>triage admins add &lt;name&gt;</code>. It's kept in
-          this browser.
+          ${parts("signIn.hint", {
+            command: html`<code>triage admins add &lt;name&gt;</code>`,
+          })}
         </p>
-        <button type="submit">Sign in</button>
+        <button type="submit">${t("signIn.submit")}</button>
       </form>
     `;
   }

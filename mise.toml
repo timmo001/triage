@@ -69,8 +69,18 @@ depends = ["install"]
 run = "bun run format:check"
 
 [tasks.check]
-description = "Lint, type-check, verify formatting and check the generated design docs"
-depends = ["lint", "lint:lit", "typecheck", "format:check", "docs:check"]
+description = "Lint, type-check, verify formatting, check the generated design docs and check the translations"
+depends = ["lint", "lint:lit", "typecheck", "format:check", "docs:check", "translations:check"]
+
+[tasks."translations:check"]
+description = "Check every translation has English's keys, placeholders and the plural forms its language needs"
+depends = ["install"]
+run = "bun run translations:check"
+
+[tasks."translations:gen"]
+description = "Regenerate the web UI's message keys from the English translation"
+depends = ["install"]
+run = "bun scripts/check-translations.ts --write"
 
 [tasks."docs:gen"]
 description = "Regenerate the docs command reference from the CLI's help and the design docs from the web UI's tokens"

@@ -8,6 +8,8 @@ Capture crashes and errors from your machines, decide which are worth fixing, an
 
 See the [documentation](https://triage.timmo.dev) to install, set up and use it.
 
+The web UI comes in 10 [languages](https://triage.timmo.dev/languages/). The translations are AI-generated, and translators are very welcome.
+
 ## Packages
 
 | Package | What it's for |

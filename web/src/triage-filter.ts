@@ -7,6 +7,7 @@ import {
 import { VirtualizerController } from "@tanstack/lit-virtual";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, query } from "lit/decorators.js";
+import { t } from "./i18n.js";
 import { badge, icon, shared } from "./ui.js";
 import "./triage-skeleton.js";
 
@@ -311,7 +312,11 @@ export class TriageFilter extends LitElement {
           ${
             this.loading || this.options.length === 0
               ? nothing
-              : html`<span title="${shown} of ${this.options.length} shown"
+              : html`<span
+                  title=${t("filter.shown", {
+                    shown,
+                    count: this.options.length,
+                  })}
                   >${badge({
                     path: mdiEyeOutline,
                     content: `${shown}/${this.options.length}`,
@@ -324,8 +329,8 @@ export class TriageFilter extends LitElement {
           filtering
             ? html`<button
                 class="clear icon-only"
-                aria-label="Clear the ${this.label} filter"
-                title="Clear filter"
+                aria-label=${t("filter.clearNamed", { filter: this.label })}
+                title=${t("filter.clear")}
                 @click=${() => this.#change(this.defaultValue)}
               >
                 ${icon(mdiFilterVariantRemove)}
@@ -336,7 +341,10 @@ export class TriageFilter extends LitElement {
       <div id="options" class="scroller" ?hidden=${!this.expanded}>
         ${
           this.loading
-            ? html`<div role="progressbar" aria-label="Loading ${this.label}">
+            ? html`<div
+                role="progressbar"
+                aria-label=${t("filter.loading", { filter: this.label })}
+              >
                 ${skeletonWidths.map(
                   (width) => html`
                     <div class="skeleton">

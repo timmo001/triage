@@ -49,6 +49,7 @@ import { join } from "lit/directives/join.js";
 import { ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
 import { AtomController, registry } from "./AtomController.js";
+import { t } from "./i18n.js";
 import {
   type BulkAction,
   bulkAction,
@@ -89,39 +90,39 @@ const features = tableFeatures({
 type IssueRow = Row<typeof features, Api.IssueSummary>;
 
 const stateTitles: Record<Issue.State, string> = {
-  regressed: "Regressed",
-  new: "New",
-  ongoing: "Ongoing",
-  quiet: "Quiet",
-  resolved: "Resolved",
-  muted: "Muted",
+  regressed: t("state.regressed"),
+  new: t("state.new"),
+  ongoing: t("state.ongoing"),
+  quiet: t("state.quiet"),
+  resolved: t("state.resolved"),
+  muted: t("state.muted"),
 };
 
 const kindTitles: Record<Issue.Kind, string> = {
-  Crash: "Crashes",
-  UnitFailure: "Unit failures",
-  OutOfMemory: "Out of memory",
-  LogError: "Log errors",
+  Crash: t("kinds.Crash"),
+  UnitFailure: t("kinds.UnitFailure"),
+  OutOfMemory: t("kinds.OutOfMemory"),
+  LogError: t("kinds.LogError"),
 };
 
 const labelTitles: Record<Api.LabelFilter, string> = {
-  worth: "Worth fixing",
-  noise: "Noise",
-  none: "Not labelled",
+  worth: t("label.worth"),
+  noise: t("label.noise"),
+  none: t("label.none"),
 };
 
 const sortTitles: Record<Api.IssueSort, string> = {
-  lastSeen: "Last seen",
-  firstSeen: "First seen",
-  worth: "Worth fixing",
-  count: "Events",
-  title: "Title",
+  lastSeen: t("sort.lastSeen"),
+  firstSeen: t("sort.firstSeen"),
+  worth: t("sort.worth"),
+  count: t("sort.count"),
+  title: t("sort.title"),
 };
 
 const groupTitles: Record<Api.IssueGrouping, string> = {
-  state: "State",
-  kind: "Kind",
-  label: "Label",
+  state: t("group.state"),
+  kind: t("group.kind"),
+  label: t("group.label"),
 };
 
 const dash = html`<span class="muted-text">-</span>`;
@@ -131,23 +132,23 @@ const column = createColumnHelper<typeof features, Api.IssueSummary>();
 const columns = column.columns([
   column.display({ id: "select", enableSorting: false }),
   column.accessor("state", {
-    header: "State",
+    header: t("column.state"),
     enableSorting: false,
     cell: ({ getValue }) => stateBadge(getValue()),
   }),
   column.accessor("title", {
-    header: "Issue",
+    header: t("column.issue"),
     cell: ({ row: { original: issue } }) => html`
       <a href=${issueHref(issue.id)}>${issue.title}</a>
       <div class="secondary small muted-text">
         ${join(
           [
             stateBadge(issue.state),
-            `${issue.count} ${issue.count === 1 ? "event" : "events"}`,
+            t("events", { count: issue.count }),
             ago(issue.lastSeen),
             ...(issue.worth === undefined
               ? []
-              : [`${formatPercent(issue.worth)} worth fixing`]),
+              : [t("issues.worth", { percent: formatPercent(issue.worth) })]),
             ...(issue.label === undefined ? [] : [labelTitles[issue.label]]),
             issue.hosts.join(", "),
           ],
@@ -156,17 +157,17 @@ const columns = column.columns([
       </div>
     `,
   }),
-  column.accessor("kind", { header: "Kind", enableSorting: false }),
+  column.accessor("kind", { header: t("column.kind"), enableSorting: false }),
   column.accessor((issue) => issue.label ?? "none", {
     id: "label",
-    header: "Label",
+    header: t("column.label"),
     enableSorting: false,
     cell: ({ getValue }) =>
       getValue() === "none" ? dash : labelTitles[getValue()],
   }),
   column.accessor((issue) => issue.worth, {
     id: "worth",
-    header: "Worth",
+    header: t("column.worth"),
     sortDescFirst: true,
     cell: ({ getValue }) => {
       const worth = getValue();
@@ -174,19 +175,22 @@ const columns = column.columns([
       return worth === undefined ? dash : formatPercent(worth);
     },
   }),
-  column.accessor("count", { header: "Events", sortDescFirst: true }),
+  column.accessor("count", { header: t("column.events"), sortDescFirst: true }),
   column.accessor((issue) => issue.hosts.join(", "), {
     id: "hosts",
-    header: "Hosts",
+    header: t("column.hosts"),
     enableSorting: false,
   }),
   column.accessor("lastSeen", {
-    header: "Last seen",
+    header: t("column.lastSeen"),
     sortDescFirst: true,
     cell: ({ getValue }) =>
       html`<span title=${formatTime(getValue())}>${ago(getValue())}</span>`,
   }),
-  column.accessor("firstSeen", { header: "First seen", sortDescFirst: true }),
+  column.accessor("firstSeen", {
+    header: t("column.firstSeen"),
+    sortDescFirst: true,
+  }),
 ]);
 
 /** Columns kept for sorting and grouping, but not shown. */
@@ -209,11 +213,11 @@ const sortedAs = {
 } as const;
 
 const actions: ReadonlyArray<readonly [string, string, BulkAction]> = [
-  ["Resolve", mdiCheckCircleOutline, { status: "resolved" }],
-  ["Mute", mdiBellOffOutline, { status: "muted" }],
-  ["Reopen", mdiRestore, { status: "open" }],
-  ["Worth fixing", mdiThumbUpOutline, { label: "worth" }],
-  ["Noise", mdiThumbDownOutline, { label: "noise" }],
+  [t("action.resolve"), mdiCheckCircleOutline, { status: "resolved" }],
+  [t("action.mute"), mdiBellOffOutline, { status: "muted" }],
+  [t("action.reopen"), mdiRestore, { status: "open" }],
+  [t("label.worth"), mdiThumbUpOutline, { label: "worth" }],
+  [t("label.noise"), mdiThumbDownOutline, { label: "noise" }],
 ];
 
 /** Load the next page once the last drawn row is this close to the end. */
@@ -318,6 +322,8 @@ const isKind = Schema.is(Issue.Kind);
 
 const isLabelFilter = Schema.is(Api.LabelFilter);
 
+const isState = Schema.is(Issue.State);
+
 const groupTitle = (row: IssueRow) => {
   const value = String(row.groupingValue);
 
@@ -327,6 +333,10 @@ const groupTitle = (row: IssueRow) => {
 
   if (row.groupingColumnId === "label" && isLabelFilter(value)) {
     return labelTitles[value];
+  }
+
+  if (row.groupingColumnId === "state" && isState(value)) {
+    return stateTitles[value];
   }
 
   return value;
@@ -756,10 +766,6 @@ export class TriageIssues extends LitElement {
         border-bottom: var(--triage-border-width) solid var(--triage-border);
       }
 
-      .group-name {
-        text-transform: capitalize;
-      }
-
       .group-toggle {
         flex: 1;
         gap: var(--triage-space-2);
@@ -894,7 +900,7 @@ export class TriageIssues extends LitElement {
         class=${count === undefined ? "list skeleton" : "skeleton"}
         role="progressbar"
         aria-label=${
-          count === undefined ? "Loading issues" : "Loading more issues"
+          count === undefined ? t("issues.loading") : t("issues.loadingMore")
         }
       >
         ${Array.from(
@@ -973,11 +979,13 @@ export class TriageIssues extends LitElement {
       <div class="toolbar">
         <button
           popovertarget="options"
-          aria-label="Filters"
-          title="Filters"
+          aria-label=${t("filters")}
+          title=${t("filters")}
           aria-pressed=${filtering > 0}
         >
-          ${icon(mdiFilterVariant)}<span class="button-label">Filters</span>${
+          ${icon(mdiFilterVariant)}<span class="button-label"
+            >${t("filters")}</span
+          >${
             filtering === 0
               ? nothing
               : html`<span class="count">${filtering}</span>`
@@ -987,8 +995,8 @@ export class TriageIssues extends LitElement {
           ${icon(mdiMagnify)}
           <input
             type="search"
-            placeholder="Search titles"
-            aria-label="Search titles"
+            placeholder=${t("issues.search")}
+            aria-label=${t("issues.search")}
             .value=${settings.search ?? ""}
             @input=${(event: Event) => {
               const input = event.target;
@@ -1007,19 +1015,19 @@ export class TriageIssues extends LitElement {
         </label>
         <button
           popovertarget="group-menu"
-          aria-label="Group by"
-          title="Group by"
+          aria-label=${t("group.by")}
+          title=${t("group.by")}
           aria-pressed=${settings.group !== undefined}
           style="anchor-name: --group"
         >
           ${icon(mdiFormatListGroup)}<span class="button-label"
-            >${settings.group === undefined ? "Group" : groupTitles[settings.group]}</span
+            >${settings.group === undefined ? t("group.button") : groupTitles[settings.group]}</span
           >
         </button>
         <button
           popovertarget="sort-menu"
-          aria-label="Sort by"
-          title="Sort by"
+          aria-label=${t("sort.by")}
+          title=${t("sort.by")}
           style="anchor-name: --sort"
         >
           ${icon(settings.order === "asc" ? mdiSortAscending : mdiSortDescending)}<span
@@ -1029,8 +1037,8 @@ export class TriageIssues extends LitElement {
         </button>
         <button
           class="icon-only"
-          aria-label="Refresh"
-          title="Refresh"
+          aria-label=${t("refresh")}
+          title=${t("refresh")}
           aria-busy=${this.#issues.value.waiting}
           @click=${() => this.#refresh()}
         >
@@ -1053,13 +1061,13 @@ export class TriageIssues extends LitElement {
             class="icon-only"
             popovertarget="options"
             popovertargetaction="hide"
-            aria-label="Close"
-            title="Close"
+            aria-label=${t("close")}
+            title=${t("close")}
           >
             <span class="wide-only">${icon(mdiChevronLeft)}</span
             ><span class="narrow-only">${icon(mdiChevronDown)}</span>
           </button>
-          <h2>Filters</h2>
+          <h2>${t("filters")}</h2>
           <button
             ?disabled=${
               settings.state === undefined &&
@@ -1075,11 +1083,11 @@ export class TriageIssues extends LitElement {
                 label: undefined,
               })}
           >
-            ${icon(mdiFilterVariantRemove)} Clear
+            ${icon(mdiFilterVariantRemove)} ${t("filters.clear")}
           </button>
         </div>
         <triage-filter
-          label="State"
+          label=${t("filter.state")}
           path=${mdiListStatus}
           .options=${Issue.State.literals.map((state) => ({
             value: state,
@@ -1096,7 +1104,7 @@ export class TriageIssues extends LitElement {
             this.#updateStates(event.detail)}
         ></triage-filter>
         <triage-filter
-          label="Host"
+          label=${t("filter.host")}
           path=${mdiServer}
           ?loading=${AsyncResult.isInitial(this.#hosts.value)}
           .expanded=${this.#isOpen("host")}
@@ -1113,7 +1121,7 @@ export class TriageIssues extends LitElement {
             this.#update({ host: event.detail })}
         ></triage-filter>
         <triage-filter
-          label="Kind"
+          label=${t("filter.kind")}
           path=${mdiAlertCircleOutline}
           .options=${kindOptions}
           .expanded=${this.#isOpen("kind")}
@@ -1125,7 +1133,7 @@ export class TriageIssues extends LitElement {
             this.#update({ kind: event.detail })}
         ></triage-filter>
         <triage-filter
-          label="Label"
+          label=${t("filter.label")}
           path=${mdiTagOutline}
           .options=${labelOptions}
           .expanded=${this.#isOpen("label")}
@@ -1171,19 +1179,21 @@ export class TriageIssues extends LitElement {
           ),
         )}
         <hr />
-        ${item("sortMenu", "Ascending", settings.order === "asc", () =>
+        ${item("sortMenu", t("sort.ascending"), settings.order === "asc", () =>
           this.#update({ order: "asc" }),
         )}
-        ${item("sortMenu", "Descending", settings.order !== "asc", () =>
+        ${item("sortMenu", t("sort.descending"), settings.order !== "asc", () =>
           this.#update({ order: "desc" }),
         )}
       </div>
       <div id="group-menu" class="menu" role="menu" popover>
-        ${[["", "Nothing"] as const, ...Object.entries(groupTitles)].map(
-          ([group, title]) =>
-            item("groupMenu", title, group === (settings.group ?? ""), () =>
-              this.#update({ group }),
-            ),
+        ${[
+          ["", t("group.nothing")] as const,
+          ...Object.entries(groupTitles),
+        ].map(([group, title]) =>
+          item("groupMenu", title, group === (settings.group ?? ""), () =>
+            this.#update({ group }),
+          ),
         )}
       </div>
     `;
@@ -1197,8 +1207,12 @@ export class TriageIssues extends LitElement {
     const busy = this.#bulk.value.waiting;
 
     return html`
-      <div class="toolbar selection" role="group" aria-label="Selected issues">
-        <span>${ids.length} selected</span>
+      <div
+        class="toolbar selection"
+        role="group"
+        aria-label=${t("selection.label")}
+      >
+        <span>${t("selection.count", { count: ids.length })}</span>
         ${actions.map(
           ([title, path, action]) => html`
             <button
@@ -1213,7 +1227,7 @@ export class TriageIssues extends LitElement {
           `,
         )}
         <button @click=${() => (this.rowSelection = {})}>
-          ${icon(mdiClose)} Clear selection
+          ${icon(mdiClose)} ${t("selection.clear")}
         </button>
       </div>
     `;
@@ -1259,7 +1273,10 @@ export class TriageIssues extends LitElement {
       const expanded = row.getIsExpanded();
 
       return html`
-        ${this.#renderCheckbox(row, `Select every loaded ${groupTitle(row)} issue`)}
+        ${this.#renderCheckbox(
+          row,
+          t("selection.group", { group: groupTitle(row) }),
+        )}
         <button
           class="group-toggle"
           aria-expanded=${expanded}
@@ -1276,7 +1293,9 @@ export class TriageIssues extends LitElement {
         >
           ${icon(expanded ? mdiChevronDown : mdiChevronRight)}
           <span class="group-name">${groupTitle(row)}</span>
-          <span class="muted-text">${row.subRows.length} loaded</span>
+          <span class="muted-text"
+            >${t("group.loaded", { count: row.subRows.length })}</span
+          >
         </button>
       `;
     }
@@ -1286,7 +1305,10 @@ export class TriageIssues extends LitElement {
       (cell) => cell.id,
       (cell) =>
         cell.column.id === "select"
-          ? this.#renderCheckbox(row, `Select ${row.original.title}`)
+          ? this.#renderCheckbox(
+              row,
+              t("selection.issue", { title: row.original.title }),
+            )
           : html`<div
               class=${cellClasses.get(cell.column.id) ?? ""}
               role="cell"
@@ -1358,12 +1380,12 @@ export class TriageIssues extends LitElement {
         <div class="row head" role="row">
           <input
             type="checkbox"
-            aria-label="Select every loaded issue"
+            aria-label=${t("selection.all")}
             .checked=${table.getIsAllRowsSelected()}
             .indeterminate=${table.getIsSomeRowsSelected()}
             @click=${table.getToggleAllRowsSelectedHandler()}
           />
-          <span class="secondary">Select all</span>
+          <span class="secondary">${t("selection.allShort")}</span>
           ${repeat(
             table.getHeaderGroups()[0]?.headers.slice(1) ?? [],
             (header) => header.id,
@@ -1422,9 +1444,9 @@ export class TriageIssues extends LitElement {
         this.#renderList(
           value.items,
           html`<p class="message load-failed">
-            Couldn't load more issues.
+            ${t("issues.loadMoreFailed")}
             <button @click=${() => this.#refresh()}>
-              ${icon(mdiRefresh)} Retry
+              ${icon(mdiRefresh)} ${t("retry")}
             </button>
           </p>`,
         ),
@@ -1446,7 +1468,7 @@ export class TriageIssues extends LitElement {
     }
 
     return html`
-      <h1>Issues</h1>
+      <h1>${t("issues.title")}</h1>
       ${this.#renderOptions()}
       <div class="bar">${this.#renderBar(selected)}</div>
       ${
@@ -1456,7 +1478,7 @@ export class TriageIssues extends LitElement {
               onInitial: () => this.#renderSkeleton(),
               onError: (error) =>
                 Predicate.isTagged(error, "NoSuchElementError")
-                  ? html`<p class="message">No issues here.</p>`
+                  ? html`<p class="message">${t("issues.none")}</p>`
                   : this.#renderFailure(renderError(error)),
               onDefect: () => this.#renderFailure(renderDefect()),
               onSuccess: ({ value }) =>

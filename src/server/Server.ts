@@ -16,6 +16,7 @@ import { Work } from "../triage/Work.js";
 import * as HomeAssistant from "./HomeAssistant.js";
 import { IssueAdmin } from "./IssueAdmin.js";
 import { Tokens } from "./Tokens.js";
+import { Translations } from "./Translations.js";
 import { bundleWeb } from "./webBundle.js" with { type: "macro" };
 
 const defaultIssues = 50;
@@ -289,11 +290,14 @@ const TokensHandlers = HttpApiBuilder.group(
 );
 
 const SystemHandlers = HttpApiBuilder.group(Api.Api, "system", (handlers) =>
-  Effect.succeed(
-    handlers.handleAll({
+  Effect.gen(function* () {
+    const translations = yield* Translations;
+
+    return handlers.handleAll({
       health: () => HttpMiddleware.withLoggerDisabled(Effect.void),
-    }),
-  ),
+      translations: () => Effect.succeed(translations),
+    });
+  }),
 );
 
 const apiRoutes = (
@@ -318,7 +322,10 @@ const apiRoutes = (
     ]),
   );
 
-/** The triage API's routes, needing a `Store`, `Tokens` and the local `Work`. */
+/**
+ * The triage API's routes, needing a `Store`, `Tokens`, `Translations` and the
+ * local `Work`.
+ */
 export const routes = apiRoutes(AdminAuthorizationLayer);
 
 /**
@@ -496,6 +503,8 @@ export interface ServeOptions {
    * use `/mcp` there.
    */
   readonly ingressMcpFrom: string;
+  /** The web UI's language, one of the bundled translations. */
+  readonly language: string;
 }
 
 /**
@@ -542,4 +551,4 @@ export const layer = (options: ServeOptions) =>
           HomeAssistant.layerDiscovery({ port, path: mcpPath }),
         ),
     }),
-  );
+  ).pipe(Layer.provide(Translations.layer(options.language)));

@@ -1,4 +1,9 @@
+# The app's option names and descriptions in Home Assistant, in English, which
+# every other translation follows. Keep the option keys as they are.
+#
+# Run `mise run translations:check` after changing a translation.
 configuration:
+  # An admin token for setting up the server before any admin exists.
   server_admin_token:
     name: Server admin token
     description: >-
@@ -10,11 +15,13 @@ configuration:
     description: >-
       Trust X-Forwarded-Host and X-Forwarded-For. Only turn this on when a
       reverse proxy is the only way to reach the server.
+  # Decision models judge whether an issue is worth fixing.
   decide_daily:
     name: Daily decision limit
     description: >-
       The most issues each decision model may decide on in any 24 hours, by
       the server and its workers together.
+  # Language models suggest fixes.
   suggest_daily:
     name: Daily suggestion limit
     description: >-
@@ -23,8 +30,18 @@ configuration:
   new_hours:
     name: Hours an issue stays new
     description: How long an issue counts as new after it's first seen.
+  # Quiet and regressed are issue states, as the web UI names them.
   quiet_hours:
     name: Hours before an issue goes quiet
     description: >-
       How long an issue can go without events before it's quiet. A resolved
       issue that comes back also stays regressed for this long.
+  # Home Assistant shows the language codes as they are, so the description
+  # names them. Keep the language names in their own languages.
+  language:
+    name: Language
+    description: >-
+      The web UI's language: de Deutsch, en English, es Español, fr Français,
+      it Italiano, ja 日本語, nl Nederlands, pl Polski, pt-BR Português
+      (Brasil) or zh-Hans 简体中文. The translations are AI-generated, so
+      some may read oddly.

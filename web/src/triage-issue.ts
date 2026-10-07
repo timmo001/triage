@@ -47,6 +47,7 @@ import { repeat } from "lit/directives/repeat.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { marked } from "marked";
 import { AtomController, registry } from "./AtomController.js";
+import { parts, t } from "./i18n.js";
 import "./triage-skeleton.js";
 import { homeHref, issue, issueEvents, setLabel, setStatus } from "./triage.js";
 import {
@@ -63,43 +64,58 @@ import {
   stateBadge,
 } from "./ui.js";
 
+const resolve = [
+  t("action.resolve"),
+  "resolved",
+  mdiCheckCircleOutline,
+] as const;
+
+const mute = [t("action.mute"), "muted", mdiBellOffOutline] as const;
+
 const actions: Record<
   Issue.State,
   ReadonlyArray<readonly [label: string, status: Issue.Status, icon: string]>
 > = {
-  new: [
-    ["Resolve", "resolved", mdiCheckCircleOutline],
-    ["Mute", "muted", mdiBellOffOutline],
-  ],
-  ongoing: [
-    ["Resolve", "resolved", mdiCheckCircleOutline],
-    ["Mute", "muted", mdiBellOffOutline],
-  ],
-  quiet: [
-    ["Resolve", "resolved", mdiCheckCircleOutline],
-    ["Mute", "muted", mdiBellOffOutline],
-  ],
-  regressed: [
-    ["Resolve", "resolved", mdiCheckCircleOutline],
-    ["Mute", "muted", mdiBellOffOutline],
-  ],
-  resolved: [["Reopen", "open", mdiRestore]],
-  muted: [["Unmute", "open", mdiBellOutline]],
+  new: [resolve, mute],
+  ongoing: [resolve, mute],
+  quiet: [resolve, mute],
+  regressed: [resolve, mute],
+  resolved: [[t("action.reopen"), "open", mdiRestore]],
+  muted: [[t("action.unmute"), "open", mdiBellOutline]],
 };
 
 const labels: ReadonlyArray<
   readonly [text: string, label: Api.Label, icon: string]
 > = [
-  ["Worth fixing", "worth", mdiThumbUpOutline],
-  ["Noise", "noise", mdiThumbDownOutline],
+  [t("label.worth"), "worth", mdiThumbUpOutline],
+  [t("label.noise"), "noise", mdiThumbDownOutline],
 ];
 
 const kinds: Record<Issue.Kind, string> = {
-  Crash: "Crash",
-  UnitFailure: "Unit failure",
-  OutOfMemory: "Out of memory",
-  LogError: "Log error",
+  Crash: t("kind.Crash"),
+  UnitFailure: t("kind.UnitFailure"),
+  OutOfMemory: t("kind.OutOfMemory"),
+  LogError: t("kind.LogError"),
 };
+
+/** The causes decision models pick from, as `Triager` asks for them. */
+const causes = [
+  "application",
+  "configuration",
+  "hardware",
+  "user",
+  "transient",
+  "other",
+] as const;
+
+const isCause = (cause: string): cause is (typeof causes)[number] =>
+  causes.some((known) => known === cause);
+
+const causeTitle = (cause: string) =>
+  isCause(cause) ? t(`cause.${cause}`) : cause;
+
+/** The text for `count` events, such as "3 events". */
+const eventCount = (count: number) => t("events", { count });
 
 /** What to paste into an agent so it reads the issue through triage's MCP server. */
 const agentMessage = (issue: Issue.Issue) =>
@@ -229,10 +245,6 @@ export class TriageIssue extends LitElement {
 
       .cards .badge {
         background: var(--triage-bg);
-      }
-
-      .severity {
-        text-transform: capitalize;
       }
 
       .severity.emerg,
@@ -460,10 +472,6 @@ export class TriageIssue extends LitElement {
         font-variant-numeric: tabular-nums;
       }
 
-      td.cause {
-        text-transform: capitalize;
-      }
-
       .suggestions {
         margin-bottom: var(--triage-space-8);
       }
@@ -511,7 +519,7 @@ export class TriageIssue extends LitElement {
   override render() {
     return html`
       <a class="back" href=${homeHref}
-        >${icon(mdiChevronLeft)}<span>All issues</span></a
+        >${icon(mdiChevronLeft)}<span>${t("issue.back")}</span></a
       >
       ${AsyncResult.matchWithError(this.#detail.value, {
         onInitial: renderIssueSkeleton,
@@ -520,21 +528,21 @@ export class TriageIssue extends LitElement {
         onSuccess: ({ value }) => html`
           <h1>${value.issue.title}</h1>
           <dl>
-            <dt>State</dt>
+            <dt>${t("issue.state")}</dt>
             <dd>${stateBadge(value.issue.state)}</dd>
-            <dt>Kind</dt>
+            <dt>${t("issue.kind")}</dt>
             <dd>${kinds[value.issue.kind]}</dd>
-            <dt>Events</dt>
+            <dt>${t("issue.eventCount")}</dt>
             <dd>${value.issue.count}</dd>
-            <dt>First seen</dt>
+            <dt>${t("issue.firstSeen")}</dt>
             <dd title=${formatTime(value.issue.firstSeen)}>
               ${ago(value.issue.firstSeen)}
             </dd>
-            <dt>Last seen</dt>
+            <dt>${t("issue.lastSeen")}</dt>
             <dd title=${formatTime(value.issue.lastSeen)}>
               ${ago(value.issue.lastSeen)}
             </dd>
-            <dt>Hosts</dt>
+            <dt>${t("issue.hosts")}</dt>
             <dd>${renderHosts(value.hosts)}</dd>
           </dl>
           <div class="actions status">
@@ -566,14 +574,14 @@ export class TriageIssue extends LitElement {
           >
             <span class="muted-text">
               ${icon(mdiContentCopy)}
-              ${this.copied ? "Copied" : "Copy for agent"}
+              ${this.copied ? t("issue.copied") : t("issue.copyForAgent")}
             </span>
             <pre><code>${agentMessage(value.issue)}</code></pre>
           </div>
-          <h2>Decisions</h2>
+          <h2>${t("issue.decisions")}</h2>
           ${renderDecisions(value.decisions)}
-          <div class="actions" role="group" aria-label="Your label">
-            <span class="muted-text">Your label</span>
+          <div class="actions" role="group" aria-label=${t("issue.yourLabel")}>
+            <span class="muted-text">${t("issue.yourLabel")}</span>
             ${labels.map(
               ([text, label, path]) => html`
                 <button
@@ -586,9 +594,9 @@ export class TriageIssue extends LitElement {
               `,
             )}
           </div>
-          <h2>Suggested fixes</h2>
+          <h2>${t("issue.suggestions")}</h2>
           ${renderSuggestions(value.suggestions)}
-          <h2>Events</h2>
+          <h2>${t("issue.eventList")}</h2>
           ${this.#renderEvents()}
         `,
       })}
@@ -600,7 +608,7 @@ export class TriageIssue extends LitElement {
       onInitial: () => renderEventSkeletons(3),
       onError: (error) =>
         Predicate.isTagged(error, "NoSuchElementError")
-          ? html`<p class="message">No events.</p>`
+          ? html`<p class="message">${t("issue.noEvents")}</p>`
           : this.#renderEventsFailure(renderError(error)),
       onDefect: () => this.#renderEventsFailure(renderDefect()),
       onSuccess: ({ value }) =>
@@ -625,9 +633,9 @@ export class TriageIssue extends LitElement {
         this.#renderEventList(
           value.items,
           html`<p class="message">
-            Couldn't load more events.
+            ${t("issue.loadMoreFailed")}
             <button @click=${() => registry.refresh(issueEvents(this.issueId))}>
-              ${icon(mdiRefresh)} Retry
+              ${icon(mdiRefresh)} ${t("retry")}
             </button>
           </p>`,
         ),
@@ -785,21 +793,21 @@ export class TriageIssue extends LitElement {
 }
 
 const formatFrame = (frame: Event.Frame) =>
-  `${frame.function ?? "??"} (${frame.module ?? "unknown"})`;
+  `${frame.function ?? "??"} (${frame.module ?? t("unknown")})`;
 
 const renderDecisions = (decisions: ReadonlyArray<Api.IssueDecision>) =>
   decisions.length === 0
-    ? html`<p class="muted-text">No decision model has looked at it yet.</p>`
+    ? html`<p class="muted-text">${t("decisions.none")}</p>`
     : html`
         <table>
           <thead>
             <tr>
-              <th>Model</th>
-              <th>Worth fixing</th>
-              <th>Severity</th>
-              <th>Likely cause</th>
-              <th>Decided by</th>
-              <th>Decided</th>
+              <th>${t("decisions.model")}</th>
+              <th>${t("decisions.worth")}</th>
+              <th>${t("decisions.severity")}</th>
+              <th>${t("decisions.cause")}</th>
+              <th>${t("decisions.by")}</th>
+              <th>${t("decisions.decided")}</th>
             </tr>
           </thead>
           <tbody>
@@ -809,11 +817,13 @@ const renderDecisions = (decisions: ReadonlyArray<Api.IssueDecision>) =>
                   <td>${decision.model}</td>
                   <td class="worth">${formatPercent(decision.worth)}</td>
                   <td>${severityLabel(decision.severity)}</td>
-                  <td class="cause">${decision.cause}</td>
-                  <td>${decision.by ?? "unknown"}</td>
+                  <td>${causeTitle(decision.cause)}</td>
+                  <td>${decision.by ?? t("unknown")}</td>
                   <td title=${formatTime(decision.decidedAt)}>
-                    ${ago(decision.decidedAt)}, at ${decision.issueCount}
-                    ${decision.issueCount === 1 ? "event" : "events"}
+                    ${t("issue.agoAt", {
+                      ago: ago(decision.decidedAt),
+                      events: eventCount(decision.issueCount),
+                    })}
                   </td>
                 </tr>
               `,
@@ -834,7 +844,7 @@ const markdown = (text: string) =>
 
 const renderSuggestions = (suggestions: ReadonlyArray<Api.IssueSuggestion>) =>
   suggestions.length === 0
-    ? html`<p class="muted-text">No language model has suggested a fix yet.</p>`
+    ? html`<p class="muted-text">${t("suggestions.none")}</p>`
     : html`
         <ol class="cards suggestions">
           ${suggestions.map(
@@ -845,14 +855,17 @@ const renderSuggestions = (suggestions: ReadonlyArray<Api.IssueSuggestion>) =>
                   ${
                     suggestion.by === null
                       ? ""
-                      : html`<span>by ${suggestion.by}</span>`
+                      : html`<span
+                          >${t("suggestions.by", { by: suggestion.by })}</span
+                        >`
                   }
                   <time title=${formatTime(suggestion.suggestedAt)}>
                     ${ago(suggestion.suggestedAt)}
                   </time>
                   <span>
-                    at ${suggestion.issueCount}
-                    ${suggestion.issueCount === 1 ? "event" : "events"}
+                    ${t("suggestions.at", {
+                      events: eventCount(suggestion.issueCount),
+                    })}
                   </span>
                 </header>
                 <div class="suggestion">${markdown(suggestion.text)}</div>
@@ -869,13 +882,15 @@ const renderHosts = (hosts: ReadonlyArray<Api.HostCount>) => html`
         <li>
           <strong>${host.host}</strong>
           <span class="muted-text">
-            ${host.count} ${host.count === 1 ? "event" : "events"}, first
-            <span title=${formatTime(host.firstSeen)}
-              >${ago(host.firstSeen)}</span
-            >, last
-            <span title=${formatTime(host.lastSeen)}
-              >${ago(host.lastSeen)}</span
-            >
+            ${parts("issue.hostSeen", {
+              events: eventCount(host.count),
+              first: html`<span title=${formatTime(host.firstSeen)}
+                >${ago(host.firstSeen)}</span
+              >`,
+              last: html`<span title=${formatTime(host.lastSeen)}
+                >${ago(host.lastSeen)}</span
+              >`,
+            })}
           </span>
         </li>
       `,
@@ -889,11 +904,11 @@ type Field = readonly [label: string, icon: string, value?: string];
 // for it.
 const eventFields = (event: Event.Event) => {
   const fields: ReadonlyArray<Field> = [
-    ["Host", mdiServer, event.host],
-    ["Source", mdiNotebookOutline, event.source],
-    ["Program", mdiApplicationOutline, event.identifier],
+    [t("field.host"), mdiServer, event.host],
+    [t("field.source"), mdiNotebookOutline, event.source],
+    [t("field.program"), mdiApplicationOutline, event.identifier],
     [
-      "Unit",
+      t("field.unit"),
       mdiCogOutline,
       event.unit === undefined || event.scope === undefined
         ? event.unit
@@ -901,23 +916,25 @@ const eventFields = (event: Event.Event) => {
     ],
     ...Event.Event.match<ReadonlyArray<Field>>(event, {
       Crash: (crash) => [
-        ["Executable", mdiFileCogOutline, crash.executable],
-        ["Signal", mdiLightningBolt, crash.signal],
+        [t("field.executable"), mdiFileCogOutline, crash.executable],
+        [t("field.signal"), mdiLightningBolt, crash.signal],
       ],
-      UnitFailure: (failure) => [["Result", mdiExitToApp, failure.result]],
-      OutOfMemory: (oom) => [["Killed", mdiSkullOutline, oom.process]],
+      UnitFailure: (failure) => [
+        [t("field.result"), mdiExitToApp, failure.result],
+      ],
+      OutOfMemory: (oom) => [[t("field.killed"), mdiSkullOutline, oom.process]],
       LogError: () => [],
     }),
     [
-      "Package",
+      t("field.package"),
       mdiPackageVariantClosed,
       event.package === undefined
         ? undefined
         : `${event.package.name} ${event.package.version}`,
     ],
-    ["OS", mdiLinux, event.system?.os],
-    ["Kernel", mdiChip, event.system?.kernel],
-    ["Boot", mdiPower, event.bootId],
+    [t("field.os"), mdiLinux, event.system?.os],
+    [t("field.kernel"), mdiChip, event.system?.kernel],
+    [t("field.boot"), mdiPower, event.bootId],
   ];
 
   return fields.flatMap(([label, path, value]) =>
@@ -976,23 +993,32 @@ const skeletonEvent = (index: number) => html`
 
 /** Placeholder event cards, for while events load. */
 const renderEventSkeletons = (count: number) => html`
-  <ol class="cards" aria-busy="true" aria-label="Loading events">
+  <ol class="cards" aria-busy="true" aria-label=${t("issue.loadingEvents")}>
     ${Array.from({ length: count }, (_, index) => skeletonEvent(index))}
   </ol>
 `;
 
 /** Placeholder for the top of the page, for while the issue loads. */
 const renderIssueSkeleton = () => html`
-  <div aria-busy="true" aria-label="Loading issue">
+  <div aria-busy="true" aria-label=${t("issue.loading")}>
     <h1>
       <triage-skeleton-text
         style="--triage-skeleton-text-width: 60%"
       ></triage-skeleton-text>
     </h1>
     <dl aria-hidden="true">
-      ${["State", "Kind", "Events", "First seen", "Last seen", "Hosts"].map(
+      ${(
+        [
+          "issue.state",
+          "issue.kind",
+          "issue.eventCount",
+          "issue.firstSeen",
+          "issue.lastSeen",
+          "issue.hosts",
+        ] as const
+      ).map(
         (label) => html`
-          <dt>${label}</dt>
+          <dt>${t(label)}</dt>
           <dd>
             <triage-skeleton-text
               style="--triage-skeleton-text-width: 6rem"
@@ -1002,13 +1028,13 @@ const renderIssueSkeleton = () => html`
       )}
     </dl>
   </div>
-  <h2>Events</h2>
+  <h2>${t("issue.eventList")}</h2>
   ${renderEventSkeletons(3)}
 `;
 
 const renderEvent = (event: Event.Event) => html`
   <div class="event-severity severity ${event.severity}">
-    ${icon(severityIcons[event.severity])} ${event.severity}
+    ${icon(severityIcons[event.severity])} ${t(`level.${event.severity}`)}
   </div>
   <pre class="event-message">${event.message}</pre>
   <time class="event-time" title=${formatTime(event.timestamp)}
@@ -1022,7 +1048,10 @@ const renderEvent = (event: Event.Event) => html`
   ${
     Predicate.isTagged(event, "Crash") && event.frames.length > 0
       ? html`<details>
-          <summary title="Stack trace" aria-label="Stack trace">
+          <summary
+            title=${t("issue.stackTrace")}
+            aria-label=${t("issue.stackTrace")}
+          >
             ${icon(mdiChevronRight)} ${icon(mdiLayersTripleOutline)}
             <code class="preview">${formatFrame(event.frames[0])}</code>
           </summary>
@@ -1035,8 +1064,8 @@ const renderEvent = (event: Event.Event) => html`
       ? null
       : html`<details>
           <summary
-            title="What it logged before"
-            aria-label="What it logged before"
+            title=${t("issue.breadcrumbs")}
+            aria-label=${t("issue.breadcrumbs")}
           >
             ${icon(mdiChevronRight)} ${icon(mdiHistory)}
             <code class="preview">${event.breadcrumbs.at(-1)}</code>

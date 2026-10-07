@@ -2,6 +2,7 @@ import { mdiLogout } from "@mdi/js";
 import { css, html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
 import { AtomController, registry } from "./AtomController.js";
+import { t } from "./i18n.js";
 import { homeHref, Route, route, token } from "./triage.js";
 import { icon, shared } from "./ui.js";
 import "./triage-issue.js";
@@ -91,7 +92,7 @@ export class TriageApp extends LitElement {
           this.#token.value === ""
             ? null
             : html`<button @click=${this.#signOut}>
-                ${icon(mdiLogout)} Sign out
+                ${icon(mdiLogout)} ${t("signOut")}
               </button>`
         }
       </header>

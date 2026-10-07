@@ -1,0 +1,212 @@
+// The web UI's text in English, which every other translation follows.
+//
+// Each key's value is either plain text or, for text that depends on a number,
+// plural forms picked by {count}: zero, one, two, few, many and other, as
+// Intl.PluralRules names them. Every language needs `other` plus the forms it
+// uses. Placeholders in braces, such as {count}, are filled in by the UI and
+// must stay exactly as they are, though they can move within the sentence.
+//
+// Run `mise run translations:check` after changing a translation.
+{
+  // Shared across the UI.
+  "loading": "Loading…",
+  "refresh": "Refresh",
+  "retry": "Retry",
+  "close": "Close",
+  // Stands in for a missing value, such as a stack frame's module or who asked
+  // for a decision.
+  "unknown": "unknown",
+  "signOut": "Sign out",
+  // An issue's number of events, also filled into other messages as {events}.
+  "events": { "one": "{count} event", "other": "{count} events" },
+
+  // The sign-in page. {command} is the CLI command that adds an admin token.
+  "signIn.title": "Sign in",
+  "signIn.token": "Admin token",
+  "signIn.hint": "Add one with {command}. It's kept in this browser.",
+  "signIn.submit": "Sign in",
+
+  // Errors shown in place of a page.
+  "error.tokenRefused": "The server didn't accept this admin token.",
+  "error.issueNotFound": "There's no such issue.",
+  "error.generic": "Something went wrong.",
+  "error.unreachable": "Couldn't reach the triage server.",
+
+  // An issue's state. Regressed came back after being resolved; quiet hasn't
+  // happened for a while; muted is noise that's been silenced.
+  "state.regressed": "Regressed",
+  "state.new": "New",
+  "state.ongoing": "Ongoing",
+  "state.quiet": "Quiet",
+  "state.resolved": "Resolved",
+  "state.muted": "Muted",
+
+  // What kind of problem an issue is, for one issue.
+  "kind.Crash": "Crash",
+  "kind.UnitFailure": "Unit failure",
+  "kind.OutOfMemory": "Out of memory",
+  "kind.LogError": "Log error",
+
+  // The same kinds as a heading for a group of issues.
+  "kinds.Crash": "Crashes",
+  "kinds.UnitFailure": "Unit failures",
+  "kinds.OutOfMemory": "Out of memory",
+  "kinds.LogError": "Log errors",
+
+  // The label an admin gives an issue, which decision models learn from.
+  "label.worth": "Worth fixing",
+  "label.noise": "Noise",
+  "label.none": "Not labelled",
+
+  // Buttons that change an issue's state.
+  "action.resolve": "Resolve",
+  "action.mute": "Mute",
+  "action.reopen": "Reopen",
+  "action.unmute": "Unmute",
+
+  // How serious a decision model thinks an issue is.
+  "severity.none": "None",
+  "severity.minor": "Minor",
+  "severity.major": "Major",
+  "severity.critical": "Critical",
+
+  // What a decision model thinks most likely caused an issue.
+  "cause.application": "Application",
+  "cause.configuration": "Configuration",
+  "cause.hardware": "Hardware",
+  "cause.user": "User",
+  "cause.transient": "Transient",
+  "cause.other": "Other",
+
+  // An event's log level, from the system journal.
+  "level.emerg": "Emergency",
+  "level.alert": "Alert",
+  "level.crit": "Critical",
+  "level.err": "Error",
+  "level.warning": "Warning",
+  "level.notice": "Notice",
+  "level.info": "Info",
+  "level.debug": "Debug",
+
+  // The issue list. {percent} is a formatted percentage, such as 85%.
+  "issues.title": "Issues",
+  "issues.search": "Search titles",
+  "issues.worth": "{percent} worth fixing",
+  "issues.loading": "Loading issues",
+  "issues.loadingMore": "Loading more issues",
+  "issues.loadMoreFailed": "Couldn't load more issues.",
+  "issues.none": "No issues here.",
+
+  // The issue list's column headings, kept short.
+  "column.state": "State",
+  "column.issue": "Issue",
+  "column.kind": "Kind",
+  "column.label": "Label",
+  "column.worth": "Worth",
+  "column.events": "Events",
+  "column.hosts": "Hosts",
+  "column.lastSeen": "Last seen",
+  "column.firstSeen": "First seen",
+
+  // The issue list's filters. {filter} is one of the filter names below, and
+  // {shown} and {count} are numbers of filter options.
+  "filters": "Filters",
+  "filters.clear": "Clear",
+  "filter.state": "State",
+  "filter.host": "Host",
+  "filter.kind": "Kind",
+  "filter.label": "Label",
+  "filter.shown": "{shown} of {count} shown",
+  "filter.clear": "Clear filter",
+  "filter.clearNamed": "Clear the {filter} filter",
+  "filter.loading": "Loading {filter}",
+
+  // Sorting the issue list.
+  "sort.by": "Sort by",
+  "sort.lastSeen": "Last seen",
+  "sort.firstSeen": "First seen",
+  "sort.worth": "Worth fixing",
+  "sort.count": "Events",
+  "sort.title": "Title",
+  "sort.ascending": "Ascending",
+  "sort.descending": "Descending",
+
+  // Grouping the issue list. group.loaded counts the issues loaded in a group.
+  "group.by": "Group by",
+  "group.button": "Group",
+  "group.nothing": "Nothing",
+  "group.state": "State",
+  "group.kind": "Kind",
+  "group.label": "Label",
+  "group.loaded": { "one": "{count} loaded", "other": "{count} loaded" },
+
+  // Selecting issues to change several at once. {group} is a group's heading,
+  // such as a state, and {title} is an issue's title.
+  "selection.label": "Selected issues",
+  "selection.count": { "one": "{count} selected", "other": "{count} selected" },
+  "selection.clear": "Clear selection",
+  "selection.all": "Select every loaded issue",
+  "selection.allShort": "Select all",
+  "selection.group": "Select every loaded {group} issue",
+  "selection.issue": "Select {title}",
+
+  // An issue's page.
+  "issue.back": "All issues",
+  "issue.loading": "Loading issue",
+  "issue.state": "State",
+  "issue.kind": "Kind",
+  "issue.eventCount": "Events",
+  "issue.firstSeen": "First seen",
+  "issue.lastSeen": "Last seen",
+  "issue.hosts": "Hosts",
+  // Next to a host's name. {events} is the events message, and {first} and
+  // {last} are relative times, such as "3 days ago".
+  "issue.hostSeen": "{events}, first {first}, last {last}",
+  // Copies the issue as text to paste into a coding agent.
+  "issue.copyForAgent": "Copy for agent",
+  "issue.copied": "Copied",
+  "issue.decisions": "Decisions",
+  "issue.yourLabel": "Your label",
+  "issue.suggestions": "Suggested fixes",
+  "issue.eventList": "Events",
+  "issue.loadingEvents": "Loading events",
+  "issue.noEvents": "No events.",
+  "issue.loadMoreFailed": "Couldn't load more events.",
+  // When a decision was made. {ago} is a relative time, such as "3 days ago",
+  // and {events} is the events message, for how many the issue had then.
+  "issue.agoAt": "{ago}, at {events}",
+  "issue.stackTrace": "Stack trace",
+  // The log lines a program wrote just before the event.
+  "issue.breadcrumbs": "What it logged before",
+
+  // The decision models' verdicts on an issue, as table headings. "Decided by"
+  // heads the worker that asked the model.
+  "decisions.none": "No decision model has looked at it yet.",
+  "decisions.model": "Model",
+  "decisions.worth": "Worth fixing",
+  "decisions.severity": "Severity",
+  "decisions.cause": "Likely cause",
+  "decisions.by": "Decided by",
+  "decisions.decided": "Decided",
+
+  // Fixes a language model suggested. {by} is the worker that asked the model,
+  // or `server` or `cli`, and {events} is the events message, for how many the
+  // issue had then.
+  "suggestions.none": "No language model has suggested a fix yet.",
+  "suggestions.by": "by {by}",
+  "suggestions.at": "at {events}",
+
+  // An event's details, as labels next to their values.
+  "field.host": "Host",
+  "field.source": "Source",
+  "field.program": "Program",
+  "field.unit": "Unit",
+  "field.executable": "Executable",
+  "field.signal": "Signal",
+  "field.result": "Result",
+  "field.killed": "Killed",
+  "field.package": "Package",
+  "field.os": "OS",
+  "field.kernel": "Kernel",
+  "field.boot": "Boot"
+}

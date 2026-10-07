@@ -26,6 +26,7 @@ import { IssueAdmin } from "./server/IssueAdmin.js";
 import * as Server from "./server/Server.js";
 import { TokenAdmin } from "./server/TokenAdmin.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
+import { languages } from "./server/Translations.js";
 import { Store, type TokenScope } from "./store/Store.js";
 import { layerAutomatic, LlmProvider, Suggester } from "./triage/Suggester.js";
 import { layerShadow, Provider, Triager } from "./triage/Triager.js";
@@ -665,6 +666,17 @@ const serve = Command.make(
       ),
       Flag.withFallbackConfig(Config.Int("TRIAGE_SUGGEST_DAILY")),
       Flag.withDefault(5),
+    ),
+    language: Flag.String("language").pipe(
+      Flag.withDescription(`The web UI's language: ${languages.join(", ")}`),
+      Flag.withFallbackConfig(Config.String("TRIAGE_LANGUAGE")),
+      Flag.withDefault("en"),
+      Flag.filterMap(
+        (language) =>
+          languages.includes(language) ? Option.some(language) : Option.none(),
+        (language) =>
+          `There's no ${language} translation. Use one of: ${languages.join(", ")}`,
+      ),
     ),
     ...processFlags,
   },

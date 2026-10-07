@@ -20,6 +20,7 @@ export default defineConfig(
           items: ["/setup/server", "/setup/hosts", "/setup/workers"],
         },
         "/configuration",
+        "/languages",
         "/issues",
         "/agents",
         "/choices",

@@ -40,6 +40,7 @@ Environment variables win over the file. The Home Assistant app uses this for it
 | `TRIAGE_SUGGEST_DAILY` | `5` | The most suggestions each language model may make in any 24 hours, by the server and its workers together |
 | `TRIAGE_NEW_HOURS` | `24` | How long an issue stays [new](/issues#states) after it's first seen |
 | `TRIAGE_QUIET_HOURS` | `72` | How long an issue goes without events before it's [quiet](/issues#states), and how long it stays regressed |
+| `TRIAGE_LANGUAGE` | `en` | The web UI's [language](/languages), such as `de` or `pt-BR` |
 
 ## Workers and admins
 

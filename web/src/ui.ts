@@ -11,6 +11,7 @@ import {
 import { Predicate } from "effect";
 import { css, html, nothing, svg } from "lit";
 import { registry } from "./AtomController.js";
+import { language, t } from "./i18n.js";
 import { token } from "./triage.js";
 
 /** A Material Design icon, from one of `@mdi/js`'s paths. */
@@ -243,10 +244,6 @@ export const shared = css`
     font-size: var(--triage-font-size-xs);
   }
 
-  .state {
-    text-transform: capitalize;
-  }
-
   .state.new {
     --badge-color: var(--triage-new);
   }
@@ -284,11 +281,11 @@ export const shared = css`
 export const stateBadge = (state: Issue.State) =>
   badge({
     path: stateIcons[state],
-    content: state,
+    content: t(`state.${state}`),
     kind: `small state ${state}`,
   });
 
-const percentage = new Intl.NumberFormat(undefined, {
+const percentage = new Intl.NumberFormat(language(), {
   style: "percent",
   maximumFractionDigits: 0,
 });
@@ -297,13 +294,15 @@ const percentage = new Intl.NumberFormat(undefined, {
 export const formatPercent = (probability: number) =>
   percentage.format(probability);
 
-const severities = ["none", "minor", "major", "critical"];
+const severities = ["none", "minor", "major", "critical"] as const;
 
 /** The nearest severity level to a 0 to 3 rating. */
 export const severityLabel = (severity: number) =>
-  severities[Math.min(3, Math.max(0, Math.round(severity)))] ?? "none";
+  t(
+    `severity.${severities[Math.min(3, Math.max(0, Math.round(severity)))] ?? "none"}`,
+  );
 
-const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+const relative = new Intl.RelativeTimeFormat(language(), { numeric: "auto" });
 
 const units: ReadonlyArray<readonly [Intl.RelativeTimeFormatUnit, number]> = [
   ["year", 365 * 24 * 60 * 60 * 1000],
@@ -324,7 +323,7 @@ export const ago = (millis: number) => {
     : relative.format(Math.round(elapsed / unit[1]), unit[0]);
 };
 
-const dateTime = new Intl.DateTimeFormat(undefined, {
+const dateTime = new Intl.DateTimeFormat(language(), {
   dateStyle: "medium",
   timeStyle: "medium",
 });
@@ -343,20 +342,20 @@ export const renderError = (error: { readonly _tag: string }) => {
     return registry.get(token) === ""
       ? html`<triage-sign-in></triage-sign-in>`
       : html`<p class="message">
-          The server didn't accept this admin token.
-          <button @click=${signOut}>${icon(mdiLogout)} Sign out</button>
+          ${t("error.tokenRefused")}
+          <button @click=${signOut}>${icon(mdiLogout)} ${t("signOut")}</button>
         </p>`;
   }
 
   if (Predicate.isTagged(error, "IssueNotFound")) {
-    return html`<p class="message">There's no such issue.</p>`;
+    return html`<p class="message">${t("error.issueNotFound")}</p>`;
   }
 
-  return html`<p class="message">Something went wrong.</p>`;
+  return html`<p class="message">${t("error.generic")}</p>`;
 };
 
 export const renderDefect = () =>
-  html`<p class="message">Couldn't reach the triage server.</p>`;
+  html`<p class="message">${t("error.unreachable")}</p>`;
 
 export const renderLoading = () =>
-  html`<p class="message" aria-busy="true">Loading…</p>`;
+  html`<p class="message" aria-busy="true">${t("loading")}</p>`;

@@ -574,11 +574,56 @@ export class DecisionsGroup extends HttpApiGroup.make("decisions")
     }),
   ) {}
 
-export class SystemGroup extends HttpApiGroup.make("system").add(
-  HttpApiEndpoint.get("health", "/api/health", {
-    success: HttpApiSchema.NoContent,
+/** The forms a plural message can take, as `Intl.PluralRules` names them. */
+export const PluralForm = Schema.Literals([
+  "zero",
+  "one",
+  "two",
+  "few",
+  "many",
+  "other",
+]);
+
+export type PluralForm = typeof PluralForm.Type;
+
+/**
+ * A web UI message: text with `{name}` placeholders, or text for each plural
+ * form the language uses, picked by the `count` placeholder.
+ */
+export const Message = Schema.Union([
+  Schema.String,
+  Schema.Struct({
+    zero: Schema.optionalKey(Schema.String),
+    one: Schema.optionalKey(Schema.String),
+    two: Schema.optionalKey(Schema.String),
+    few: Schema.optionalKey(Schema.String),
+    many: Schema.optionalKey(Schema.String),
+    other: Schema.String,
   }),
-) {}
+]);
+
+export type Message = typeof Message.Type;
+
+/** The web UI's text in the language the server is set to. */
+export const Translations = Schema.Struct({
+  /** A BCP 47 language tag, such as `en` or `pt-BR`. */
+  language: Schema.String,
+  messages: Schema.Record(Schema.String, Message),
+});
+
+export interface Translations extends Schema.Schema.Type<typeof Translations> {}
+
+export class SystemGroup extends HttpApiGroup.make("system")
+  .add(
+    HttpApiEndpoint.get("health", "/api/health", {
+      success: HttpApiSchema.NoContent,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("translations", "/api/translations", {
+      success: Translations,
+    }),
+  ) {}
 
 /** The triage server's HTTP API, shared by the server and its clients. */
 export class Api extends HttpApi.make("triage")
