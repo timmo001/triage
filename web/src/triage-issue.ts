@@ -263,12 +263,13 @@ export class TriageIssue extends LitElement {
       }
 
       .agent {
-        display: block;
         max-width: 36rem;
         margin-bottom: var(--triage-space-8);
         padding: var(--triage-space-1-5) var(--triage-space-2);
-        text-align: start;
+        border: var(--triage-border-width) solid var(--triage-border);
+        border-radius: var(--triage-border-radius-sm);
         background: var(--triage-bg);
+        cursor: pointer;
       }
 
       .agent:hover {
@@ -548,13 +549,27 @@ export class TriageIssue extends LitElement {
               `,
             )}
           </div>
-          <button class="agent" @click=${() => this.#copyForAgent(value.issue)}>
+          <div
+            class="agent"
+            role="button"
+            tabindex="0"
+            @pointerdown=${(event: PointerEvent) => {
+              this.#pointerDown = { x: event.clientX, y: event.clientY };
+            }}
+            @click=${(event: MouseEvent) => this.#copyForAgent(event)}
+            @keydown=${(event: KeyboardEvent) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                void this.#copyForAgent(event);
+              }
+            }}
+          >
             <span class="muted-text">
               ${icon(mdiContentCopy)}
               ${this.copied ? "Copied" : "Copy for agent"}
             </span>
             <pre><code>${agentMessage(value.issue)}</code></pre>
-          </button>
+          </div>
           <h2>Decisions</h2>
           ${renderDecisions(value.decisions)}
           <div class="actions" role="group" aria-label="Your label">
@@ -702,8 +717,48 @@ export class TriageIssue extends LitElement {
 
   #copyTimer: ReturnType<typeof setTimeout> | undefined;
 
-  async #copyForAgent(issue: Issue.Issue) {
-    await navigator.clipboard.writeText(agentMessage(issue));
+  #pointerDown: { readonly x: number; readonly y: number } | undefined;
+
+  /**
+   * Selects the message and copies it. The selection stays, so it can still
+   * be copied by hand if the clipboard refuses. A drag only selects text.
+   */
+  async #copyForAgent(event: MouseEvent | KeyboardEvent) {
+    const start = this.#pointerDown;
+
+    this.#pointerDown = undefined;
+
+    if (
+      event instanceof MouseEvent &&
+      start !== undefined &&
+      Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4
+    ) {
+      return;
+    }
+
+    const code =
+      event.currentTarget instanceof HTMLElement
+        ? event.currentTarget.querySelector("code")
+        : null;
+
+    if (code === null) {
+      return;
+    }
+
+    window.getSelection()?.selectAllChildren(code);
+
+    // The clipboard API only exists in secure contexts, and Home Assistant is
+    // often served over plain HTTP, where copying the selection still works.
+    const copied = window.isSecureContext
+      ? await navigator.clipboard.writeText(code.textContent).then(
+          () => true,
+          () => document.execCommand("copy"),
+        )
+      : document.execCommand("copy");
+
+    if (!copied) {
+      return;
+    }
 
     this.copied = true;
     clearTimeout(this.#copyTimer);
