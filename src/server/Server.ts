@@ -9,6 +9,7 @@ import {
 } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { Store } from "../store/Store.js";
+import { agreement } from "../triage/Triager.js";
 import { Work } from "../triage/Work.js";
 import { Tokens } from "./Tokens.js";
 import { bundleWeb } from "./webBundle.js" with { type: "macro" };
@@ -210,6 +211,18 @@ const WorkHandlers = HttpApiBuilder.group(
   }),
 );
 
+const DecisionsHandlers = HttpApiBuilder.group(
+  Api.Api,
+  "decisions",
+  Effect.fn(function* (handlers) {
+    const store = yield* Store;
+
+    return handlers.handle("agreement", () =>
+      store.labelledDecisions.pipe(Effect.map(agreement), Effect.orDie),
+    );
+  }),
+);
+
 const HostsHandlers = HttpApiBuilder.group(
   Api.Api,
   "hosts",
@@ -260,6 +273,7 @@ const apiRoutes = (
       IssuesHandlers,
       HostsHandlers,
       WorkHandlers,
+      DecisionsHandlers,
       TokensHandlers,
       SystemHandlers,
     ]),

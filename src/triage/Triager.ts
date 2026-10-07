@@ -3,7 +3,7 @@ import {
   CloudflareDecisionModel,
 } from "@effect/ai-cloudflare";
 import { TypeSafeClient, TypeSafeDecisionModel } from "@effect/ai-typesafe";
-import { Event, Issue } from "@timmo001/effect-triage";
+import { type Api, Event, Issue } from "@timmo001/effect-triage";
 import {
   Config,
   Context,
@@ -22,22 +22,11 @@ import { Work } from "./Work.js";
 /** How sure a model must be before its answer counts as a clear yes or no. */
 export const clear = 0.8;
 
-/** How a model's decisions compare with hand labels. */
-export interface Agreement {
-  readonly model: string;
-  /** Labelled issues the model decided on. */
-  readonly labelled: number;
-  /** Decisions sure enough to act on either way. */
-  readonly clear: number;
-  /** Clear decisions that match the label. */
-  readonly correct: number;
-}
-
 /** Summarise each model's decisions against the hand labels. */
 export const agreement = (
   rows: ReadonlyArray<LabelledDecision>,
-): ReadonlyArray<Agreement> => {
-  const byModel = new Map<string, Types.Mutable<Agreement>>();
+): ReadonlyArray<Api.Agreement> => {
+  const byModel = new Map<string, Types.Mutable<Api.Agreement>>();
 
   for (const row of rows) {
     const summary = byModel.get(row.model) ?? {

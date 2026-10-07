@@ -343,6 +343,20 @@ export const Suggestion = Schema.Struct({
 
 export interface Suggestion extends Schema.Schema.Type<typeof Suggestion> {}
 
+/** How a decision model's decisions compare with hand labels. */
+export const Agreement = Schema.Struct({
+  /** The model, as `provider/model`. */
+  model: Schema.String,
+  /** Labelled issues the model decided on. */
+  labelled: Schema.Int,
+  /** Decisions sure enough to act on either way. */
+  clear: Schema.Int,
+  /** Clear decisions that match the label. */
+  correct: Schema.Int,
+});
+
+export interface Agreement extends Schema.Schema.Type<typeof Agreement> {}
+
 export class IngestGroup extends HttpApiGroup.make("ingest")
   .add(
     HttpApiEndpoint.post("events", "/events", {
@@ -501,6 +515,22 @@ export class HostsGroup extends HttpApiGroup.make("hosts")
     }),
   ) {}
 
+export class DecisionsGroup extends HttpApiGroup.make("decisions")
+  .add(
+    HttpApiEndpoint.get("agreement", "/agreement", {
+      success: Schema.Array(Agreement),
+    }),
+  )
+  .middleware(AdminAuthorization)
+  .prefix("/api/decisions")
+  .annotateMerge(
+    OpenApi.annotations({
+      title: "Decisions",
+      description:
+        "How each decision model compares with the hand labels: how often it's sure enough to act on, and how often it's right when it is",
+    }),
+  ) {}
+
 export class SystemGroup extends HttpApiGroup.make("system").add(
   HttpApiEndpoint.get("health", "/api/health", {
     success: HttpApiSchema.NoContent,
@@ -513,6 +543,7 @@ export class Api extends HttpApi.make("triage")
   .add(IssuesGroup)
   .add(HostsGroup)
   .add(WorkGroup)
+  .add(DecisionsGroup)
   .add(TokensGroup)
   .add(SystemGroup)
   .annotateMerge(OpenApi.annotations({ title: "triage" })) {}
