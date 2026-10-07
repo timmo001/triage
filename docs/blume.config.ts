@@ -32,6 +32,10 @@ export default defineConfig(
           display: "group",
           collapsed: true,
         },
+        {
+          label: "Design",
+          items: ["/design", "/design/colours", "/design/components"],
+        },
       ],
     },
     theme: {

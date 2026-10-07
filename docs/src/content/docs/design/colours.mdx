@@ -1,0 +1,115 @@
+---
+title: Colours
+description: The web UI's colour palette, in light and dark, with the more vivid versions for wide-gamut screens.
+---
+
+Every colour is in [OKLCH](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklch), so lightness and chroma are easy to compare and adjust. The base values match what an sRGB screen can show. On a wide-gamut screen (P3, HDR ones included), the accent and state colours get more chroma, so they look more vivid. The UI follows the system's light or dark setting.
+
+In the swatches below, a colour split in two shows the sRGB value on the left and the wide-gamut value on the right. The right half only looks different on a wide-gamut screen. The swatches and values are generated from `web/src/design.css` by `mise run docs:gen`.
+
+## Light
+
+{/* generated:palette-light */}
+
+<div className="palette light">
+  <div className="swatches">
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(98.5% 0 0)" }} /></div><span className="name">bg</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(100% 0 0)" }} /></div><span className="name">surface</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(21% 0.006 286)" }} /></div><span className="name">text</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(55.2% 0.014 286)" }} /></div><span className="name">muted</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(92% 0.004 287)" }} /></div><span className="name">border</span></div>
+  </div>
+  <div className="swatches">
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(56.1% 0.113 67)" }} /><span style={{ background: "oklch(56.1% 0.13 67)" }} /></div><span className="name">accent</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(54.6% 0.215 263)" }} /><span style={{ background: "oklch(54.6% 0.245 263)" }} /></div><span className="name">new</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(57.7% 0.215 27)" }} /><span style={{ background: "oklch(57.7% 0.245 27)" }} /></div><span className="name">regressed</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(66.6% 0.157 58)" }} /><span style={{ background: "oklch(66.6% 0.179 58)" }} /></div><span className="name">ongoing</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "color-mix(in oklch, oklch(66.6% 0.157 58) 20%, oklch(55.2% 0.014 286))" }} /><span style={{ background: "color-mix(in oklch, oklch(66.6% 0.179 58) 20%, oklch(55.2% 0.014 286))" }} /></div><span className="name">quiet</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(62.7% 0.17 149)" }} /><span style={{ background: "oklch(62.7% 0.194 149)" }} /></div><span className="name">resolved</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(55.2% 0.014 286)" }} /></div><span className="name">muted-state</span></div>
+  </div>
+</div>
+
+{/* /generated:palette-light */}
+
+{/* generated:values-light */}
+
+| Token | sRGB | Wide gamut |
+| --- | --- | --- |
+| `--triage-bg` | `oklch(98.5% 0 0)` | |
+| `--triage-surface` | `oklch(100% 0 0)` | |
+| `--triage-text` | `oklch(21% 0.006 286)` | |
+| `--triage-muted` | `oklch(55.2% 0.014 286)` | |
+| `--triage-border` | `oklch(92% 0.004 287)` | |
+| `--triage-accent` | `oklch(56.1% 0.113 67)` | `oklch(56.1% 0.13 67)` |
+| `--triage-new` | `oklch(54.6% 0.215 263)` | `oklch(54.6% 0.245 263)` |
+| `--triage-regressed` | `oklch(57.7% 0.215 27)` | `oklch(57.7% 0.245 27)` |
+| `--triage-ongoing` | `oklch(66.6% 0.157 58)` | `oklch(66.6% 0.179 58)` |
+| `--triage-quiet` | `color-mix(in oklch, var(--triage-ongoing) 20%, var(--triage-muted))` | |
+| `--triage-resolved` | `oklch(62.7% 0.17 149)` | `oklch(62.7% 0.194 149)` |
+| `--triage-muted-state` | `oklch(55.2% 0.014 286)` | |
+
+{/* /generated:values-light */}
+
+## Dark
+
+{/* generated:palette-dark */}
+
+<div className="palette dark">
+  <div className="swatches">
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(17.9% 0.004 286)" }} /></div><span className="name">bg</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(22.8% 0.006 286)" }} /></div><span className="name">surface</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(96.7% 0.001 288)" }} /></div><span className="name">text</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(71.2% 0.013 286)" }} /></div><span className="name">muted</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(30.3% 0.009 286)" }} /></div><span className="name">border</span></div>
+  </div>
+  <div className="swatches">
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(78.4% 0.124 76)" }} /><span style={{ background: "oklch(78.4% 0.145 76)" }} /></div><span className="name">accent</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(71.4% 0.143 255)" }} /><span style={{ background: "oklch(70.7% 0.165 255)" }} /></div><span className="name">new</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(71.1% 0.166 22)" }} /><span style={{ background: "oklch(70.4% 0.191 22)" }} /></div><span className="name">regressed</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(83.7% 0.164 84)" }} /><span style={{ background: "oklch(82.8% 0.189 84)" }} /></div><span className="name">ongoing</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "color-mix(in oklch, oklch(83.7% 0.164 84) 20%, oklch(71.2% 0.013 286))" }} /><span style={{ background: "color-mix(in oklch, oklch(82.8% 0.189 84) 20%, oklch(71.2% 0.013 286))" }} /></div><span className="name">quiet</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(80% 0.182 152)" }} /><span style={{ background: "oklch(79.2% 0.209 152)" }} /></div><span className="name">resolved</span></div>
+    <div className="swatch"><div className="chip"><span style={{ background: "oklch(71.2% 0.013 286)" }} /></div><span className="name">muted-state</span></div>
+  </div>
+</div>
+
+{/* /generated:palette-dark */}
+
+{/* generated:values-dark */}
+
+| Token | sRGB | Wide gamut |
+| --- | --- | --- |
+| `--triage-bg` | `oklch(17.9% 0.004 286)` | |
+| `--triage-surface` | `oklch(22.8% 0.006 286)` | |
+| `--triage-text` | `oklch(96.7% 0.001 288)` | |
+| `--triage-muted` | `oklch(71.2% 0.013 286)` | |
+| `--triage-border` | `oklch(30.3% 0.009 286)` | |
+| `--triage-accent` | `oklch(78.4% 0.124 76)` | `oklch(78.4% 0.145 76)` |
+| `--triage-new` | `oklch(71.4% 0.143 255)` | `oklch(70.7% 0.165 255)` |
+| `--triage-regressed` | `oklch(71.1% 0.166 22)` | `oklch(70.4% 0.191 22)` |
+| `--triage-ongoing` | `oklch(83.7% 0.164 84)` | `oklch(82.8% 0.189 84)` |
+| `--triage-quiet` | `color-mix(in oklch, var(--triage-ongoing) 20%, var(--triage-muted))` | |
+| `--triage-resolved` | `oklch(80% 0.182 152)` | `oklch(79.2% 0.209 152)` |
+| `--triage-muted-state` | `oklch(71.2% 0.013 286)` | |
+
+{/* /generated:values-dark */}
+
+## What each colour means
+
+| Token | Used for |
+| --- | --- |
+| `bg` | The page background |
+| `surface` | Cards, tables, badges and buttons |
+| `border` | Borders and skeletons |
+| `text` | Body text |
+| `muted` | Secondary text, labels and the times on event cards |
+| `accent` | Links, pressed buttons, active filters and checkboxes |
+| `new` | New issues, and the notice and info severities |
+| `regressed` | Regressed issues, and the emerg, alert, crit and err severities |
+| `ongoing` | Ongoing issues, and the warning severity |
+| `quiet` | Quiet issues: `ongoing` mixed 20% into `muted` |
+| `resolved` | Resolved issues |
+| `muted-state` | Muted issues, and the debug severity |
+
+`--triage-scrim` and `--triage-shadow` are black at 40% in both themes. Mixes use `color-mix(in oklch, ...)` so they stay even in lightness.
