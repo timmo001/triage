@@ -43,7 +43,8 @@
 ## Docs
 
 - The docs site in `docs/` is built with Blume and deploys to `https://triage.timmo.dev`. Keep the README short and put the detail there.
-- `mise run docs:gen` regenerates the command reference from the CLI's help. Run it once, at the end of a change that touches commands, flags, arguments or their descriptions. CI fails when the reference is out of date.
+- `mise run docs:gen` regenerates the command reference from the CLI's help and the design docs' token tables and swatches from `web/src/design.css`. Run it once, at the end of a change that touches commands, flags, arguments or their descriptions, or the design tokens. `mise run check` fails when the design docs are out of date, and CI fails when either is.
+- The design pages mix generated regions, between `generated:<name>` and `/generated:<name>` comments, with hand-written prose. Edit only outside the regions, except for the hand-written "Used for" column, which regeneration keeps.
 
 ## Validation
 

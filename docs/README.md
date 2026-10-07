@@ -9,7 +9,7 @@ Run these from the repository root:
 - `mise run docs:dev`: run the dev server
 - `mise run docs:build`: build the site
 - `mise run docs:preview`: preview the built site
-- `mise run docs:gen`: regenerate the command reference from the CLI's help
+- `mise run docs:gen`: regenerate the command reference from the CLI's help and the design pages from the web UI's tokens
 
 Shared layout, components and config defaults come from [`@timmo001/docs-kit`](https://github.com/timmo001/docs-kit). Run `bun run brand` in `docs` to regenerate `public/logo.png`, `public/apple-touch-icon.png` and the GitHub social preview from `src/assets/logo.svg`.
 

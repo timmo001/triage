@@ -69,13 +69,21 @@ depends = ["install"]
 run = "bun run format:check"
 
 [tasks.check]
-description = "Lint, type-check, and verify formatting"
-depends = ["lint", "lint:lit", "typecheck", "format:check"]
+description = "Lint, type-check, verify formatting and check the generated design docs"
+depends = ["lint", "lint:lit", "typecheck", "format:check", "docs:check"]
 
 [tasks."docs:gen"]
-description = "Regenerate the docs command reference from the CLI's help"
+description = "Regenerate the docs command reference from the CLI's help and the design docs from the web UI's tokens"
 depends = ["install"]
-run = "bun scripts/generate-cli-reference.ts"
+run = [
+  "bun scripts/generate-cli-reference.ts",
+  "bun scripts/generate-design-reference.ts",
+]
+
+[tasks."docs:check"]
+description = "Check the design docs match the web UI's tokens"
+depends = ["install"]
+run = "bun run docs:check"
 
 [tasks."docs:install"]
 description = "Install docs dependencies"

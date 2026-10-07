@@ -15,7 +15,8 @@
     "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit && node node_modules/@typescript/native/bin/tsc --noEmit -p web",
     "format": "prettier --write \"src/**/*.ts\" \"packages/*/src/**/*.ts\" \"scripts/**/*.ts\" \"web/src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"packages/*/src/**/*.ts\" \"scripts/**/*.ts\" \"web/src/**/*.ts\"",
-    "check": "bun run lint && bun run typecheck && bun run lint:lit && bun run format:check",
+    "check": "bun run lint && bun run typecheck && bun run lint:lit && bun run format:check && bun run docs:check",
+    "docs:check": "bun scripts/generate-design-reference.ts --check",
     "lint:lit": "bun run --cwd web lint:lit",
     "prepare": "effect-tsgo patch --typescript --typescript-package @typescript/native --force=false",
     "build:packages": "bun run --cwd packages/effect-triage build && bun run --cwd packages/client build"

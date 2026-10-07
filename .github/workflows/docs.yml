@@ -9,13 +9,17 @@ on:
     paths:
       - "docs/**"
       - "src/index.ts"
+      - "web/src/design.css"
       - "scripts/generate-cli-reference.ts"
+      - "scripts/generate-design-reference.ts"
       - ".github/workflows/docs.yml"
   pull_request:
     paths:
       - "docs/**"
       - "src/index.ts"
+      - "web/src/design.css"
       - "scripts/generate-cli-reference.ts"
+      - "scripts/generate-design-reference.ts"
       - ".github/workflows/docs.yml"
   workflow_dispatch: {}
 
@@ -39,12 +43,12 @@ jobs:
       - name: Set up mise
         uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
 
-      - name: Regenerate the command reference
+      - name: Regenerate the command reference and design docs
         run: mise run docs:gen
 
-      - name: Check the command reference is up to date
+      - name: Check the generated docs are up to date
         run: |
-          changes="$(git status --porcelain -- docs/src/content/docs/commands docs/commands-sidebar.json)"
+          changes="$(git status --porcelain -- docs/src/content/docs/commands docs/commands-sidebar.json docs/src/content/docs/design docs/theme.css)"
           if [ -n "$changes" ]; then
             echo "$changes"
             exit 1
