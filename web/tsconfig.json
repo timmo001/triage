@@ -19,6 +19,14 @@
         "diagnosticSeverity": {
           "unstableApiUsage": "off"
         }
+      },
+      {
+        "name": "ts-lit-plugin",
+        "strict": true,
+        "globalAttributes": ["popover", "popovertarget", "popovertargetaction"],
+        "rules": {
+          "no-invalid-css": "off"
+        }
       }
     ]
   },
