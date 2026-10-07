@@ -51,8 +51,5 @@
 Run these after source changes:
 
 ```bash
-mise run check
-mise run test
-mise run build
-mise run build:packages
+mise run check ::: test ::: build ::: build:packages
 ```
