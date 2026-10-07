@@ -47,6 +47,7 @@ import { repeat } from "lit/directives/repeat.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { marked } from "marked";
 import { AtomController, registry } from "./AtomController.js";
+import "./triage-skeleton.js";
 import { homeHref, issue, issueEvents, setLabel, setStatus } from "./triage.js";
 import {
   ago,
@@ -57,7 +58,6 @@ import {
   icon,
   renderDefect,
   renderError,
-  renderLoading,
   severityLabel,
   shared,
   stateBadge,
@@ -195,6 +195,27 @@ export class TriageIssue extends LitElement {
 
       .events-end {
         margin-top: var(--triage-space-3);
+      }
+
+      .cards > li.skeleton .event-message {
+        line-height: normal;
+      }
+
+      .cards > li.skeleton .event-fields {
+        overflow: hidden;
+        mask-image: none;
+      }
+
+      .badge-skeleton {
+        flex: none;
+        height: 2rem;
+        --triage-skeleton-radius: var(--triage-border-radius-pill);
+      }
+
+      .details-skeleton {
+        height: 2.25rem;
+        margin-top: var(--triage-space-3);
+        --triage-skeleton-radius: var(--triage-border-radius-sm);
       }
 
       .cards > li > header {
@@ -492,7 +513,7 @@ export class TriageIssue extends LitElement {
         >${icon(mdiChevronLeft)}<span>All issues</span></a
       >
       ${AsyncResult.matchWithError(this.#detail.value, {
-        onInitial: renderLoading,
+        onInitial: renderIssueSkeleton,
         onError: renderError,
         onDefect: renderDefect,
         onSuccess: ({ value }) => html`
@@ -561,7 +582,7 @@ export class TriageIssue extends LitElement {
 
   #renderEvents() {
     return AsyncResult.matchWithError(this.#events.value, {
-      onInitial: renderLoading,
+      onInitial: () => renderEventSkeletons(3),
       onError: (error) =>
         Predicate.isTagged(error, "NoSuchElementError")
           ? html`<p class="message">No events.</p>`
@@ -570,7 +591,7 @@ export class TriageIssue extends LitElement {
       onSuccess: ({ value }) =>
         this.#renderEventList(
           value.items,
-          value.done ? nothing : renderLoading(),
+          value.done ? nothing : renderEventSkeletons(2),
         ),
     });
   }
@@ -859,6 +880,76 @@ const severityIcons: Record<Severity.Severity, string> = {
   info: mdiInformationOutline,
   debug: mdiBugOutline,
 };
+
+/** Title widths for skeleton cards, so they don't look like a solid block. */
+const skeletonTitleWidths = [72, 54, 86];
+
+/** Badge widths for skeleton cards. */
+const skeletonBadgeWidths = ["6rem", "5rem", "6rem", "9rem", "6rem", "8rem"];
+
+const skeletonEvent = (index: number) => html`
+  <li class="skeleton" aria-hidden="true">
+    <div class="event-severity">
+      <triage-skeleton-text
+        style="--triage-skeleton-text-width: 4rem"
+      ></triage-skeleton-text>
+    </div>
+    <div class="event-message">
+      <triage-skeleton-text
+        style="--triage-skeleton-text-width: ${
+          skeletonTitleWidths[index % skeletonTitleWidths.length]
+        }%"
+      ></triage-skeleton-text>
+    </div>
+    <div class="event-time">
+      <triage-skeleton-text
+        style="--triage-skeleton-text-width: 6rem"
+      ></triage-skeleton-text>
+    </div>
+    <div class="event-fields">
+      ${skeletonBadgeWidths.map(
+        (width) =>
+          html`<triage-skeleton
+            class="badge-skeleton"
+            style="width: ${width}"
+          ></triage-skeleton>`,
+      )}
+    </div>
+    <triage-skeleton class="details-skeleton"></triage-skeleton>
+  </li>
+`;
+
+/** Placeholder event cards, for while events load. */
+const renderEventSkeletons = (count: number) => html`
+  <ol class="cards" aria-busy="true" aria-label="Loading events">
+    ${Array.from({ length: count }, (_, index) => skeletonEvent(index))}
+  </ol>
+`;
+
+/** Placeholder for the top of the page, for while the issue loads. */
+const renderIssueSkeleton = () => html`
+  <div aria-busy="true" aria-label="Loading issue">
+    <h1>
+      <triage-skeleton-text
+        style="--triage-skeleton-text-width: 60%"
+      ></triage-skeleton-text>
+    </h1>
+    <dl aria-hidden="true">
+      ${["State", "Kind", "Events", "First seen", "Last seen", "Hosts"].map(
+        (label) => html`
+          <dt>${label}</dt>
+          <dd>
+            <triage-skeleton-text
+              style="--triage-skeleton-text-width: 6rem"
+            ></triage-skeleton-text>
+          </dd>
+        `,
+      )}
+    </dl>
+  </div>
+  <h2>Events</h2>
+  ${renderEventSkeletons(3)}
+`;
 
 const renderEvent = (event: Event.Event) => html`
   <div class="event-severity severity ${event.severity}">
