@@ -1,6 +1,6 @@
 ---
 name: Triage
-version: 0.10.1
+version: 0.11.0
 slug: triage
 description: Collect crashes and errors from your machines, and decide which are worth fixing
 url: https://github.com/timmo001/triage
