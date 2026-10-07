@@ -370,28 +370,32 @@ const statusCommand = (options: {
       ),
       server: Flag.String("server").pipe(
         Flag.withDescription(
-          "Change the issues on the server at this URL as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+          "Change the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
         ),
+        Flag.withFallbackConfig(Config.String("TRIAGE_SERVER")),
         Flag.optional,
       ),
     },
     Effect.fn(function* (input) {
-      yield* Effect.gen(function* () {
+      const setStatuses = Effect.gen(function* () {
         const admin = yield* IssueAdmin;
 
         for (const id of input.issues) {
           yield* admin.setStatus(id, options.status);
           yield* Console.log(`${options.done} ${id}`);
         }
-      }).pipe(
-        Effect.provide(
-          Option.match(input.server, {
-            onNone: () =>
+      });
+
+      yield* Option.match(input.server, {
+        onNone: () =>
+          setStatuses.pipe(
+            Effect.provide(
               IssueAdmin.layerLocal.pipe(Layer.provide(Store.layerServer)),
-            onSome: IssueAdmin.layerRemote,
-          }),
-        ),
-      );
+            ),
+          ),
+        onSome: (url) =>
+          setStatuses.pipe(Effect.provide(IssueAdmin.layerRemote(url))),
+      });
     }),
   ).pipe(Command.withDescription(options.description));
 
@@ -610,26 +614,38 @@ const tokenCommands = (options: {
 
   const server = Flag.String("server").pipe(
     Flag.withDescription(
-      "Manage the server at this URL as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+      "Manage the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
     ),
+    Flag.withFallbackConfig(Config.String("TRIAGE_SERVER")),
     Flag.optional,
   );
 
-  const tokenAdmin = (url: Option.Option<string>) =>
+  const withTokenAdmin = <A, E, R>(
+    url: Option.Option<string>,
+    effect: Effect.Effect<A, E, R>,
+  ) =>
     Option.match(url, {
-      onNone: () => TokenAdmin.layerLocal.pipe(Layer.provide(tokensLayer)),
-      onSome: TokenAdmin.layerRemote,
+      onNone: () =>
+        effect.pipe(
+          Effect.provide(
+            TokenAdmin.layerLocal.pipe(Layer.provide(tokensLayer)),
+          ),
+        ),
+      onSome: (url) => effect.pipe(Effect.provide(TokenAdmin.layerRemote(url))),
     });
 
   const add = Command.make(
     "add",
     { name, server },
     Effect.fn(function* (input) {
-      const token = yield* Effect.gen(function* () {
-        const tokens = yield* TokenAdmin;
+      const token = yield* withTokenAdmin(
+        input.server,
+        Effect.gen(function* () {
+          const tokens = yield* TokenAdmin;
 
-        return yield* tokens.issue(options.scope, input.name);
-      }).pipe(Effect.provide(tokenAdmin(input.server)));
+          return yield* tokens.issue(options.scope, input.name);
+        }),
+      );
 
       yield* Console.log(
         `Added ${input.name}. Set this as ${options.variable}; it won't be shown again:\n${Redacted.value(token)}`,
@@ -641,11 +657,14 @@ const tokenCommands = (options: {
     "list",
     { json, server },
     Effect.fn(function* (input) {
-      const all = yield* Effect.gen(function* () {
-        const tokens = yield* TokenAdmin;
+      const all = yield* withTokenAdmin(
+        input.server,
+        Effect.gen(function* () {
+          const tokens = yield* TokenAdmin;
 
-        return yield* tokens.list(options.scope);
-      }).pipe(Effect.provide(tokenAdmin(input.server)));
+          return yield* tokens.list(options.scope);
+        }),
+      );
 
       if (input.json) {
         yield* Console.log(JSON.stringify(all));
@@ -657,7 +676,7 @@ const tokenCommands = (options: {
         yield* Console.log(
           Option.match(input.server, {
             onNone: () =>
-              `No ${options.command} in this machine's server database. To list a server's, add --server <url>.`,
+              `No ${options.command} in this machine's server database. To list a server's, add --server <url> or set TRIAGE_SERVER.`,
             onSome: () =>
               `No ${options.command} yet. Add one with triage ${options.command} add <name>.`,
           }),
@@ -678,11 +697,14 @@ const tokenCommands = (options: {
     "remove",
     { name, server },
     Effect.fn(function* (input) {
-      yield* Effect.gen(function* () {
-        const tokens = yield* TokenAdmin;
+      yield* withTokenAdmin(
+        input.server,
+        Effect.gen(function* () {
+          const tokens = yield* TokenAdmin;
 
-        yield* tokens.revoke(options.scope, input.name);
-      }).pipe(Effect.provide(tokenAdmin(input.server)));
+          yield* tokens.revoke(options.scope, input.name);
+        }),
+      );
 
       yield* Console.log(`Removed ${input.name}; its token no longer works`);
     }),

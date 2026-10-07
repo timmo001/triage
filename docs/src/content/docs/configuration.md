@@ -42,9 +42,9 @@ Environment variables win over the file. The Home Assistant app uses this for it
 
 | Variable | Default | |
 | --- | --- | --- |
-| `TRIAGE_SERVER` | none | The server's URL |
+| `TRIAGE_SERVER` | none | The server's URL, which the token and issue commands also use when `--server` is left out |
 | `TRIAGE_WORKER_TOKEN` | none | The worker's token, from `triage workers add` |
-| `TRIAGE_ADMIN_TOKEN` | none | An admin token, for `--server` on the token and issue commands |
+| `TRIAGE_ADMIN_TOKEN` | none | An admin token, for managing a server with `--server` or `TRIAGE_SERVER` on the token and issue commands |
 
 ## Models
 

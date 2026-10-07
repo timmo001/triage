@@ -1,7 +1,8 @@
 import { Api, type Issue, TriageClient } from "@timmo001/effect-triage-client";
-import { Config, Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { Store } from "../store/Store.js";
+import { adminToken } from "./adminToken.js";
 
 /** The store or the server couldn't change an issue. */
 export class IssueAdminError extends Schema.TaggedError<IssueAdminError>()(
@@ -49,7 +50,7 @@ export class IssueAdmin extends Context.Service<
   static readonly layerRemote = (url: string) =>
     Layer.unwrap(
       Effect.gen(function* () {
-        const token = yield* Config.Redacted("TRIAGE_ADMIN_TOKEN");
+        const token = yield* adminToken;
 
         return Layer.effect(
           IssueAdmin,

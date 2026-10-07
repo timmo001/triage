@@ -20,7 +20,7 @@ systemctl --user enable --now triage-server.service
 loginctl enable-linger "$USER" # keep it running while you're logged out
 ```
 
-The database lives in `~/.local/state/triage/server.db`, so `triage hosts add` and the other token commands work on it directly, without `--server`.
+The database lives in `~/.local/state/triage/server.db`, so `triage hosts add` and the other token commands work on it directly, without `--server`, as long as `TRIAGE_SERVER` isn't set.
 
 ## Container
 
@@ -66,7 +66,7 @@ triage hosts add laptop --server https://triage.example.com
 triage workers add desktop --server https://triage.example.com
 ```
 
-`add`, `list` and `remove` on `hosts`, `workers` and `admins` all take `--server`. `TRIAGE_SERVER_ADMIN_TOKEN` isn't stored or listed; you can leave it empty once you've added an admin of your own with `triage admins add`.
+`add`, `list` and `remove` on `hosts`, `workers` and `admins` all take `--server`, or use `TRIAGE_SERVER` when it's left out, so `export TRIAGE_SERVER=https://triage.example.com` saves typing it each time. `TRIAGE_SERVER_ADMIN_TOKEN` isn't stored or listed; you can leave it empty once you've added an admin of your own with `triage admins add`.
 
 ## Tokens
 

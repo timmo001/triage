@@ -34,7 +34,7 @@ triage mute <issue>...
 triage reopen <issue>...
 ```
 
-An event later than an issue's resolution reopens it as regressed, and decision models look at it again. A quiet issue that happens again goes back to ongoing; nothing is resolved for you. Add `--server <url>` to change a remote server's issues as the admin in `TRIAGE_ADMIN_TOKEN`.
+An event later than an issue's resolution reopens it as regressed, and decision models look at it again. A quiet issue that happens again goes back to ongoing; nothing is resolved for you. Add `--server <url>`, or set `TRIAGE_SERVER`, to change a remote server's issues as the admin in `TRIAGE_ADMIN_TOKEN`.
 
 ## In a browser
 

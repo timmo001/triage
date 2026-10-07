@@ -22,5 +22,5 @@ ARGUMENTS
   issue... string    The IDs of the issues
 
 FLAGS
-  --server string    Change the issues on the server at this URL as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
+  --server string    Change the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
 ```

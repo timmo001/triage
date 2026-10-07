@@ -32,7 +32,7 @@ ARGUMENTS
   name string    A name for the host that doesn't identify the machine, such as desktop
 
 FLAGS
-  --server string    Manage the server at this URL as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
+  --server string    Manage the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
 ```
 
 ## `triage hosts list`
@@ -46,7 +46,7 @@ USAGE
 
 FLAGS
   --json             Print JSON
-  --server string    Manage the server at this URL as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
+  --server string    Manage the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
 ```
 
 ## `triage hosts remove`
@@ -62,5 +62,5 @@ ARGUMENTS
   name string    A name for the host that doesn't identify the machine, such as desktop
 
 FLAGS
-  --server string    Manage the server at this URL as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
+  --server string    Manage the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
 ```

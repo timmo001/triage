@@ -1,7 +1,8 @@
 import { Api, TriageClient } from "@timmo001/effect-triage-client";
-import { Config, Context, Effect, Layer, Redacted, Schema } from "effect";
+import { Context, Effect, Layer, Redacted, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import type { Token, TokenScope } from "../store/Store.js";
+import { adminToken } from "./adminToken.js";
 import { Tokens } from "./Tokens.js";
 
 /** The store or the server couldn't manage a token. */
@@ -68,7 +69,7 @@ export class TokenAdmin extends Context.Service<
   static readonly layerRemote = (url: string) =>
     Layer.unwrap(
       Effect.gen(function* () {
-        const token = yield* Config.Redacted("TRIAGE_ADMIN_TOKEN");
+        const token = yield* adminToken;
 
         return Layer.effect(
           TokenAdmin,
