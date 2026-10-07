@@ -4,5 +4,11 @@
     "MD013": false,
   },
   "globs": ["**/*.md"],
-  "ignores": ["**/node_modules/**", "**/dist/**", ".agents/**"],
+  "ignores": [
+    "**/node_modules/**",
+    "**/dist/**",
+    ".agents/**",
+    // Copied as-is from the latest GitHub release notes by the Release workflow.
+    "home-assistant/app/CHANGELOG.md",
+  ],
 }
