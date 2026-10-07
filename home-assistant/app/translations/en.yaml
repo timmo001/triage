@@ -1,0 +1,30 @@
+configuration:
+  server_admin_token:
+    name: Server admin token
+    description: >-
+      An admin token the server always accepts, at least 32 characters, for
+      managing hosts, workers and admins with --server. It isn't stored or
+      listed. Leave it empty once you've added an admin of your own.
+  trust_proxy:
+    name: Trust reverse proxy
+    description: >-
+      Trust X-Forwarded-Host and X-Forwarded-For. Only turn this on when a
+      reverse proxy is the only way to reach the server.
+  decide_daily:
+    name: Daily decision limit
+    description: >-
+      The most issues each decision model may decide on in any 24 hours, by
+      the server and its workers together.
+  suggest_daily:
+    name: Daily suggestion limit
+    description: >-
+      The most fixes each language model may suggest in any 24 hours, by the
+      server and its workers together.
+  new_hours:
+    name: Hours an issue stays new
+    description: How long an issue counts as new after it's first seen.
+  quiet_hours:
+    name: Hours before an issue goes quiet
+    description: >-
+      How long an issue can go without events before it's quiet. A resolved
+      issue that comes back also stays regressed for this long.
