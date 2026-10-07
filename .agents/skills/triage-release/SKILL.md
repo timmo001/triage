@@ -7,7 +7,7 @@ compatibility: Requires mise, Bun and the GitHub CLI from the triage repository 
 
 # Releasing triage
 
-One version covers the CLI and both libraries. A published, non-prerelease GitHub release runs `.github/workflows/release.yml`, which publishes `@timmo001/effect-triage` then `@timmo001/effect-triage-client` to npm and JSR through OIDC, with no tokens, and pushes the server image to `ghcr.io/timmo001/triage` tagged with the version, `major.minor` and `latest`, and the Home Assistant app's image, which runs as root, to `ghcr.io/timmo001/triage-app` the same way (each one manifest for amd64 and arm64, built on native runners and labelled for Home Assistant). It also attaches the Linux binary and the `triage-bin` package. Prereleases publish nothing.
+One version covers the CLI and both libraries. A published, non-prerelease GitHub release runs `.github/workflows/release.yml`, which publishes `@timmo001/effect-triage` then `@timmo001/effect-triage-client` to npm and JSR through OIDC, with no tokens, and pushes the server image to `ghcr.io/timmo001/triage` tagged with the version, `major.minor` and `latest`, and the Home Assistant app's image, which runs as root, to `ghcr.io/timmo001/triage-app` the same way (each one manifest for amd64 and arm64, built on native runners and labelled for Home Assistant). It also attaches the Linux binary and the `triage-bin` package, and commits the release notes to `main` as `home-assistant/app/CHANGELOG.md`, which Home Assistant shows in the app's update dialog. That push uses the `RELEASE_COMMIT_TOKEN` secret, a fine-grained token from an admin with contents write access to this repository, since the Development ruleset blocks `GITHUB_TOKEN`. Prereleases publish nothing.
 
 ## Bump the version
 

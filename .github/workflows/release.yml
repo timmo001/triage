@@ -37,6 +37,45 @@ jobs:
           printf 'bun=%s\n' "$(mise current bun)" >> "$GITHUB_OUTPUT"
           printf 'node=%s\n' "$(mise current node)" >> "$GITHUB_OUTPUT"
 
+  # The Supervisor shows the app's CHANGELOG.md from the default branch, so copy
+  # the release notes there. The ruleset blocks GITHUB_TOKEN from pushing to
+  # main, so this pushes with an admin's token, which can bypass it. A missing
+  # changelog shouldn't fail the release, so failures only warn.
+  app-changelog:
+    name: Home Assistant app changelog
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Check out default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ secrets.RELEASE_COMMIT_TOKEN }}
+
+      - name: Write changelog
+        env:
+          RELEASE_NOTES: ${{ github.event.release.body }}
+        run: printf '%s\n' "$RELEASE_NOTES" | tr -d '\r' > home-assistant/app/CHANGELOG.md
+
+      - name: Commit changelog
+        env:
+          RELEASE_VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- home-assistant/app/CHANGELOG.md; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add home-assistant/app/CHANGELOG.md
+          git commit -m "Update Home Assistant app changelog for $RELEASE_VERSION"
+          git push
+
+      - name: Warn about missing changelog
+        if: ${{ failure() }}
+        run: echo "::warning title=Home Assistant app changelog::Couldn't commit the release notes to home-assistant/app/CHANGELOG.md. Check RELEASE_COMMIT_TOKEN, then update the file by hand."
+
   effect-triage-npm:
     name: effect-triage npm
     needs: tools
