@@ -21,7 +21,7 @@ export const Status = Schema.Literals(["open", "resolved", "muted"]);
 export type Status = typeof Status.Type;
 
 /**
- * Where an issue stands. Open issues are new for a week after they're first
+ * Where an issue stands. Open issues are new for 72 hours after they're first
  * seen, regressed for a week after they come back, quiet after a week without
  * events, and ongoing otherwise. Listed most pressing first, the order the
  * web UI shows them in.
@@ -38,10 +38,13 @@ export const State = Schema.Literals([
 export type State = typeof State.Type;
 
 /**
- * How long an issue stays new or regressed, and how long without events before
- * it's quiet, in milliseconds.
+ * How long an issue stays regressed, and how long without events before it's
+ * quiet, in milliseconds.
  */
 export const recentMillis = 7 * 24 * 60 * 60 * 1000;
+
+/** How long an issue stays new after it's first seen, in milliseconds. */
+export const newMillis = 72 * 60 * 60 * 1000;
 
 /**
  * Events grouped by fingerprint: crashes and unit failures across every host

@@ -23,7 +23,7 @@ triage issues --server   # the server's
 
 | State     | Means                                                              |
 | --------- | ------------------------------------------------------------------ |
-| New       | First seen in the last week                                        |
+| New       | First seen in the last 72 hours                                    |
 | Ongoing   | Seen before that, and still happening in the last week             |
 | Quiet     | Still open, but nothing in the last week                           |
 | Regressed | Happened again after it was resolved, in the last week             |

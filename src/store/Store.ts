@@ -101,7 +101,7 @@ const state = (row: typeof IssueRow.Type, now: number): Issue.State => {
     return "regressed";
   }
 
-  if (now - row.first_seen < Issue.recentMillis) {
+  if (now - row.first_seen < Issue.newMillis) {
     return "new";
   }
 
@@ -651,7 +651,7 @@ export class Store extends Context.Service<
           WHEN status != 'open' THEN status
           WHEN regressed_at IS NOT NULL
             AND ${now} - regressed_at < ${Issue.recentMillis} THEN 'regressed'
-          WHEN ${now} - first_seen < ${Issue.recentMillis} THEN 'new'
+          WHEN ${now} - first_seen < ${Issue.newMillis} THEN 'new'
           WHEN ${now} - last_seen < ${Issue.recentMillis} THEN 'ongoing'
           ELSE 'quiet'
         END AS state
