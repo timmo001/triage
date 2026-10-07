@@ -1,10 +1,5 @@
-## MCP
+## Web UI
 
-- Agents can resolve, mute and reopen issues with `set_issue_status`, and label them worth fixing or noise with `label_issue`, like the buttons on an issue's page.
-- Once an agent has fixed an issue, the server tells it to check the fix is in place on every host the issue happened on, then ask you before resolving it. Noise that can't be fixed gets muted instead.
-- The issue page's Copy for agent text asks the agent to do the same.
-
-## Home Assistant
-
-- Assist can resolve, mute and label issues too, once the MCP integration's tools are turned on for your conversation agent.
+- Clicking an issue's Copy for agent box selects the message as it copies, so it still copies in Home Assistant over plain HTTP, where browsers have no clipboard API. If copying fails, the text stays selected to copy by hand.
+- Dragging across the message selects just that text, without copying the whole message.
 
