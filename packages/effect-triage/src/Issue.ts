@@ -47,8 +47,7 @@ export const recentMillis = 7 * 24 * 60 * 60 * 1000;
 export const newMillis = 72 * 60 * 60 * 1000;
 
 /**
- * Events grouped by fingerprint: crashes and unit failures across every host
- * they happened on, errors and OOM kills on one host.
+ * Events grouped by fingerprint, across every host they happened on.
  */
 export const Issue = Schema.Struct({
   /** {@link issueId} of the fingerprint. */

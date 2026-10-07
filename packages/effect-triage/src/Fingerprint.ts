@@ -49,15 +49,8 @@ export const unitTemplate = (unit: string) =>
     .replace(/^session-\w+(?=\.scope$)/, "session-<id>");
 
 /**
- * A fingerprint kept to one host. Errors and OOM kills with the same wording
- * often have a cause particular to each machine, so they group per host.
- */
-export const onHost = (key: string, host: string) => `${key}|${host}`;
-
-/**
  * The grouping key for an event. Events with the same fingerprint belong to
- * the same issue: crashes and unit failures on any host, errors and OOM kills
- * on one host.
+ * the same issue, on any host.
  */
 export const fingerprint = (event: Event): string =>
   Event.match(event, {
@@ -81,25 +74,19 @@ export const fingerprint = (event: Event): string =>
         failure.result ?? "",
       ].join("|"),
     OutOfMemory: (oom) =>
-      onHost(
-        ["oom", oom.process ?? unitTemplate(oom.unit ?? "?")].join("|"),
-        oom.host,
-      ),
+      ["oom", oom.process ?? unitTemplate(oom.unit ?? "?")].join("|"),
     LogError: (log) =>
-      onHost(
-        [
-          "log",
-          log.identifier ?? unitTemplate(log.unit ?? "?"),
-          template(log.message),
-        ].join("|"),
-        log.host,
-      ),
+      [
+        "log",
+        log.identifier ?? unitTemplate(log.unit ?? "?"),
+        template(log.message),
+      ].join("|"),
   });
 
 /**
  * The start of a fingerprint that similar issues share: a crash of the same
- * program with the same signal, the same unit failing in any way, or the same
- * error or OOM kill on another host.
+ * program with the same signal, the same unit failing in any way, another
+ * error from the same program, or another OOM kill.
  */
 export const family = (key: string): string => {
   const parts = key.split("|");
@@ -108,10 +95,10 @@ export const family = (key: string): string => {
     case "crash":
       return `${parts.slice(0, 3).join("|")}|`;
     case "unit":
+    case "log":
       return `${parts.slice(0, 2).join("|")}|`;
     case "oom":
-    case "log":
-      return key.slice(0, key.lastIndexOf("|") + 1);
+      return "oom|";
     default:
       return key;
   }

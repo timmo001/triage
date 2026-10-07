@@ -7,10 +7,10 @@ Triage groups events into issues by what went wrong, not when:
 
 - Crashes group by executable and signal, plus their top stack frames when there are any.
 - Failed units group by unit and how they failed. Transient scopes, `systemd-run` units, session scopes and units with numbered instances each group as one.
-- Out-of-memory kills group by the process that was killed, on each host.
-- Errors group by the program that logged them and the message, with its numbers, paths, IDs and addresses taken out, on each host.
+- Out-of-memory kills group by the process that was killed.
+- Errors group by the program that logged them and the message, with its numbers, paths, IDs and addresses taken out.
 
-A crash or failed unit on two hosts is one issue, with events from both, and its page shows how often it happened on each. Errors and OOM kills stay separate for each host, since the same message often has a cause particular to that machine.
+An issue on two hosts is one issue, with events from both, and its page shows how often it happened on each.
 
 ```bash
 triage issues            # this host's issues

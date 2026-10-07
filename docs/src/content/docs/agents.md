@@ -16,7 +16,7 @@ The tools see what the web UI does: redacted events, the names hosts were enroll
 | `set_issue_status` | Resolves, mutes or reopens the issue |
 | `label_issue` | Labels the issue worth fixing or noise |
 
-`find_similar_issues` counts an issue as similar when it's a crash of the same program with the same signal, the same unit failing in any way, or the same error or OOM kill on another host.
+`find_similar_issues` counts an issue as similar when it's a crash of the same program with the same signal, the same unit failing in any way, another error from the same program, or another OOM kill.
 
 The server tells agents to close an issue once they've fixed it, without waiting to be asked. Each host the issue happened on needs the fix, so the agent checks it's in place on the hosts it can reach and asks you about the others. Then it asks you before resolving the issue. Issues that are noise and can't be fixed get muted instead.
 

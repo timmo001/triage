@@ -122,7 +122,7 @@ const GetIssueEvents = Tool.make("get_issue_events", {
   .annotate(Tool.OpenWorld, false);
 
 const FindSimilarIssues = Tool.make("find_similar_issues", {
-  description: `Find issues like a triage issue, with the fixes suggested for each, to see what worked before. Similar means a crash of the same program with the same signal, the same unit failing, or the same error or OOM kill on another host. Resolved issues come first, then the latest seen.`,
+  description: `Find issues like a triage issue, with the fixes suggested for each, to see what worked before. Similar means a crash of the same program with the same signal, the same unit failing, another error from the same program, or another OOM kill. Resolved issues come first, then the latest seen.`,
   parameters: Schema.Struct({
     issue: IssueParameter,
     limit: Schema.Int.pipe(

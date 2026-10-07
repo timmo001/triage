@@ -441,7 +441,7 @@ const migrations = SqliteMigrator.fromRecord({
     `;
 
     for (const { id, fingerprint, host } of pairs) {
-      const key = Fingerprint.onHost(fingerprint, host);
+      const key = `${fingerprint}|${host}`;
       const next = Fingerprint.issueId(key);
 
       yield* sql`
@@ -502,6 +502,20 @@ const migrations = SqliteMigrator.fromRecord({
           part.startsWith("/") ? part.slice(part.lastIndexOf("/") + 1) : part,
         )
         .join("|"),
+    );
+  }),
+  // Errors and OOM kills group across hosts again, like crashes and unit
+  // failures, so each one's issues on different hosts merge into one.
+  "0012_cross_host_issues": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    const issues = yield* sql<{ id: string; fingerprint: string }>`
+      SELECT id, fingerprint FROM issues
+      WHERE kind IN ('LogError', 'OutOfMemory')
+    `;
+
+    yield* mergeGroups(issues, (fingerprint) =>
+      fingerprint.slice(0, fingerprint.lastIndexOf("|")),
     );
   }),
 });

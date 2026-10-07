@@ -59,7 +59,7 @@ describe("fingerprint", () => {
     ).toBe(fingerprint(crash));
   });
 
-  test("keeps log errors to one host", () => {
+  test("groups log errors across hosts", () => {
     const error = Event.cases.LogError.make({
       id: "event",
       host: "laptop",
@@ -70,12 +70,8 @@ describe("fingerprint", () => {
       message: "connect failed (-16)",
     });
 
-    expect(fingerprint(error)).toBe(
-      "log|bluetoothd|connect failed (<n>)|laptop",
-    );
-    expect(fingerprint({ ...error, host: "desktop" })).not.toBe(
-      fingerprint(error),
-    );
+    expect(fingerprint(error)).toBe("log|bluetoothd|connect failed (<n>)");
+    expect(fingerprint({ ...error, host: "desktop" })).toBe(fingerprint(error));
   });
 
   test("groups numbered instances of a templated unit", () => {
@@ -113,8 +109,8 @@ describe("family", () => {
       "crash|ghostty|SIGSEGV|",
     ],
     ["unit|getty@tty1.service|exit-code", "unit|getty@tty1.service|"],
-    ["oom|chromium|laptop", "oom|chromium|"],
-    ["log|app|failed: a|b (<n>)|laptop", "log|app|failed: a|b (<n>)|"],
+    ["oom|chromium", "oom|"],
+    ["log|app|failed: a|b (<n>)", "log|app|"],
   ])("%p is in %p", (key, expected) => {
     expect(family(key)).toBe(expected);
   });

@@ -251,7 +251,7 @@ describe("Store", () => {
     expect(result.found).toEqual(Option.some("quiet"));
   });
 
-  test("finds the same error on other hosts, resolved ones first", async () => {
+  test("finds other errors from the same program, resolved ones first", async () => {
     const result = await Effect.gen(function* () {
       const store = yield* Store;
       const now = Date.now();
@@ -270,21 +270,29 @@ describe("Store", () => {
       yield* store.add([
         event("laptop", "connect failed", 1000),
         event("desktop", "connect failed", 2000),
-        event("server", "connect failed", 500),
-        event("laptop", "disconnected", 1000),
+        event("desktop", "disconnected", 2000),
+        event("server", "timed out", 500),
+        Event.Event.cases.LogError.make({
+          id: "other",
+          host: "laptop",
+          source: "journal",
+          timestamp: now,
+          severity: "err",
+          identifier: "wireplumber",
+          message: "connect failed",
+        }),
       ]);
 
       const issues = yield* store.issues({ limit: 10 });
 
-      const id = (host: string, title: string) =>
-        issues.find(
-          (issue) => issue.hosts.includes(host) && issue.title.endsWith(title),
-        )?.id ?? "";
+      const id = (title: string) =>
+        issues.find((issue) => issue.title === `bluetoothd: ${title}`)?.id ??
+        "";
 
-      yield* store.setStatus(id("desktop", "connect failed"), "resolved");
+      yield* store.setStatus(id("disconnected"), "resolved");
       yield* store.saveSuggestion(
         {
-          issueId: id("desktop", "connect failed"),
+          issueId: id("disconnected"),
           model: "m",
           issueCount: 1,
           text: "Restart bluetoothd",
@@ -294,16 +302,18 @@ describe("Store", () => {
       );
 
       return {
-        similar: yield* store.similar(id("laptop", "connect failed"), 10),
+        hosts: issues.find((issue) => issue.id === id("connect failed"))?.hosts,
+        similar: yield* store.similar(id("connect failed"), 10),
         missing: yield* store.similar("missing", 10),
       };
     }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
 
     const similar = Option.getOrThrow(result.similar);
 
-    expect(similar.map((issue) => [issue.hosts, issue.state])).toEqual([
-      [["desktop"], "resolved"],
-      [["server"], "new"],
+    expect([...(result.hosts ?? [])].sort()).toEqual(["desktop", "laptop"]);
+    expect(similar.map((issue) => [issue.title, issue.state])).toEqual([
+      ["bluetoothd: disconnected", "resolved"],
+      ["bluetoothd: timed out", "new"],
     ]);
     expect(
       similar[0]?.suggestions.map((suggestion) => suggestion.text),
