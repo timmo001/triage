@@ -183,7 +183,7 @@ const issues = Command.make(
           Effect.gen(function* () {
             const admin = yield* IssueAdmin;
 
-            return yield* admin.list(input.limit);
+            return yield* admin.list({ limit: input.limit });
           }),
         )
       : yield* Effect.gen(function* () {
@@ -542,7 +542,7 @@ const mcp = Command.make(
   }),
 ).pipe(
   Command.withDescription(
-    "Serve MCP over stdio, so agents can read issues and their events from an issue ID or a link to its page",
+    "Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed",
   ),
 );
 

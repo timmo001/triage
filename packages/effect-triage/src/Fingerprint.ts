@@ -92,6 +92,27 @@ export const fingerprint = (event: Event): string =>
       ),
   });
 
+/**
+ * The start of a fingerprint that similar issues share: a crash of the same
+ * program with the same signal, the same unit failing in any way, or the same
+ * error or OOM kill on another host.
+ */
+export const family = (key: string): string => {
+  const parts = key.split("|");
+
+  switch (parts[0]) {
+    case "crash":
+      return `${parts.slice(0, 3).join("|")}|`;
+    case "unit":
+      return `${parts.slice(0, 2).join("|")}|`;
+    case "oom":
+    case "log":
+      return key.slice(0, key.lastIndexOf("|") + 1);
+    default:
+      return key;
+  }
+};
+
 /** A short, stable ID for a fingerprint: 64-bit FNV-1a as 16 hex digits. */
 export const issueId = (fingerprint: string): string => {
   let hash = 0xcbf29ce484222325n;

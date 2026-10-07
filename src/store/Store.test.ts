@@ -250,4 +250,64 @@ describe("Store", () => {
     expect(result.counts).toMatchObject({ ongoing: 1, quiet: 1 });
     expect(result.found).toEqual(Option.some("quiet"));
   });
+
+  test("finds the same error on other hosts, resolved ones first", async () => {
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+      const now = Date.now();
+
+      const event = (host: string, message: string, ago: number) =>
+        Event.Event.cases.LogError.make({
+          id: `${host}-${message}-${ago}`,
+          host,
+          source: "journal",
+          timestamp: now - ago,
+          severity: "err",
+          identifier: "bluetoothd",
+          message,
+        });
+
+      yield* store.add([
+        event("laptop", "connect failed", 1000),
+        event("desktop", "connect failed", 2000),
+        event("server", "connect failed", 500),
+        event("laptop", "disconnected", 1000),
+      ]);
+
+      const issues = yield* store.issues({ limit: 10 });
+
+      const id = (host: string, title: string) =>
+        issues.find(
+          (issue) => issue.hosts.includes(host) && issue.title.endsWith(title),
+        )?.id ?? "";
+
+      yield* store.setStatus(id("desktop", "connect failed"), "resolved");
+      yield* store.saveSuggestion(
+        {
+          issueId: id("desktop", "connect failed"),
+          model: "m",
+          issueCount: 1,
+          text: "Restart bluetoothd",
+          evidence: "[]",
+        },
+        "cli",
+      );
+
+      return {
+        similar: yield* store.similar(id("laptop", "connect failed"), 10),
+        missing: yield* store.similar("missing", 10),
+      };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    const similar = Option.getOrThrow(result.similar);
+
+    expect(similar.map((issue) => [issue.hosts, issue.state])).toEqual([
+      [["desktop"], "resolved"],
+      [["server"], "new"],
+    ]);
+    expect(
+      similar[0]?.suggestions.map((suggestion) => suggestion.text),
+    ).toEqual(["Restart bluetoothd"]);
+    expect(result.missing).toEqual(Option.none());
+  });
 });

@@ -1,16 +1,20 @@
 ---
 title: Agents
-description: Let an agent read an issue and every event in it through triage's MCP server.
+description: Let an agent find issues, read them and every event in them, and see how similar ones were fixed, through triage's MCP server.
 ---
 
-Triage serves [MCP](https://modelcontextprotocol.io), so an agent can read an issue and its events. Give it an issue ID or paste a link to the issue's page, and it reads the rest itself. The issue page's **Copy for agent** button copies the link with a line telling the agent which tools to use.
+Triage serves [MCP](https://modelcontextprotocol.io), so an agent can find and read issues and their events. Give it an issue ID or paste a link to the issue's page, and it reads the rest itself, or let it search for one. The issue page's **Copy for agent** button copies the link with a line telling the agent which tools to use.
 
 The tools only read. They see what the web UI does: redacted events, the names hosts were enrolled with, decisions and suggested fixes.
 
 | Tool | Reads |
 | --- | --- |
+| `list_issues` | Issues, the latest seen first, filtered by title, state, kind, host or label like the web UI's list, and sorted the same ways. Pass `nextOffset` back until it's missing to page through them |
 | `get_issue` | The issue, the hosts it happened on, decisions, suggested fixes and its latest 20 events |
 | `get_issue_events` | A page of its events, newest first, up to 500 at a time. Pass `nextOffset` back until it's missing to read them all |
+| `find_similar_issues` | Issues like it, with the fixes suggested for each, resolved ones first |
+
+`find_similar_issues` counts an issue as similar when it's a crash of the same program with the same signal, the same unit failing in any way, or the same error or OOM kill on another host.
 
 ## Over stdio
 

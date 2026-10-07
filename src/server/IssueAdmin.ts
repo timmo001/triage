@@ -1,7 +1,7 @@
 import { Api, type Issue, TriageClient } from "@timmo001/effect-triage-client";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
-import { Store } from "../store/Store.js";
+import { type ListOptions, Store } from "../store/Store.js";
 import { agreement } from "../triage/Triager.js";
 import { adminToken } from "./adminToken.js";
 
@@ -26,9 +26,9 @@ const toIssueAdminError = (cause: unknown) => new IssueAdminError({ cause });
 export class IssueAdmin extends Context.Service<
   IssueAdmin,
   {
-    /** The latest seen issues first. */
+    /** The latest seen issues first, unless `options` sorts them otherwise. */
     list(
-      limit: number,
+      options: ListOptions,
     ): Effect.Effect<ReadonlyArray<Api.IssueSummary>, IssueAdminError>;
     setStatus(
       id: string,
@@ -51,6 +51,14 @@ export class IssueAdmin extends Context.Service<
       id: string,
       page: { readonly limit: number; readonly offset: number },
     ): Effect.Effect<Api.IssueEvents, Api.IssueNotFound | IssueAdminError>;
+    /** Issues like this one, with their suggested fixes, resolved ones first. */
+    similar(
+      id: string,
+      limit: number,
+    ): Effect.Effect<
+      ReadonlyArray<Api.SimilarIssue>,
+      Api.IssueNotFound | IssueAdminError
+    >;
   }
 >()("triage/server/IssueAdmin") {
   /** The issues in this machine's server database. */
@@ -60,8 +68,8 @@ export class IssueAdmin extends Context.Service<
       const store = yield* Store;
 
       return IssueAdmin.of({
-        list: (limit) =>
-          store.issues({ limit }).pipe(Effect.mapError(toIssueAdminError)),
+        list: (options) =>
+          store.issues(options).pipe(Effect.mapError(toIssueAdminError)),
         setStatus: (id, status) =>
           store.setStatus(id, status).pipe(
             Effect.catchTags({
@@ -100,6 +108,16 @@ export class IssueAdmin extends Context.Service<
               }),
             ),
           ),
+        similar: (id, limit) =>
+          store.similar(id, limit).pipe(
+            Effect.mapError(toIssueAdminError),
+            Effect.flatMap(
+              Option.match({
+                onNone: () => Effect.fail(new Api.IssueNotFound({ id })),
+                onSome: Effect.succeed,
+              }),
+            ),
+          ),
       });
     }),
   );
@@ -116,9 +134,9 @@ export class IssueAdmin extends Context.Service<
             const client = yield* TriageClient;
 
             return IssueAdmin.of({
-              list: (limit) =>
+              list: (options) =>
                 client.issues
-                  .list({ query: { limit } })
+                  .list({ query: options })
                   .pipe(Effect.mapError(toIssueAdminError)),
               setStatus: (id, status) =>
                 client.issues
@@ -156,6 +174,16 @@ export class IssueAdmin extends Context.Service<
               events: (id, page) =>
                 client.issues
                   .events({ params: { id }, query: page })
+                  .pipe(
+                    Effect.mapError((error) =>
+                      Schema.is(Api.IssueNotFound)(error)
+                        ? error
+                        : toIssueAdminError(error),
+                    ),
+                  ),
+              similar: (id, limit) =>
+                client.issues
+                  .similar({ params: { id }, query: { limit } })
                   .pipe(
                     Effect.mapError((error) =>
                       Schema.is(Api.IssueNotFound)(error)

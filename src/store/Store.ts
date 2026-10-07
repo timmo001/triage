@@ -126,6 +126,19 @@ const SummaryRow = Schema.Struct({
   hosts: Schema.fromJsonString(Schema.Array(Schema.String)),
 });
 
+const toSummary = (
+  row: typeof SummaryRow.Type,
+  now: number,
+): Api.IssueSummary =>
+  Object.assign(
+    toIssue(row, now),
+    { hosts: row.hosts },
+    row.worth === null ? {} : { worth: row.worth },
+    row.label === null
+      ? {}
+      : { label: row.label ? ("worth" as const) : ("noise" as const) },
+  );
+
 const HostCountRow = Schema.Struct({
   host: Schema.String,
   count: Schema.Int,
@@ -156,6 +169,14 @@ const SuggestionRow = Schema.Struct({
   suggested_by: Schema.NullOr(Schema.String),
   issue_count: Schema.Int,
   text: Schema.String,
+});
+
+const toSuggestion = (row: typeof SuggestionRow.Type): Api.IssueSuggestion => ({
+  model: row.model,
+  suggestedAt: row.suggested_at,
+  by: row.suggested_by,
+  issueCount: row.issue_count,
+  text: row.text,
 });
 
 const migrations = SqliteMigrator.fromRecord({
@@ -403,6 +424,17 @@ export class Store extends Context.Service<
       id: string,
       page: { readonly limit: number; readonly offset: number },
     ): Effect.Effect<Option.Option<Api.IssueEvents>, StoreError>;
+    /**
+     * Other issues in the same fingerprint family as an issue, with their
+     * suggested fixes: resolved ones first, then the latest seen.
+     */
+    similar(
+      id: string,
+      limit: number,
+    ): Effect.Effect<
+      Option.Option<ReadonlyArray<Api.SimilarIssue>>,
+      StoreError
+    >;
     /** Add a token. Returns false when the name is already taken in its scope. */
     addToken(
       scope: TokenScope,
@@ -689,16 +721,7 @@ export class Store extends Context.Service<
           `,
         );
 
-        return rows.map((row): Api.IssueSummary =>
-          Object.assign(
-            toIssue(row, now),
-            { hosts: row.hosts },
-            row.worth === null ? {} : { worth: row.worth },
-            row.label === null
-              ? {}
-              : { label: row.label ? ("worth" as const) : ("noise" as const) },
-          ),
-        );
+        return rows.map((row) => toSummary(row, now));
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -879,14 +902,43 @@ export class Store extends Context.Service<
             severity: row.severity,
             cause: row.cause,
           })),
-          suggestions: suggestions.map((row) => ({
-            model: row.model,
-            suggestedAt: row.suggested_at,
-            by: row.suggested_by,
-            issueCount: row.issue_count,
-            text: row.text,
-          })),
+          suggestions: suggestions.map(toSuggestion),
         });
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const similar = Effect.fn("Store.similar")(
+      function* (id: string, limit: number) {
+        const row = yield* findIssue(id);
+
+        if (Option.isNone(row)) {
+          return Option.none();
+        }
+
+        const now = yield* Clock.currentTimeMillis;
+
+        const rows = yield* decodeSummaries(
+          yield* sql`
+            SELECT * FROM (${summaries({}, now)})
+            WHERE id != ${id}
+              AND instr(fingerprint, ${Fingerprint.family(row.value.fingerprint)}) = 1
+            ORDER BY state = 'resolved' DESC, last_seen DESC, id
+            LIMIT ${limit}
+          `,
+        );
+
+        return Option.some(
+          yield* Effect.forEach(rows, (similarRow) =>
+            issueSuggestions(similarRow.id).pipe(
+              Effect.map((suggestions): Api.SimilarIssue =>
+                Object.assign(toSummary(similarRow, now), {
+                  suggestions: suggestions.map(toSuggestion),
+                }),
+              ),
+            ),
+          ),
+        );
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -1176,6 +1228,7 @@ export class Store extends Context.Service<
       issue,
       events,
       review,
+      similar,
       addToken,
       tokenName,
       tokens,

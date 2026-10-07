@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { Event } from "./Event.js";
-import { fingerprint, issueId, template, unitTemplate } from "./Fingerprint.js";
+import {
+  family,
+  fingerprint,
+  issueId,
+  template,
+  unitTemplate,
+} from "./Fingerprint.js";
 
 describe("template", () => {
   test("replaces the parts that change between occurrences", () => {
@@ -91,5 +97,19 @@ describe("fingerprint", () => {
 
   test("issue IDs are stable", () => {
     expect(issueId("a")).toBe("af63dc4c8601ec8c");
+  });
+});
+
+describe("family", () => {
+  test.each([
+    [
+      "crash|ghostty|SIGSEGV|ghostty|g_main_context_dispatch|main",
+      "crash|ghostty|SIGSEGV|",
+    ],
+    ["unit|getty@tty1.service|exit-code", "unit|getty@tty1.service|"],
+    ["oom|chromium|laptop", "oom|chromium|"],
+    ["log|app|failed: a|b (<n>)|laptop", "log|app|failed: a|b (<n>)|"],
+  ])("%p is in %p", (key, expected) => {
+    expect(family(key)).toBe(expected);
   });
 });

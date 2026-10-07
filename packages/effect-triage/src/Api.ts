@@ -321,6 +321,18 @@ export const IssueReview = Schema.Struct({
 
 export interface IssueReview extends Schema.Schema.Type<typeof IssueReview> {}
 
+/** An issue like another one, with the fixes suggested for it. */
+export const SimilarIssue = Schema.Struct({
+  ...IssueSummary.fields,
+  /** Each model's latest suggestion, newest first. */
+  suggestions: Schema.Array(IssueSuggestion),
+});
+
+export interface SimilarIssue extends Schema.Schema.Type<typeof SimilarIssue> {}
+
+/** The most similar issues one request returns. */
+export const maxSimilar = 50;
+
 /** The most issues one request for work returns. */
 export const maxWork = 50;
 
@@ -429,6 +441,12 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
       success: IssueEvents,
       error: IssueNotFound,
     }),
+    HttpApiEndpoint.get("similar", "/:id/similar", {
+      params: { id: Schema.String },
+      query: { limit: Schema.optional(Schema.Int) },
+      success: Schema.Array(SimilarIssue),
+      error: IssueNotFound,
+    }),
     HttpApiEndpoint.put("setStatus", "/:id/status", {
       params: { id: Schema.String },
       payload: Schema.Struct({ status: Status }),
@@ -448,7 +466,7 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
     OpenApi.annotations({
       title: "Issues",
       description:
-        "Events grouped by fingerprint, resolving or muting them, and labelling them worth fixing or noise",
+        "Events grouped by fingerprint, similar issues and their suggested fixes, resolving or muting them, and labelling them worth fixing or noise",
     }),
   ) {}
 

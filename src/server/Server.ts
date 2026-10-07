@@ -24,6 +24,8 @@ const maxIssues = 500;
 
 const defaultEvents = 100;
 
+const defaultSimilar = 10;
+
 const HostAuthorizationLayer = Layer.effect(
   Api.HostAuthorization,
   Effect.gen(function* () {
@@ -164,6 +166,20 @@ const IssuesHandlers = HttpApiBuilder.group(
         }
 
         return page.value;
+      }),
+      similar: Effect.fn(function* ({ params, query }) {
+        const similar = yield* store
+          .similar(
+            params.id,
+            bounded(query.limit, defaultSimilar, Api.maxSimilar),
+          )
+          .pipe(Effect.orDie);
+
+        if (Option.isNone(similar)) {
+          return yield* new Api.IssueNotFound({ id: params.id });
+        }
+
+        return similar.value;
       }),
       setStatus: ({ params, payload }) =>
         store.setStatus(params.id, payload.status).pipe(
