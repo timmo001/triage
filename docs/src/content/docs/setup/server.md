@@ -20,7 +20,7 @@ systemctl --user enable --now triage-server.service
 loginctl enable-linger "$USER" # keep it running while you're logged out
 ```
 
-The database lives in `~/.local/state/triage/server.db`, so `triage hosts add` and the other token commands work on it directly, without `--server`, as long as `TRIAGE_SERVER` isn't set.
+The database lives in `~/.local/state/triage/server.db`, so `triage hosts add` and the other token and issue commands work on it directly, without `--server`, as long as `TRIAGE_SERVER` isn't set.
 
 ## Container
 

@@ -2,9 +2,10 @@ import { Api, type Issue, TriageClient } from "@timmo001/effect-triage-client";
 import { Context, Effect, Layer, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { Store } from "../store/Store.js";
+import { agreement } from "../triage/Triager.js";
 import { adminToken } from "./adminToken.js";
 
-/** The store or the server couldn't change an issue. */
+/** The store or the server couldn't read or change an issue. */
 export class IssueAdminError extends Schema.TaggedError<IssueAdminError>()(
   "IssueAdminError",
   { cause: Schema.Defect() },
@@ -18,14 +19,29 @@ export class IssueAdminError extends Schema.TaggedError<IssueAdminError>()(
 
 const toIssueAdminError = (cause: unknown) => new IssueAdminError({ cause });
 
-/** Resolves, mutes and reopens a server's issues, here or over its API. */
+/**
+ * Lists, labels, resolves, mutes and reopens a server's issues, and compares
+ * its decision models with the labels, here or over its API.
+ */
 export class IssueAdmin extends Context.Service<
   IssueAdmin,
   {
+    /** The latest seen issues first. */
+    list(
+      limit: number,
+    ): Effect.Effect<ReadonlyArray<Api.IssueSummary>, IssueAdminError>;
     setStatus(
       id: string,
       status: Issue.Status,
     ): Effect.Effect<void, Api.IssueNotFound | IssueAdminError>;
+    setLabel(
+      id: string,
+      label: Api.Label,
+    ): Effect.Effect<void, Api.IssueNotFound | IssueAdminError>;
+    readonly agreement: Effect.Effect<
+      ReadonlyArray<Api.Agreement>,
+      IssueAdminError
+    >;
   }
 >()("triage/server/IssueAdmin") {
   /** The issues in this machine's server database. */
@@ -35,6 +51,8 @@ export class IssueAdmin extends Context.Service<
       const store = yield* Store;
 
       return IssueAdmin.of({
+        list: (limit) =>
+          store.issues({ limit }).pipe(Effect.mapError(toIssueAdminError)),
         setStatus: (id, status) =>
           store.setStatus(id, status).pipe(
             Effect.catchTags({
@@ -42,6 +60,17 @@ export class IssueAdmin extends Context.Service<
               StoreError: (error) => Effect.fail(toIssueAdminError(error)),
             }),
           ),
+        setLabel: (id, label) =>
+          store.label(id, label === "worth").pipe(
+            Effect.catchTags({
+              IssueNotFound: () => Effect.fail(new Api.IssueNotFound({ id })),
+              StoreError: (error) => Effect.fail(toIssueAdminError(error)),
+            }),
+          ),
+        agreement: store.labelledDecisions.pipe(
+          Effect.map(agreement),
+          Effect.mapError(toIssueAdminError),
+        ),
       });
     }),
   );
@@ -58,6 +87,10 @@ export class IssueAdmin extends Context.Service<
             const client = yield* TriageClient;
 
             return IssueAdmin.of({
+              list: (limit) =>
+                client.issues
+                  .list({ query: { limit } })
+                  .pipe(Effect.mapError(toIssueAdminError)),
               setStatus: (id, status) =>
                 client.issues
                   .setStatus({ params: { id }, payload: { status } })
@@ -68,6 +101,19 @@ export class IssueAdmin extends Context.Service<
                         : toIssueAdminError(error),
                     ),
                   ),
+              setLabel: (id, label) =>
+                client.issues
+                  .setLabel({ params: { id }, payload: { label } })
+                  .pipe(
+                    Effect.mapError((error) =>
+                      Schema.is(Api.IssueNotFound)(error)
+                        ? error
+                        : toIssueAdminError(error),
+                    ),
+                  ),
+              agreement: client.decisions
+                .agreement()
+                .pipe(Effect.mapError(toIssueAdminError)),
             });
           }),
         ).pipe(

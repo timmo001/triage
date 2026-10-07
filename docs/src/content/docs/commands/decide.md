@@ -24,4 +24,5 @@ FLAGS
   --model, -m string     The decision model: laya by default through System One, clef-flash with Cloudflare
   --limit, -n integer    The most issues to decide on
   --json                 Print JSON
+  --server string        Decide for the server at this URL, or $TRIAGE_SERVER, as the worker in $TRIAGE_WORKER_TOKEN, instead of the server database on this machine
 ```

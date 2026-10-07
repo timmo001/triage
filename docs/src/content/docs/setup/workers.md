@@ -41,3 +41,7 @@ If the server or a model can't be reached, the worker logs a warning and tries a
 ## On the server instead
 
 The server can run the same loops itself with `triage serve --decide` or `--suggest`, or `TRIAGE_DECIDE` and `TRIAGE_SUGGEST` in `server.env`, when the models are reachable from there.
+
+## One-off runs
+
+With `TRIAGE_SERVER` and `TRIAGE_WORKER_TOKEN` set, `triage decide` and `triage suggest <issue>...` run once for the server as the worker, within the same daily limits.

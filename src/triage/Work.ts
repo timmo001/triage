@@ -10,6 +10,7 @@ import {
   Option,
   Schema,
 } from "effect";
+import { CliError } from "effect/cli";
 import { FetchHttpClient } from "effect/http";
 import { Store, type StoreError } from "../store/Store.js";
 
@@ -148,48 +149,57 @@ export class Work extends Context.Service<
     );
 
   /**
-   * Work for the server at `$TRIAGE_SERVER`, authenticating with the worker
-   * token in `$TRIAGE_WORKER_TOKEN`. The server applies its daily limits.
+   * Work for the server at `url`, authenticating with the worker token in
+   * `$TRIAGE_WORKER_TOKEN`. The server applies its daily limits.
    */
-  static readonly layerRemote = Layer.unwrap(
-    Effect.gen(function* () {
-      const url = yield* Config.String("TRIAGE_SERVER");
-      const token = yield* Config.Redacted("TRIAGE_WORKER_TOKEN");
+  static readonly layerRemote = (url: string) =>
+    Layer.unwrap(
+      Effect.gen(function* () {
+        const token = yield* Config.Redacted("TRIAGE_WORKER_TOKEN").pipe(
+          Effect.mapError(
+            (cause) =>
+              new CliError.UserError({
+                cause,
+                userMessage:
+                  "Set TRIAGE_WORKER_TOKEN to a worker token to work for a server. Add one with triage workers add <name>.",
+              }),
+          ),
+        );
 
-      return Layer.effect(
-        Work,
-        Effect.gen(function* () {
-          const client = yield* TriageClient;
+        return Layer.effect(
+          Work,
+          Effect.gen(function* () {
+            const client = yield* TriageClient;
 
-          return Work.of({
-            toDecide: (model, limit) =>
-              client.work
-                .toDecide({ query: { model, limit } })
-                .pipe(Effect.mapError(toWorkError)),
-            saveDecision: (decision) =>
-              client.work
-                .saveDecision({ payload: decision })
-                .pipe(Effect.mapError(toWorkError)),
-            toSuggest: (request) =>
-              client.work
-                .toSuggest({ query: request })
-                .pipe(Effect.mapError(toWorkError)),
-            issue: (id) =>
-              client.work.issue({ params: { id } }).pipe(
-                Effect.asSome,
-                Effect.catchTag("IssueNotFound", () => Effect.succeedNone),
-                Effect.mapError(toWorkError),
-              ),
-            saveSuggestion: (suggestion) =>
-              client.work
-                .saveSuggestion({ payload: suggestion })
-                .pipe(Effect.mapError(toWorkError)),
-          });
-        }),
-      ).pipe(
-        Layer.provide(TriageClient.layer({ url, token })),
-        Layer.provide(FetchHttpClient.layer),
-      );
-    }),
-  );
+            return Work.of({
+              toDecide: (model, limit) =>
+                client.work
+                  .toDecide({ query: { model, limit } })
+                  .pipe(Effect.mapError(toWorkError)),
+              saveDecision: (decision) =>
+                client.work
+                  .saveDecision({ payload: decision })
+                  .pipe(Effect.mapError(toWorkError)),
+              toSuggest: (request) =>
+                client.work
+                  .toSuggest({ query: request })
+                  .pipe(Effect.mapError(toWorkError)),
+              issue: (id) =>
+                client.work.issue({ params: { id } }).pipe(
+                  Effect.asSome,
+                  Effect.catchTag("IssueNotFound", () => Effect.succeedNone),
+                  Effect.mapError(toWorkError),
+                ),
+              saveSuggestion: (suggestion) =>
+                client.work
+                  .saveSuggestion({ payload: suggestion })
+                  .pipe(Effect.mapError(toWorkError)),
+            });
+          }),
+        ).pipe(
+          Layer.provide(TriageClient.layer({ url, token })),
+          Layer.provide(FetchHttpClient.layer),
+        );
+      }),
+    );
 }

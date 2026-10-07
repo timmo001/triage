@@ -14,7 +14,7 @@ import { TokenAdmin } from "./server/TokenAdmin.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
 import { Store, type TokenScope } from "./store/Store.js";
 import { layerAutomatic, LlmProvider, Suggester } from "./triage/Suggester.js";
-import { agreement, layerShadow, Provider, Triager } from "./triage/Triager.js";
+import { layerShadow, Provider, Triager } from "./triage/Triager.js";
 import { Work } from "./triage/Work.js";
 import { Uploader } from "./upload/Uploader.js";
 
@@ -31,6 +31,44 @@ const json = Flag.Boolean("json").pipe(
   Flag.withDescription("Print JSON"),
   Flag.withDefault(false),
 );
+
+/** A server's URL, from `--server` or `$TRIAGE_SERVER`. */
+const serverFlag = (description: string) =>
+  Flag.String("server").pipe(
+    Flag.withDescription(description),
+    Flag.withFallbackConfig(Config.String("TRIAGE_SERVER")),
+    Flag.optional,
+  );
+
+/** Run `effect` on the server at `url`, or on this machine's server database without one. */
+const withIssueAdmin = <A, E, R>(
+  url: Option.Option<string>,
+  effect: Effect.Effect<A, E, R>,
+) =>
+  Option.match(url, {
+    onNone: () =>
+      effect.pipe(
+        Effect.provide(
+          IssueAdmin.layerLocal.pipe(Layer.provide(Store.layerServer)),
+        ),
+      ),
+    onSome: (url) => effect.pipe(Effect.provide(IssueAdmin.layerRemote(url))),
+  });
+
+/** Work for the server at `url`, or from this machine's server database without one. */
+const withWork = <A, E, R>(
+  url: Option.Option<string>,
+  effect: Effect.Effect<A, E, R>,
+) =>
+  Option.match(url, {
+    onNone: () =>
+      effect.pipe(
+        Effect.provide(
+          Work.layerStore({ by: "cli" }).pipe(Layer.provide(Store.layerServer)),
+        ),
+      ),
+    onSome: (url) => effect.pipe(Effect.provide(Work.layerRemote(url))),
+  });
 
 interface CollectInput {
   readonly follow: boolean;
@@ -122,18 +160,27 @@ const issues = Command.make(
     ),
     server: Flag.Boolean("server").pipe(
       Flag.withDescription(
-        "List the server's issues from $TRIAGE_SERVER_DB, for decide, label and suggest",
+        "List the server's issues: from $TRIAGE_SERVER as the admin in $TRIAGE_ADMIN_TOKEN when it's set, otherwise from $TRIAGE_SERVER_DB on this machine",
       ),
       Flag.withDefault(false),
     ),
     json,
   },
   Effect.fn(function* (input) {
-    const list = yield* Effect.gen(function* () {
-      const store = yield* Store;
+    const list = input.server
+      ? yield* withIssueAdmin(
+          yield* Config.option(Config.String("TRIAGE_SERVER")),
+          Effect.gen(function* () {
+            const admin = yield* IssueAdmin;
 
-      return yield* store.issues({ limit: input.limit });
-    }).pipe(Effect.provide(input.server ? Store.layerServer : Store.layer));
+            return yield* admin.list(input.limit);
+          }),
+        )
+      : yield* Effect.gen(function* () {
+          const store = yield* Store;
+
+          return yield* store.issues({ limit: input.limit });
+        }).pipe(Effect.provide(Store.layer));
 
     if (input.json) {
       yield* Console.log(JSON.stringify(list));
@@ -228,13 +275,19 @@ const decide = Command.make(
       Flag.withDefault(20),
     ),
     json,
+    server: serverFlag(
+      "Decide for the server at this URL, or $TRIAGE_SERVER, as the worker in $TRIAGE_WORKER_TOKEN, instead of the server database on this machine",
+    ),
   },
   Effect.fn(function* (input) {
-    const decided = yield* Effect.gen(function* () {
-      const triager = yield* Triager;
+    const decided = yield* withWork(
+      input.server,
+      Effect.gen(function* () {
+        const triager = yield* Triager;
 
-      return yield* triager.decide(input.limit);
-    }).pipe(Effect.provide(triagerLayer(input)));
+        return yield* triager.decide(input.limit);
+      }).pipe(Effect.provide(triagerLayer(input))),
+    );
 
     if (input.json) {
       yield* Console.log(JSON.stringify(decided));
@@ -251,9 +304,6 @@ const decide = Command.make(
 ).pipe(
   Command.withDescription(
     "Ask a decision model whether the server's new issues are worth fixing, storing the answers without acting on them",
-  ),
-  Command.provide(
-    Work.layerStore({ by: "cli" }).pipe(Layer.provide(Store.layerServer)),
   ),
 );
 
@@ -296,15 +346,21 @@ const suggest = Command.make(
     url: llmUrlFlag("url"),
     model: llmModelFlag("model").pipe(Flag.withAlias("m")),
     json,
+    server: serverFlag(
+      "Suggest fixes for the server at this URL, or $TRIAGE_SERVER, as the worker in $TRIAGE_WORKER_TOKEN, instead of the server database on this machine",
+    ),
   },
   Effect.fn(function* (input) {
-    const suggestions = yield* Effect.gen(function* () {
-      const suggester = yield* Suggester;
+    const suggestions = yield* withWork(
+      input.server,
+      Effect.gen(function* () {
+        const suggester = yield* Suggester;
 
-      return yield* Effect.forEach(input.issues, (issue) =>
-        suggester.suggest(issue),
-      );
-    }).pipe(Effect.provide(Suggester.layer(input)));
+        return yield* Effect.forEach(input.issues, (issue) =>
+          suggester.suggest(issue),
+        );
+      }).pipe(Effect.provide(Suggester.layer(input))),
+    );
 
     if (input.json) {
       yield* Console.log(JSON.stringify(suggestions));
@@ -325,9 +381,6 @@ const suggest = Command.make(
   Command.withDescription(
     "Ask a language model how to fix some of the server's issues, from their redacted events only, and store its suggestions",
   ),
-  Command.provide(
-    Work.layerStore({ by: "cli" }).pipe(Layer.provide(Store.layerServer)),
-  ),
 );
 
 const label = Command.make(
@@ -341,18 +394,25 @@ const label = Command.make(
         "worth: a real fault worth fixing; noise: expected, harmless or caused by the user",
       ),
     ),
+    server: serverFlag(
+      "Label the issue on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
   },
   Effect.fn(function* (input) {
-    const store = yield* Store;
+    yield* withIssueAdmin(
+      input.server,
+      Effect.gen(function* () {
+        const admin = yield* IssueAdmin;
 
-    yield* store.label(input.issue, input.verdict === "worth");
+        yield* admin.setLabel(input.issue, input.verdict);
+      }),
+    );
     yield* Console.log(`Labelled ${input.issue} as ${input.verdict}`);
   }),
 ).pipe(
   Command.withDescription(
     "Label one of the server's issues by hand, to measure decision models against",
   ),
-  Command.provide(Store.layerServer),
 );
 
 const statusCommand = (options: {
@@ -368,34 +428,22 @@ const statusCommand = (options: {
         Argument.withDescription("The IDs of the issues"),
         Argument.atLeast(1),
       ),
-      server: Flag.String("server").pipe(
-        Flag.withDescription(
-          "Change the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
-        ),
-        Flag.withFallbackConfig(Config.String("TRIAGE_SERVER")),
-        Flag.optional,
+      server: serverFlag(
+        "Change the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
       ),
     },
     Effect.fn(function* (input) {
-      const setStatuses = Effect.gen(function* () {
-        const admin = yield* IssueAdmin;
+      yield* withIssueAdmin(
+        input.server,
+        Effect.gen(function* () {
+          const admin = yield* IssueAdmin;
 
-        for (const id of input.issues) {
-          yield* admin.setStatus(id, options.status);
-          yield* Console.log(`${options.done} ${id}`);
-        }
-      });
-
-      yield* Option.match(input.server, {
-        onNone: () =>
-          setStatuses.pipe(
-            Effect.provide(
-              IssueAdmin.layerLocal.pipe(Layer.provide(Store.layerServer)),
-            ),
-          ),
-        onSome: (url) =>
-          setStatuses.pipe(Effect.provide(IssueAdmin.layerRemote(url))),
-      });
+          for (const id of input.issues) {
+            yield* admin.setStatus(id, options.status);
+            yield* Console.log(`${options.done} ${id}`);
+          }
+        }),
+      );
     }),
   ).pipe(Command.withDescription(options.description));
 
@@ -424,10 +472,21 @@ const reopen = statusCommand({
 
 const agreementCommand = Command.make(
   "agreement",
-  { json },
+  {
+    json,
+    server: serverFlag(
+      "Compare the decisions on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
+  },
   Effect.fn(function* (input) {
-    const store = yield* Store;
-    const summaries = agreement(yield* store.labelledDecisions);
+    const summaries = yield* withIssueAdmin(
+      input.server,
+      Effect.gen(function* () {
+        const admin = yield* IssueAdmin;
+
+        return yield* admin.agreement;
+      }),
+    );
 
     if (input.json) {
       yield* Console.log(JSON.stringify(summaries));
@@ -445,7 +504,6 @@ const agreementCommand = Command.make(
   Command.withDescription(
     "Compare each decision model with the hand labels: how often it's sure enough to act on, and how often it's right when it is",
   ),
-  Command.provide(Store.layerServer),
 );
 
 /** Whether and how this device decides on issues and suggests fixes. */
@@ -590,7 +648,9 @@ const work = Command.make(
     }
 
     return yield* Layer.launch(
-      (yield* processLoops(input)).pipe(Layer.provide(Work.layerRemote)),
+      (yield* processLoops(input)).pipe(
+        Layer.provide(Work.layerRemote(yield* Config.String("TRIAGE_SERVER"))),
+      ),
     );
   }),
 ).pipe(
@@ -612,12 +672,8 @@ const tokenCommands = (options: {
     Argument.withSchema(TokenName),
   );
 
-  const server = Flag.String("server").pipe(
-    Flag.withDescription(
-      "Manage the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
-    ),
-    Flag.withFallbackConfig(Config.String("TRIAGE_SERVER")),
-    Flag.optional,
+  const server = serverFlag(
+    "Manage the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
   );
 
   const withTokenAdmin = <A, E, R>(

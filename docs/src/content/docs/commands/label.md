@@ -21,4 +21,7 @@ USAGE
 ARGUMENTS
   issue string      The issue's ID
   verdict choice    worth: a real fault worth fixing; noise: expected, harmless or caused by the user
+
+FLAGS
+  --server string    Label the issue on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
 ```

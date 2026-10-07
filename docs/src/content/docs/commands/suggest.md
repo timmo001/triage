@@ -26,4 +26,5 @@ FLAGS
   --url string          The API, such as https://openrouter.ai/api/v1 or https://opencode.ai/zen/v1, with $TRIAGE_LLM_API_KEY when it needs one. Defaults to OpenAI's or Anthropic's own
   --model, -m string    The language model, such as @cf/zai-org/glm-4.7-flash on Workers AI
   --json                Print JSON
+  --server string       Suggest fixes for the server at this URL, or $TRIAGE_SERVER, as the worker in $TRIAGE_WORKER_TOKEN, instead of the server database on this machine
 ```

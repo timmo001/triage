@@ -20,6 +20,6 @@ USAGE
 
 FLAGS
   --limit, -n integer    The most issues to show
-  --server               List the server's issues from $TRIAGE_SERVER_DB, for decide, label and suggest
+  --server               List the server's issues: from $TRIAGE_SERVER as the admin in $TRIAGE_ADMIN_TOKEN when it's set, otherwise from $TRIAGE_SERVER_DB on this machine
   --json                 Print JSON
 ```

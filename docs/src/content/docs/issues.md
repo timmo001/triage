@@ -14,8 +14,10 @@ A crash or failed unit on two hosts is one issue, with events from both, and its
 
 ```bash
 triage issues            # this host's issues
-triage issues --server   # the server's, on the server
+triage issues --server   # the server's
 ```
+
+`--server` lists the issues of the server at `TRIAGE_SERVER`, as the admin in `TRIAGE_ADMIN_TOKEN`, or the server database on this machine when `TRIAGE_SERVER` isn't set.
 
 ## States
 
@@ -65,6 +67,8 @@ triage agreement
 ```
 
 `agreement` shows, for each model, how many labelled issues it was sure about (worth at least 0.8 or at most 0.2), and how often it was right when it was.
+
+`label` and `agreement` work on a remote server the same way as `resolve`, with `--server <url>` or `TRIAGE_SERVER` and an admin token. `decide` and `suggest` do too, as a [worker](/setup/workers) with `TRIAGE_WORKER_TOKEN`, so their answers count towards the server's daily limits.
 
 ## Suggestions
 

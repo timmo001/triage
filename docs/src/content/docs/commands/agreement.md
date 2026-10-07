@@ -19,5 +19,6 @@ USAGE
   triage agreement [flags]
 
 FLAGS
-  --json    Print JSON
+  --json             Print JSON
+  --server string    Compare the decisions on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
 ```
