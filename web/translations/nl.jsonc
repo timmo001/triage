@@ -170,6 +170,7 @@
   // Copies the issue as text to paste into a coding agent.
   "issue.copyForAgent": "Kopiëren voor agent",
   "issue.copied": "Gekopieerd",
+  "issue.notes": "Notities",
   "issue.decisions": "Beslissingen",
   "issue.yourLabel": "Jouw label",
   "issue.suggestions": "Voorgestelde oplossingen",
@@ -193,6 +194,18 @@
   "decisions.cause": "Waarschijnlijke oorzaak",
   "decisions.by": "Besloten door",
   "decisions.decided": "Besloten",
+
+  "notes.input": "Notitie",
+  "notes.placeholder": "Waarom je het oplost of dempt, zoals wat het verhielp, de versie en op welke hosts, of een losse notitie",
+  "notes.add": "Notitie toevoegen",
+  "notes.none": "Nog geen notities.",
+  "notes.note": "Notitie",
+  "notes.resolved": "Opgelost",
+  "notes.muted": "Gedempt",
+  "notes.reopened": "Heropend",
+  "notes.regressed": "Teruggekeerd",
+  "notes.by": "door {by}",
+  "notes.from": "van {host}",
 
   // Fixes a language model suggested. {by} is the worker that asked the model,
   // or `server` or `cli`, and {events} is the events message, for how many the

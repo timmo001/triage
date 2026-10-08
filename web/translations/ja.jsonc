@@ -164,6 +164,7 @@
   // Copies the issue as text to paste into a coding agent.
   "issue.copyForAgent": "エージェント用にコピー",
   "issue.copied": "コピーしました",
+  "issue.notes": "メモ",
   "issue.decisions": "判定",
   "issue.yourLabel": "あなたのラベル",
   "issue.suggestions": "提案された修正",
@@ -187,6 +188,18 @@
   "decisions.cause": "考えられる原因",
   "decisions.by": "判定者",
   "decisions.decided": "判定日時",
+
+  "notes.input": "メモ",
+  "notes.placeholder": "解決またはミュートする理由（何で直ったか、バージョン、どのホストに適用したかなど）、または単独のメモ",
+  "notes.add": "メモを追加",
+  "notes.none": "まだメモはありません。",
+  "notes.note": "メモ",
+  "notes.resolved": "解決済み",
+  "notes.muted": "ミュート",
+  "notes.reopened": "再オープン",
+  "notes.regressed": "再発",
+  "notes.by": "{by} による",
+  "notes.from": "{host} から",
 
   // Fixes a language model suggested. {by} is the worker that asked the model,
   // or `server` or `cli`, and {events} is the events message, for how many the

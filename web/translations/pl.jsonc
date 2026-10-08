@@ -179,6 +179,7 @@
   // Copies the issue as text to paste into a coding agent.
   "issue.copyForAgent": "Kopiuj dla agenta",
   "issue.copied": "Skopiowano",
+  "issue.notes": "Notatki",
   "issue.decisions": "Decyzje",
   "issue.yourLabel": "Twoja etykieta",
   "issue.suggestions": "Sugerowane poprawki",
@@ -202,6 +203,18 @@
   "decisions.cause": "Prawdopodobna przyczyna",
   "decisions.by": "Zdecydował",
   "decisions.decided": "Kiedy",
+
+  "notes.input": "Notatka",
+  "notes.placeholder": "Dlaczego to rozwiązujesz lub wyciszasz, np. co to naprawiło, wersja i na których hostach, albo osobna notatka",
+  "notes.add": "Dodaj notatkę",
+  "notes.none": "Brak notatek.",
+  "notes.note": "Notatka",
+  "notes.resolved": "Rozwiązano",
+  "notes.muted": "Wyciszono",
+  "notes.reopened": "Otwarto ponownie",
+  "notes.regressed": "Powróciło",
+  "notes.by": "autor: {by}",
+  "notes.from": "z {host}",
 
   // Fixes a language model suggested. {by} is the worker that asked the model,
   // or `server` or `cli`, and {events} is the events message, for how many the

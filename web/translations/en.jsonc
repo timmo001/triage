@@ -165,6 +165,7 @@
   // Copies the issue as text to paste into a coding agent.
   "issue.copyForAgent": "Copy for agent",
   "issue.copied": "Copied",
+  "issue.notes": "Notes",
   "issue.decisions": "Decisions",
   "issue.yourLabel": "Your label",
   "issue.suggestions": "Suggested fixes",
@@ -188,6 +189,22 @@
   "decisions.cause": "Likely cause",
   "decisions.by": "Decided by",
   "decisions.decided": "Decided",
+
+  // Notes on an issue and the history of its status. The input's note is saved
+  // with the Resolve or Mute button, or on its own with notes.add. {by} is the
+  // admin who wrote it, or `cli` or `mcp`, and {host} is the host whose event
+  // made the issue regress.
+  "notes.input": "Note",
+  "notes.placeholder": "Why you're resolving or muting it, such as what fixed it, the version and the hosts it's on, or a note on its own",
+  "notes.add": "Add note",
+  "notes.none": "No notes yet.",
+  "notes.note": "Note",
+  "notes.resolved": "Resolved",
+  "notes.muted": "Muted",
+  "notes.reopened": "Reopened",
+  "notes.regressed": "Regressed",
+  "notes.by": "by {by}",
+  "notes.from": "from {host}",
 
   // Fixes a language model suggested. {by} is the worker that asked the model,
   // or `server` or `cli`, and {events} is the events message, for how many the

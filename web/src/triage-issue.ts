@@ -1,11 +1,7 @@
-import {
-  type Api,
-  Event,
-  type Issue,
-  type Severity,
-} from "@timmo001/effect-triage";
+import { Api, Event, type Issue, type Severity } from "@timmo001/effect-triage";
 import {
   mdiAlertCircleOutline,
+  mdiAlertDecagramOutline,
   mdiAlertOctagonOutline,
   mdiAlertOutline,
   mdiApplicationOutline,
@@ -27,6 +23,7 @@ import {
   mdiLightningBolt,
   mdiLinux,
   mdiNotebookOutline,
+  mdiNoteTextOutline,
   mdiPackageVariantClosed,
   mdiPower,
   mdiRefresh,
@@ -38,8 +35,8 @@ import {
 } from "@mdi/js";
 import { WindowVirtualizerController } from "@tanstack/lit-virtual";
 import DOMPurify from "dompurify";
-import { Option, Predicate } from "effect";
-import { AsyncResult } from "effect/reactivity";
+import { Effect, Exit, Option, Predicate } from "effect";
+import { type Atom, AsyncResult, AtomRegistry } from "effect/reactivity";
 import { css, html, LitElement, nothing, type TemplateResult } from "lit";
 import { customElement, property, query, state } from "lit/decorators.js";
 import { ref } from "lit/directives/ref.js";
@@ -50,7 +47,14 @@ import { AtomController, registry } from "./AtomController.js";
 import { parts, t } from "./i18n.js";
 import { shared } from "./styles.js";
 import "./triage-skeleton.js";
-import { homeHref, issue, issueEvents, setLabel, setStatus } from "./triage.js";
+import {
+  addNote,
+  homeHref,
+  issue,
+  issueEvents,
+  setLabel,
+  setStatus,
+} from "./triage.js";
 import {
   ago,
   badge,
@@ -119,7 +123,7 @@ const eventCount = (count: number) => t("events", { count });
 
 /** What to paste into an agent so it reads the issue through triage's MCP server. */
 const agentMessage = (issue: Issue.Issue) =>
-  `Triage issue ${issue.id}, ${issue.title}: ${location.href}\n\nRead it and all its events with the triage MCP server's get_issue and get_issue_events tools, and see how similar issues were fixed with find_similar_issues. Once it's fixed on every host it happened on, ask me whether to resolve it with set_issue_status.`;
+  `Triage issue ${issue.id}, ${issue.title}: ${location.href}\n\nRead it, its notes and all its events with the triage MCP server's get_issue and get_issue_events tools, and see how similar issues were fixed with find_similar_issues. Once it's fixed on every host it happened on, ask me whether to resolve it with set_issue_status, with a note on what fixed it.`;
 
 @customElement("triage-issue")
 export class TriageIssue extends LitElement {
@@ -181,6 +185,26 @@ export class TriageIssue extends LitElement {
 
       .actions.status {
         margin-bottom: var(--triage-space-3);
+      }
+
+      .note-input {
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 48rem;
+        min-height: 4.5rem;
+        margin-bottom: var(--triage-space-2);
+        padding: var(--triage-space-2) var(--triage-space-3);
+        font: inherit;
+        border: var(--triage-border-width) solid var(--triage-border);
+        border-radius: var(--triage-border-radius-sm);
+        background: var(--triage-surface);
+        color: var(--triage-text);
+        resize: vertical;
+      }
+
+      .notes {
+        margin-bottom: var(--triage-space-8);
       }
 
       .cards {
@@ -499,9 +523,14 @@ export class TriageIssue extends LitElement {
 
   @state() accessor copied = false;
 
+  /** The note being written, saved with a status change or on its own. */
+  @state() accessor note = "";
+
   readonly #detail = new AtomController(this, () => issue(this.issueId));
 
   readonly #setStatus = new AtomController(this, () => setStatus);
+
+  readonly #addNote = new AtomController(this, () => addNote);
 
   readonly #setLabel = new AtomController(this, () => setLabel);
 
@@ -545,6 +574,18 @@ export class TriageIssue extends LitElement {
             <dt>${t("issue.hosts")}</dt>
             <dd>${renderHosts(value.hosts)}</dd>
           </dl>
+          <textarea
+            class="note-input"
+            aria-label=${t("notes.input")}
+            placeholder=${t("notes.placeholder")}
+            maxlength=${Api.maxNote}
+            .value=${this.note}
+            @input=${(event: InputEvent) => {
+              if (event.currentTarget instanceof HTMLTextAreaElement) {
+                this.note = event.currentTarget.value;
+              }
+            }}
+          ></textarea>
           <div class="actions status">
             ${actions[value.issue.state].map(
               ([label, status, path]) => html`
@@ -556,6 +597,12 @@ export class TriageIssue extends LitElement {
                 </button>
               `,
             )}
+            <button
+              ?disabled=${this.note.trim() === "" || this.#addNote.value.waiting}
+              @click=${() => this.#saveNote(value.issue.id)}
+            >
+              ${icon(mdiNoteTextOutline)} ${t("notes.add")}
+            </button>
           </div>
           <div
             class="agent"
@@ -578,6 +625,8 @@ export class TriageIssue extends LitElement {
             </span>
             <pre><code>${agentMessage(value.issue)}</code></pre>
           </div>
+          <h2>${t("issue.notes")}</h2>
+          ${renderNotes(value.notes)}
           <h2>${t("issue.decisions")}</h2>
           ${renderDecisions(value.decisions)}
           <div class="actions" role="group" aria-label=${t("issue.yourLabel")}>
@@ -776,11 +825,46 @@ export class TriageIssue extends LitElement {
   }
 
   #changeStatus(id: string, status: Issue.Status) {
+    const note = this.note.trim();
+
     registry.set(setStatus, {
       params: { id },
-      payload: { status },
+      payload: { status, ...(note !== "" && { note }) },
       reactivityKeys: ["issues"],
     });
+
+    if (note !== "") {
+      void this.#clearNoteAfter(setStatus, note);
+    }
+  }
+
+  #saveNote(id: string) {
+    const text = this.note.trim();
+
+    registry.set(addNote, {
+      params: { id },
+      payload: { text },
+      reactivityKeys: ["issues"],
+    });
+
+    void this.#clearNoteAfter(addNote, text);
+  }
+
+  /**
+   * Clears the note once it's saved, unless it's been changed since. A note
+   * that fails to save stays, to try again.
+   */
+  async #clearNoteAfter(
+    mutation: Atom.Atom<AsyncResult.AsyncResult<unknown, unknown>>,
+    sent: string,
+  ) {
+    const exit = await Effect.runPromiseExit(
+      AtomRegistry.getResult(registry, mutation, { suspendOnWaiting: true }),
+    );
+
+    if (Exit.isSuccess(exit) && this.note.trim() === sent) {
+      this.note = "";
+    }
   }
 
   #changeLabel(id: string, label: Api.Label) {
@@ -832,8 +916,8 @@ const renderDecisions = (decisions: ReadonlyArray<Api.IssueDecision>) =>
         </table>
       `;
 
-// The text comes from a language model, so it's sanitised before rendering,
-// without images so it can't make the browser fetch anything.
+// The text comes from a language model or a note, so it's sanitised before
+// rendering, without images so it can't make the browser fetch anything.
 const markdown = (text: string) =>
   unsafeHTML(
     DOMPurify.sanitize(marked.parse(text, { async: false }), {
@@ -841,6 +925,63 @@ const markdown = (text: string) =>
       FORBID_ATTR: ["style"],
     }),
   );
+
+const noteBadges: Record<
+  Api.NoteStatus | "note",
+  readonly [label: string, icon: string, kind: string]
+> = {
+  resolved: [
+    t("notes.resolved"),
+    mdiCheckCircleOutline,
+    "small state resolved",
+  ],
+  muted: [t("notes.muted"), mdiBellOffOutline, "small state muted"],
+  open: [t("notes.reopened"), mdiRestore, "small"],
+  regressed: [
+    t("notes.regressed"),
+    mdiAlertDecagramOutline,
+    "small state regressed",
+  ],
+  note: [t("notes.note"), mdiNoteTextOutline, "small"],
+};
+
+const renderNotes = (notes: ReadonlyArray<Api.IssueNote>) =>
+  notes.length === 0
+    ? html`<p class="muted-text notes">${t("notes.none")}</p>`
+    : html`
+        <ol class="cards notes">
+          ${notes.map((note) => {
+            const [content, path, kind] = noteBadges[note.status ?? "note"];
+
+            return html`
+              <li>
+                <header>
+                  ${badge({ path, content, kind })}
+                  ${
+                    note.by === null
+                      ? nothing
+                      : html`<span
+                          >${
+                            note.status === "regressed"
+                              ? t("notes.from", { host: note.by })
+                              : t("notes.by", { by: note.by })
+                          }</span
+                        >`
+                  }
+                  <time title=${formatTime(note.createdAt)}>
+                    ${ago(note.createdAt)}
+                  </time>
+                </header>
+                ${
+                  note.text === ""
+                    ? nothing
+                    : html`<div class="suggestion">${markdown(note.text)}</div>`
+                }
+              </li>
+            `;
+          })}
+        </ol>
+      `;
 
 const renderSuggestions = (suggestions: ReadonlyArray<Api.IssueSuggestion>) =>
   suggestions.length === 0
