@@ -10,10 +10,11 @@ The tools see what the web UI does: redacted events, the names hosts were enroll
 | Tool | Does |
 | --- | --- |
 | `list_issues` | Issues, the latest seen first, filtered by title, state, kind, host or label like the web UI's list, and sorted the same ways. Pass `nextOffset` back until it's missing to page through them |
-| `get_issue` | The issue, the hosts it happened on, decisions, suggested fixes and its latest 20 events |
+| `get_issue` | The issue, the hosts it happened on, decisions, suggested fixes, [notes](/issues#notes) and its latest 20 events |
 | `get_issue_events` | A page of its events, newest first, up to 500 at a time. Pass `nextOffset` back until it's missing to read them all |
-| `find_similar_issues` | Issues like it, with the fixes suggested for each, resolved ones first |
-| `set_issue_status` | Resolves, mutes or reopens the issue |
+| `find_similar_issues` | Issues like it, with the fixes suggested for each and their notes, resolved ones first |
+| `set_issue_status` | Resolves, mutes or reopens the issue, with an optional note on why |
+| `add_issue_note` | Adds a note to the issue without changing its status |
 | `label_issue` | Labels the issue worth fixing or noise |
 
 `find_similar_issues` counts an issue as similar when it's a crash of the same program with the same signal, the same unit failing in any way, another error from the same program, or another OOM kill.

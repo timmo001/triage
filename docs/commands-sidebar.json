@@ -14,6 +14,7 @@
   "/commands/resolve",
   "/commands/mute",
   "/commands/reopen",
+  "/commands/note",
   "/commands/agreement",
   "/commands/mcp"
 ]

@@ -81,7 +81,7 @@ const ListIssues = Tool.make("list_issues", {
   .annotate(Tool.OpenWorld, false);
 
 const GetIssue = Tool.make("get_issue", {
-  description: `Read a triage issue: its kind, state and counts, the hosts it happened on, what the decision models made of it, suggested fixes, and its latest ${Api.latestEvents} events, newest first. Everything personal was redacted before it was stored. issue.count is how many events it has in all; read the rest with get_issue_events.`,
+  description: `Read a triage issue: its kind, state and counts, the hosts it happened on, what the decision models made of it, suggested fixes, its notes and status history, and its latest ${Api.latestEvents} events, newest first. The notes say why it was resolved or muted before, and which host's event made it regress, so read them before fixing it again. Everything personal was redacted before it was stored. issue.count is how many events it has in all; read the rest with get_issue_events.`,
   parameters: Schema.Struct({ issue: IssueParameter }),
   success: Api.IssueReview,
   failure: IssueToolError,
@@ -122,7 +122,7 @@ const GetIssueEvents = Tool.make("get_issue_events", {
   .annotate(Tool.OpenWorld, false);
 
 const FindSimilarIssues = Tool.make("find_similar_issues", {
-  description: `Find issues like a triage issue, with the fixes suggested for each, to see what worked before. Similar means a crash of the same program with the same signal, the same unit failing, another error from the same program, or another OOM kill. Resolved issues come first, then the latest seen.`,
+  description: `Find issues like a triage issue, with the fixes suggested for each and their notes, to see what worked before. Similar means a crash of the same program with the same signal, the same unit failing, another error from the same program, or another OOM kill. Resolved issues come first, then the latest seen.`,
   parameters: Schema.Struct({
     issue: IssueParameter,
     limit: Schema.Int.pipe(
@@ -140,13 +140,19 @@ const FindSimilarIssues = Tool.make("find_similar_issues", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
+const NoteParameter = Api.NoteText.annotate({
+  description:
+    "In Markdown. Say what fixed it and where: the change, commit, package or version, and the hosts it's in place on, or why it's muted, so if it comes back on another host anyone can check whether that fix reached it or it's a different case. Redacted like events",
+});
+
 const SetIssueStatus = Tool.make("set_issue_status", {
-  description: `Resolve, mute or reopen a triage issue, like its page's buttons. Resolve it once it's fixed on every host in get_issue's hosts, after asking the user: if it happens again it opens as regressed. Mute it to stop decision and language models looking at it however often it happens. Reopen a resolved or muted issue with open.`,
+  description: `Resolve, mute or reopen a triage issue, like its page's buttons, with a note on why. Resolve it once it's fixed on every host in get_issue's hosts, after asking the user: if it happens again it opens as regressed. Mute it to stop decision and language models looking at it however often it happens. Reopen a resolved or muted issue with open.`,
   parameters: Schema.Struct({
     issue: IssueParameter,
     status: Issue.Status.annotate({
       description: "resolved, muted, or open to reopen it",
     }),
+    note: Schema.optionalKey(NoteParameter),
   }),
   success: Schema.Struct({ id: Schema.String, status: Issue.Status }),
   failure: IssueToolError,
@@ -154,7 +160,22 @@ const SetIssueStatus = Tool.make("set_issue_status", {
 })
   .annotate(Tool.Readonly, false)
   .annotate(Tool.Destructive, false)
-  .annotate(Tool.Idempotent, true)
+  .annotate(Tool.Idempotent, false)
+  .annotate(Tool.OpenWorld, false);
+
+const AddIssueNote = Tool.make("add_issue_note", {
+  description: `Add a note to a triage issue without changing its status, such as what you found, a fix that's in progress, or which hosts have it so far. Its notes show on its page and in get_issue.`,
+  parameters: Schema.Struct({
+    issue: IssueParameter,
+    text: NoteParameter,
+  }),
+  success: Schema.Struct({ id: Schema.String }),
+  failure: IssueToolError,
+  failureMode: "return",
+})
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, false)
   .annotate(Tool.OpenWorld, false);
 
 const LabelIssue = Tool.make("label_issue", {
@@ -173,8 +194,8 @@ const LabelIssue = Tool.make("label_issue", {
   .annotate(Tool.OpenWorld, false);
 
 /**
- * Tools for agents to find and read a server's issues and their events, and to
- * resolve, mute, reopen and label them.
+ * Tools for agents to find and read a server's issues and their events, to
+ * resolve, mute, reopen and label them, and to note why.
  */
 export const IssueTools = Toolkit.make(
   ListIssues,
@@ -182,6 +203,7 @@ export const IssueTools = Toolkit.make(
   GetIssueEvents,
   FindSimilarIssues,
   SetIssueStatus,
+  AddIssueNote,
   LabelIssue,
 );
 
@@ -258,14 +280,25 @@ export const IssueToolsLayer = IssueTools.toLayer(
       set_issue_status: Effect.fn("IssueTools.set_issue_status")(function* ({
         issue,
         status,
+        note,
       }) {
         const id = issueId(issue);
 
         yield* admin
-          .setStatus(id, status)
+          .setStatus(id, status, note)
           .pipe(Effect.mapError(toIssueToolError));
 
         return { id, status };
+      }),
+      add_issue_note: Effect.fn("IssueTools.add_issue_note")(function* ({
+        issue,
+        text,
+      }) {
+        const id = issueId(issue);
+
+        yield* admin.addNote(id, text).pipe(Effect.mapError(toIssueToolError));
+
+        return { id };
       }),
       label_issue: Effect.fn("IssueTools.label_issue")(function* ({
         issue,
@@ -288,7 +321,7 @@ export const mcpOptions = {
   name: "triage",
   version: packageJson.version,
   instructions:
-    "Read crashes and errors triage collected from your machines. Find issues with list_issues, or pass get_issue an issue ID or a link to the issue's page, then page through its events with get_issue_events. find_similar_issues shows how issues like it were fixed. Once you've fixed an issue, don't wait to be asked to close it. get_issue lists every host it happened on, and each one needs the fix: check it's in place on the hosts you can reach, and ask the user about the others. Then ask the user before resolving it with set_issue_status. Mute an issue that's noise and can't be fixed, rather than resolving it, and label issues worth fixing or noise with label_issue.",
+    "Read crashes and errors triage collected from your machines. Find issues with list_issues, or pass get_issue an issue ID or a link to the issue's page, then page through its events with get_issue_events. find_similar_issues shows how issues like it were fixed. An issue's notes say why it was resolved or muted before and which host it regressed on: when one comes back, check whether that fix reached the host or it's a different case. Once you've fixed an issue, don't wait to be asked to close it. get_issue lists every host it happened on, and each one needs the fix: check it's in place on the hosts you can reach, and ask the user about the others. Then ask the user before resolving it with set_issue_status, with a note on what fixed it, the commit, package or version, and the hosts it's in place on. Keep findings along the way with add_issue_note. Mute an issue that's noise and can't be fixed, rather than resolving it, with a note on why, and label issues worth fixing or noise with label_issue.",
   protocols: [
     McpProtocol.v2026_07_28,
     McpProtocol.v2025_11_25,

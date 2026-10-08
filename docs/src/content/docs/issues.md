@@ -36,9 +36,20 @@ The 24 and 72 hours are the defaults. Change them with [`TRIAGE_NEW_HOURS` and `
 triage resolve <issue>...
 triage mute <issue>...
 triage reopen <issue>...
+triage note <issue> <text>
 ```
 
 An event later than an issue's resolution reopens it as regressed, and decision models look at it again. A quiet issue that happens again goes back to ongoing; nothing is resolved for you. Add `--server <url>`, or set `TRIAGE_SERVER`, to change a remote server's issues as the admin in `TRIAGE_ADMIN_TOKEN`.
+
+## Notes
+
+Say why with `--note` (or `-m`) when you resolve, mute or reopen an issue, such as what fixed it, the version with the fix and the hosts it's on. `triage note` adds a note without changing the status. Notes take Markdown and are redacted like events before they're stored or sent.
+
+```bash
+triage resolve <issue> --note "Fixed in 1.4.2, updated on every host"
+```
+
+Each issue keeps its notes with every status change, who made it and when, and when it regressed and on which host. When a resolved issue comes back, they show whether that host has the fix or whether it's a different case. The issue page, `get_issue` and `find_similar_issues` all show them, newest first.
 
 ## In a browser
 
@@ -46,7 +57,7 @@ The server has a web page at its own URL, such as `http://localhost:7171/`. It l
 
 **Filters** opens a panel with lists of states, hosts, kinds and labels, with how many issues each has. States start with regressed, new and ongoing ticked, so quiet, resolved and muted issues stay out of the way; everything else starts ticked. Untick what you don't want to see, and each list's clear button goes back to how it started. The page remembers these choices in the browser.
 
-Tick issues, or a whole group, to resolve, mute, reopen or label them together. To go through issues that have stopped happening, tick only **Quiet** in Filters and resolve or mute the ones you're done with. Each issue's page shows how often it happened on each host, its 20 latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, and buttons to resolve, mute, reopen or unmute it.
+Tick issues, or a whole group, to resolve, mute, reopen or label them together. To go through issues that have stopped happening, tick only **Quiet** in Filters and resolve or mute the ones you're done with. Each issue's page shows how often it happened on each host, its 20 latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, its notes, and buttons to resolve, mute, reopen or unmute it with an optional note, or to add a note on its own.
 
 Sign in with an [admin token](/setup/server#tokens). It's kept in that browser until you sign out. In the [Home Assistant app](/setup/server#home-assistant), open **Triage** in Home Assistant's sidebar instead, with no token needed.
 

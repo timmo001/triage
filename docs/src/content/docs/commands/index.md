@@ -23,6 +23,7 @@ Each command has its own page with its help, as `triage <command> --help` prints
 | [`resolve`](/commands/resolve) | None |
 | [`mute`](/commands/mute) | None |
 | [`reopen`](/commands/reopen) | None |
+| [`note`](/commands/note) | None |
 | [`agreement`](/commands/agreement) | None |
 | [`mcp`](/commands/mcp) | None |
 
@@ -57,6 +58,7 @@ SUBCOMMANDS
   resolve      Resolve issues once they're fixed. One that happens again opens as regressed, and is decided on again
   mute         Mute issues, so they're never decided on or suggested fixes for, however often they happen
   reopen       Reopen resolved or muted issues
+  note         Add a note to one of the server's issues without changing its status
   agreement    Compare each decision model with the hand labels: how often it's sure enough to act on, and how often it's right when it is
-  mcp          Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed, and resolve, mute or label them
+  mcp          Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed, and resolve, mute, label or note on them
 ```

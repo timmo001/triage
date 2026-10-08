@@ -22,5 +22,6 @@ ARGUMENTS
   issue... string    The IDs of the issues
 
 FLAGS
-  --server string    Change the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
+  --note, -m string    Why, kept in each issue's notes: what fixed it, the commit, package or version, and the hosts it's in place on
+  --server string      Change the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
 ```

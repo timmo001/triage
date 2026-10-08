@@ -182,14 +182,33 @@ const IssuesHandlers = HttpApiBuilder.group(
 
         return similar.value;
       }),
-      setStatus: ({ params, payload }) =>
-        store.setStatus(params.id, payload.status).pipe(
+      setStatus: Effect.fn(function* ({ params, payload }) {
+        const admin = yield* Api.CurrentAdmin;
+
+        yield* store
+          .setStatus(params.id, payload.status, {
+            by: admin.name,
+            note: payload.note,
+          })
+          .pipe(
+            Effect.catchTags({
+              IssueNotFound: () =>
+                Effect.fail(new Api.IssueNotFound({ id: params.id })),
+              StoreError: Effect.die,
+            }),
+          );
+      }),
+      addNote: Effect.fn(function* ({ params, payload }) {
+        const admin = yield* Api.CurrentAdmin;
+
+        yield* store.addNote(params.id, payload.text, admin.name).pipe(
           Effect.catchTags({
             IssueNotFound: () =>
               Effect.fail(new Api.IssueNotFound({ id: params.id })),
             StoreError: Effect.die,
           }),
-        ),
+        );
+      }),
       setLabel: ({ params, payload }) =>
         store.label(params.id, payload.label === "worth").pipe(
           Effect.catchTags({
@@ -347,7 +366,7 @@ const mcpPath = "/mcp";
 /** The MCP server at `/mcp`, reading this server's issues. */
 const mcpRoutes = McpServer.toolkit(IssueTools).pipe(
   Layer.provide(IssueToolsLayer),
-  Layer.provide(IssueAdmin.layerLocal),
+  Layer.provide(IssueAdmin.layerLocal({ by: "mcp" })),
   Layer.provide(McpServer.layerHttp({ ...mcpOptions, path: mcpPath })),
 );
 

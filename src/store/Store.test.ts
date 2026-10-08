@@ -78,7 +78,10 @@ describe("Store", () => {
       );
       const decided = yield* store.undecided("m", 10);
 
-      yield* store.setStatus(id, "resolved");
+      yield* store.setStatus(id, "resolved", {
+        by: "aidan",
+        note: "  Fixed in bluez 5.80, see /home/aidan/notes.md  ",
+      });
       yield* store.add([log("2", now - 500)]);
       const late = yield* state;
 
@@ -86,10 +89,15 @@ describe("Store", () => {
       const regressed = yield* state;
       const redecide = yield* store.undecided("m", 10);
 
-      yield* store.setStatus(id, "muted");
+      yield* store.setStatus(id, "muted", { by: "cli" });
       yield* store.add([log("4", now + 120_000)]);
       const muted = yield* state;
       const mutedUndecided = yield* store.undecided("m", 10);
+
+      const notes = Option.map(
+        yield* store.review(id, 1),
+        (review) => review.notes,
+      );
 
       return {
         fresh,
@@ -99,6 +107,7 @@ describe("Store", () => {
         redecide,
         muted,
         mutedUndecided,
+        notes,
       };
     }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
 
@@ -109,6 +118,23 @@ describe("Store", () => {
     expect(result.redecide).toHaveLength(1);
     expect(result.muted).toBe("muted");
     expect(result.mutedUndecided).toHaveLength(0);
+
+    // Newest first: the late event didn't regress it, the next one did.
+    expect(
+      Option.getOrThrow(result.notes).map(({ by, status, text }) => ({
+        by,
+        status,
+        text,
+      })),
+    ).toEqual([
+      { by: "cli", status: "muted", text: "" },
+      { by: "omarchy", status: "regressed", text: "" },
+      {
+        by: "aidan",
+        status: "resolved",
+        text: "Fixed in bluez 5.80, see ~/notes.md",
+      },
+    ]);
   });
 
   test("filters, sorts, groups and pages issues, and counts them", async () => {
@@ -140,7 +166,7 @@ describe("Store", () => {
         all.find((issue) => issue.title.startsWith(name))?.id ?? "";
 
       yield* store.label(id("bluetoothd"), false);
-      yield* store.setStatus(id("dbus"), "resolved");
+      yield* store.setStatus(id("dbus"), "resolved", { by: "cli" });
       yield* store.saveDecision(
         {
           issueId: id("wireplumber"),
@@ -318,7 +344,7 @@ describe("Store", () => {
         issues.find((issue) => issue.title === `bluetoothd: ${title}`)?.id ??
         "";
 
-      yield* store.setStatus(id("disconnected"), "resolved");
+      yield* store.setStatus(id("disconnected"), "resolved", { by: "cli" });
       yield* store.saveSuggestion(
         {
           issueId: id("disconnected"),

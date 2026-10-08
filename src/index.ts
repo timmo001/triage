@@ -1,5 +1,5 @@
 import { BunRuntime, BunServices, BunStdio } from "@effect/platform-bun";
-import type { Issue } from "@timmo001/effect-triage";
+import { Api, type Issue } from "@timmo001/effect-triage";
 import {
   Cause,
   Config,
@@ -64,7 +64,9 @@ const withIssueAdmin = <A, E, R>(
     onNone: () =>
       effect.pipe(
         Effect.provide(
-          IssueAdmin.layerLocal.pipe(Layer.provide(Store.layerServer)),
+          IssueAdmin.layerLocal({ by: "cli" }).pipe(
+            Layer.provide(Store.layerServer),
+          ),
         ),
       ),
     onSome: (url) => effect.pipe(Effect.provide(IssueAdmin.layerRemote(url))),
@@ -435,6 +437,7 @@ const statusCommand = (options: {
   readonly status: Issue.Status;
   readonly done: string;
   readonly description: string;
+  readonly note: string;
 }) =>
   Command.make(
     options.command,
@@ -442,6 +445,12 @@ const statusCommand = (options: {
       issues: Argument.String("issue").pipe(
         Argument.withDescription("The IDs of the issues"),
         Argument.atLeast(1),
+      ),
+      note: Flag.String("note").pipe(
+        Flag.withAlias("m"),
+        Flag.withDescription(options.note),
+        Flag.withSchema(Api.NoteText),
+        Flag.optional,
       ),
       server: serverFlag(
         "Change the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
@@ -454,7 +463,11 @@ const statusCommand = (options: {
           const admin = yield* IssueAdmin;
 
           for (const id of input.issues) {
-            yield* admin.setStatus(id, options.status);
+            yield* admin.setStatus(
+              id,
+              options.status,
+              Option.getOrUndefined(input.note),
+            );
             yield* Console.log(`${options.done} ${id}`);
           }
         }),
@@ -468,6 +481,7 @@ const resolve = statusCommand({
   done: "Resolved",
   description:
     "Resolve issues once they're fixed. One that happens again opens as regressed, and is decided on again",
+  note: "Why, kept in each issue's notes: what fixed it, the commit, package or version, and the hosts it's in place on",
 });
 
 const mute = statusCommand({
@@ -476,6 +490,7 @@ const mute = statusCommand({
   done: "Muted",
   description:
     "Mute issues, so they're never decided on or suggested fixes for, however often they happen",
+  note: "Why, kept in each issue's notes, such as why it's harmless",
 });
 
 const reopen = statusCommand({
@@ -483,7 +498,41 @@ const reopen = statusCommand({
   status: "open",
   done: "Reopened",
   description: "Reopen resolved or muted issues",
+  note: "Why, kept in each issue's notes, such as why the fix didn't work",
 });
+
+const note = Command.make(
+  "note",
+  {
+    issue: Argument.String("issue").pipe(
+      Argument.withDescription("The issue's ID"),
+    ),
+    text: Argument.String("text").pipe(
+      Argument.withDescription(
+        "The note, in Markdown, such as what you found or a fix in progress. It's redacted like events",
+      ),
+      Argument.withSchema(Api.NoteText),
+    ),
+    server: serverFlag(
+      "Note on the issue on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
+  },
+  Effect.fn(function* (input) {
+    yield* withIssueAdmin(
+      input.server,
+      Effect.gen(function* () {
+        const admin = yield* IssueAdmin;
+
+        yield* admin.addNote(input.issue, input.text);
+      }),
+    );
+    yield* Console.log(`Added a note to ${input.issue}`);
+  }),
+).pipe(
+  Command.withDescription(
+    "Add a note to one of the server's issues without changing its status",
+  ),
+);
 
 const agreementCommand = Command.make(
   "agreement",
@@ -545,7 +594,7 @@ const mcp = Command.make(
   }),
 ).pipe(
   Command.withDescription(
-    "Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed, and resolve, mute or label them",
+    "Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed, and resolve, mute, label or note on them",
   ),
 );
 
@@ -903,6 +952,7 @@ const triage = Command.make("triage").pipe(
     resolve,
     mute,
     reopen,
+    note,
     agreementCommand,
     mcp,
   ]),

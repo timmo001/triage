@@ -1,7 +1,13 @@
 import { Api, type Issue, TriageClient } from "@timmo001/effect-triage-client";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
-import { type ListOptions, Store } from "../store/Store.js";
+import { Redactor } from "../redact.js";
+import {
+  type IssueNotFound,
+  type ListOptions,
+  Store,
+  type StoreError,
+} from "../store/Store.js";
 import { agreement } from "../triage/Triager.js";
 import { adminToken } from "./adminToken.js";
 
@@ -20,8 +26,10 @@ export class IssueAdminError extends Schema.TaggedError<IssueAdminError>()(
 const toIssueAdminError = (cause: unknown) => new IssueAdminError({ cause });
 
 /**
- * Lists, reads, labels, resolves, mutes and reopens a server's issues, and
- * compares its decision models with the labels, here or over its API.
+ * Lists, reads, labels, resolves, mutes and reopens a server's issues, notes
+ * on them, and compares its decision models with the labels, here or over its
+ * API. Notes are redacted with this machine's names before they're stored or
+ * sent.
  */
 export class IssueAdmin extends Context.Service<
   IssueAdmin,
@@ -30,9 +38,15 @@ export class IssueAdmin extends Context.Service<
     list(
       options: ListOptions,
     ): Effect.Effect<ReadonlyArray<Api.IssueSummary>, IssueAdminError>;
+    /** Resolve, mute or reopen an issue, with a note on why. */
     setStatus(
       id: string,
       status: Issue.Status,
+      note?: string,
+    ): Effect.Effect<void, Api.IssueNotFound | IssueAdminError>;
+    addNote(
+      id: string,
+      text: string,
     ): Effect.Effect<void, Api.IssueNotFound | IssueAdminError>;
     setLabel(
       id: string,
@@ -42,7 +56,7 @@ export class IssueAdmin extends Context.Service<
       ReadonlyArray<Api.Agreement>,
       IssueAdminError
     >;
-    /** An issue with its latest events and what the models made of it. */
+    /** An issue with its latest events, notes and what the models made of it. */
     review(
       id: string,
     ): Effect.Effect<Api.IssueReview, Api.IssueNotFound | IssueAdminError>;
@@ -51,7 +65,10 @@ export class IssueAdmin extends Context.Service<
       id: string,
       page: { readonly limit: number; readonly offset: number },
     ): Effect.Effect<Api.IssueEvents, Api.IssueNotFound | IssueAdminError>;
-    /** Issues like this one, with their suggested fixes, resolved ones first. */
+    /**
+     * Issues like this one, with their suggested fixes and notes, resolved
+     * ones first.
+     */
     similar(
       id: string,
       limit: number,
@@ -61,66 +78,78 @@ export class IssueAdmin extends Context.Service<
     >;
   }
 >()("triage/server/IssueAdmin") {
-  /** The issues in this machine's server database. */
-  static readonly layerLocal = Layer.effect(
-    IssueAdmin,
-    Effect.gen(function* () {
-      const store = yield* Store;
+  /**
+   * The issues in this machine's server database. `by` is who its notes and
+   * status changes are from, such as `cli` or `mcp`.
+   */
+  static readonly layerLocal = (options: { readonly by: string }) =>
+    Layer.effect(
+      IssueAdmin,
+      Effect.gen(function* () {
+        const store = yield* Store;
+        const { redact } = yield* Redactor;
 
-      return IssueAdmin.of({
-        list: (options) =>
-          store.issues(options).pipe(Effect.mapError(toIssueAdminError)),
-        setStatus: (id, status) =>
-          store.setStatus(id, status).pipe(
-            Effect.catchTags({
-              IssueNotFound: () => Effect.fail(new Api.IssueNotFound({ id })),
-              StoreError: (error) => Effect.fail(toIssueAdminError(error)),
-            }),
-          ),
-        setLabel: (id, label) =>
-          store.label(id, label === "worth").pipe(
-            Effect.catchTags({
-              IssueNotFound: () => Effect.fail(new Api.IssueNotFound({ id })),
-              StoreError: (error) => Effect.fail(toIssueAdminError(error)),
-            }),
-          ),
-        agreement: store.labelledDecisions.pipe(
-          Effect.map(agreement),
-          Effect.mapError(toIssueAdminError),
-        ),
-        review: (id) =>
-          store.review(id, Api.latestEvents).pipe(
-            Effect.mapError(toIssueAdminError),
-            Effect.flatMap(
-              Option.match({
-                onNone: () => Effect.fail(new Api.IssueNotFound({ id })),
-                onSome: Effect.succeed,
+        const notFound =
+          (id: string) =>
+          <A>(effect: Effect.Effect<A, IssueNotFound | StoreError>) =>
+            effect.pipe(
+              Effect.catchTags({
+                IssueNotFound: () => Effect.fail(new Api.IssueNotFound({ id })),
+                StoreError: (error) => Effect.fail(toIssueAdminError(error)),
               }),
-            ),
-          ),
-        events: (id, page) =>
-          store.events(id, page).pipe(
+            );
+
+        return IssueAdmin.of({
+          list: (options) =>
+            store.issues(options).pipe(Effect.mapError(toIssueAdminError)),
+          setStatus: (id, status, note) =>
+            store
+              .setStatus(id, status, {
+                by: options.by,
+                note: note === undefined ? undefined : redact(note),
+              })
+              .pipe(notFound(id)),
+          addNote: (id, text) =>
+            store.addNote(id, redact(text), options.by).pipe(notFound(id)),
+          setLabel: (id, label) =>
+            store.label(id, label === "worth").pipe(notFound(id)),
+          agreement: store.labelledDecisions.pipe(
+            Effect.map(agreement),
             Effect.mapError(toIssueAdminError),
-            Effect.flatMap(
-              Option.match({
-                onNone: () => Effect.fail(new Api.IssueNotFound({ id })),
-                onSome: Effect.succeed,
-              }),
-            ),
           ),
-        similar: (id, limit) =>
-          store.similar(id, limit).pipe(
-            Effect.mapError(toIssueAdminError),
-            Effect.flatMap(
-              Option.match({
-                onNone: () => Effect.fail(new Api.IssueNotFound({ id })),
-                onSome: Effect.succeed,
-              }),
+          review: (id) =>
+            store.review(id, Api.latestEvents).pipe(
+              Effect.mapError(toIssueAdminError),
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new Api.IssueNotFound({ id })),
+                  onSome: Effect.succeed,
+                }),
+              ),
             ),
-          ),
-      });
-    }),
-  );
+          events: (id, page) =>
+            store.events(id, page).pipe(
+              Effect.mapError(toIssueAdminError),
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new Api.IssueNotFound({ id })),
+                  onSome: Effect.succeed,
+                }),
+              ),
+            ),
+          similar: (id, limit) =>
+            store.similar(id, limit).pipe(
+              Effect.mapError(toIssueAdminError),
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new Api.IssueNotFound({ id })),
+                  onSome: Effect.succeed,
+                }),
+              ),
+            ),
+        });
+      }),
+    ).pipe(Layer.provide(Redactor.layer));
 
   /** The issues of the server at `url`, as the admin in `$TRIAGE_ADMIN_TOKEN`. */
   static readonly layerRemote = (url: string) =>
@@ -132,70 +161,59 @@ export class IssueAdmin extends Context.Service<
           IssueAdmin,
           Effect.gen(function* () {
             const client = yield* TriageClient;
+            const { redact } = yield* Redactor;
+
+            const notFound = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+              effect.pipe(
+                Effect.mapError((error) =>
+                  Schema.is(Api.IssueNotFound)(error)
+                    ? error
+                    : toIssueAdminError(error),
+                ),
+              );
 
             return IssueAdmin.of({
               list: (options) =>
                 client.issues
                   .list({ query: options })
                   .pipe(Effect.mapError(toIssueAdminError)),
-              setStatus: (id, status) =>
+              setStatus: (id, status, note) =>
                 client.issues
-                  .setStatus({ params: { id }, payload: { status } })
-                  .pipe(
-                    Effect.mapError((error) =>
-                      Schema.is(Api.IssueNotFound)(error)
-                        ? error
-                        : toIssueAdminError(error),
-                    ),
-                  ),
+                  .setStatus({
+                    params: { id },
+                    payload: {
+                      status,
+                      ...(note !== undefined && { note: redact(note) }),
+                    },
+                  })
+                  .pipe(notFound),
+              addNote: (id, text) =>
+                client.issues
+                  .addNote({ params: { id }, payload: { text: redact(text) } })
+                  .pipe(notFound),
               setLabel: (id, label) =>
                 client.issues
                   .setLabel({ params: { id }, payload: { label } })
-                  .pipe(
-                    Effect.mapError((error) =>
-                      Schema.is(Api.IssueNotFound)(error)
-                        ? error
-                        : toIssueAdminError(error),
-                    ),
-                  ),
+                  .pipe(notFound),
               agreement: client.decisions
                 .agreement()
                 .pipe(Effect.mapError(toIssueAdminError)),
               review: (id) =>
-                client.issues
-                  .get({ params: { id } })
-                  .pipe(
-                    Effect.mapError((error) =>
-                      Schema.is(Api.IssueNotFound)(error)
-                        ? error
-                        : toIssueAdminError(error),
-                    ),
-                  ),
+                client.issues.get({ params: { id } }).pipe(notFound),
               events: (id, page) =>
                 client.issues
                   .events({ params: { id }, query: page })
-                  .pipe(
-                    Effect.mapError((error) =>
-                      Schema.is(Api.IssueNotFound)(error)
-                        ? error
-                        : toIssueAdminError(error),
-                    ),
-                  ),
+                  .pipe(notFound),
               similar: (id, limit) =>
                 client.issues
                   .similar({ params: { id }, query: { limit } })
-                  .pipe(
-                    Effect.mapError((error) =>
-                      Schema.is(Api.IssueNotFound)(error)
-                        ? error
-                        : toIssueAdminError(error),
-                    ),
-                  ),
+                  .pipe(notFound),
             });
           }),
         ).pipe(
           Layer.provide(TriageClient.layer({ url, token })),
           Layer.provide(FetchHttpClient.layer),
+          Layer.provide(Redactor.layer),
         );
       }),
     );

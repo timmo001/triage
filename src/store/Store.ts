@@ -11,7 +11,8 @@ import {
   Path,
   Schema,
 } from "effect";
-import { SqlClient, SqlSchema } from "effect/sql";
+import { SqlClient, type SqlError, SqlSchema } from "effect/sql";
+import { redactGeneric } from "../redact.js";
 
 export class StoreError extends Schema.TaggedError<StoreError>()("StoreError", {
   cause: Schema.Defect(),
@@ -208,6 +209,30 @@ const toSuggestion = (row: typeof SuggestionRow.Type): Api.IssueSuggestion => ({
   issueCount: row.issue_count,
   text: row.text,
 });
+
+const NoteRow = Schema.Struct({
+  id: Schema.Int,
+  created_at: Schema.Finite,
+  created_by: Schema.NullOr(Schema.String),
+  status: Schema.NullOr(Api.NoteStatus),
+  text: Schema.String,
+});
+
+const toNote = (row: typeof NoteRow.Type): Api.IssueNote => ({
+  id: row.id,
+  createdAt: row.created_at,
+  by: row.created_by,
+  status: row.status,
+  text: row.text,
+});
+
+/** Who changed an issue's status, and why. */
+export interface StatusChange {
+  /** The admin, or `cli` or `mcp` on the server's own machine. */
+  readonly by: string;
+  /** Why, such as what fixed it. */
+  readonly note?: string | undefined;
+}
 
 /**
  * Merge issues into the issue for a fingerprint, creating it when it doesn't
@@ -548,6 +573,36 @@ const migrations = SqliteMigrator.fromRecord({
       fingerprint.slice(0, fingerprint.lastIndexOf("|")),
     );
   }),
+  // Issues keep notes and the history of their status. Resolutions and
+  // regressions from before then start it, without a note or who did them.
+  "0013_notes": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`
+      CREATE TABLE notes (
+        id INTEGER PRIMARY KEY,
+        issue_id TEXT NOT NULL REFERENCES issues (id),
+        created_at INTEGER NOT NULL,
+        created_by TEXT,
+        status TEXT,
+        text TEXT NOT NULL
+      )
+    `;
+
+    yield* sql`CREATE INDEX notes_issue ON notes (issue_id, created_at)`;
+
+    yield* sql`
+      INSERT INTO notes (issue_id, created_at, status, text)
+      SELECT id, resolved_at, 'resolved', '' FROM issues
+      WHERE resolved_at IS NOT NULL
+    `;
+
+    yield* sql`
+      INSERT INTO notes (issue_id, created_at, status, text)
+      SELECT id, regressed_at, 'regressed', '' FROM issues
+      WHERE regressed_at IS NOT NULL
+    `;
+  }),
 });
 
 /**
@@ -659,10 +714,20 @@ export class Store extends Context.Service<
       issueId: string,
       worth: boolean,
     ): Effect.Effect<void, IssueNotFound | StoreError>;
-    /** Resolve, mute or reopen an issue. */
+    /**
+     * Resolve, mute or reopen an issue, keeping who did it and why in its
+     * notes.
+     */
     setStatus(
       issueId: string,
       status: Issue.Status,
+      change: StatusChange,
+    ): Effect.Effect<void, IssueNotFound | StoreError>;
+    /** Add a note to an issue. `by` is the admin, or `cli` or `mcp`. */
+    addNote(
+      issueId: string,
+      text: string,
+      by: string,
     ): Effect.Effect<void, IssueNotFound | StoreError>;
     /** Every decision on a labelled issue. */
     labelledDecisions: Effect.Effect<
@@ -750,15 +815,30 @@ export class Store extends Context.Service<
       `;
 
       // Events from before an issue was resolved, sent late, don't reopen it.
-      yield* sql`
+      const now = yield* Clock.currentTimeMillis;
+
+      const regressed = yield* sql`
         UPDATE issues SET
           status = 'open',
           resolved_at = NULL,
-          regressed_at = ${yield* Clock.currentTimeMillis}
+          regressed_at = ${now}
         WHERE id = ${issue.id}
           AND status = 'resolved'
           AND resolved_at < ${event.timestamp}
+        RETURNING id
       `;
+
+      if (regressed.length > 0) {
+        yield* sql`
+          INSERT INTO notes ${sql.insert({
+            issue_id: issue.id,
+            created_at: now,
+            created_by: event.host,
+            status: "regressed",
+            text: "",
+          })}
+        `;
+      }
 
       return 1;
     });
@@ -1043,6 +1123,15 @@ export class Store extends Context.Service<
       execute: (id) => sql`SELECT worth FROM labels WHERE issue_id = ${id}`,
     });
 
+    const issueNotes = SqlSchema.findAll({
+      Request: Schema.String,
+      Result: NoteRow,
+      execute: (id) => sql`
+        SELECT id, created_at, created_by, status, text
+        FROM notes WHERE issue_id = ${id} ORDER BY created_at DESC, id DESC
+      `,
+    });
+
     const review = Effect.fn("Store.review")(
       function* (id: string, limit: number) {
         const detail = yield* issue(id, limit);
@@ -1053,6 +1142,7 @@ export class Store extends Context.Service<
 
         const decisions = yield* issueDecisions(id);
         const suggestions = yield* issueSuggestions(id);
+        const notes = yield* issueNotes(id);
         const label = yield* issueLabel(id);
         const hostCounts = yield* issueHosts(id);
 
@@ -1080,6 +1170,7 @@ export class Store extends Context.Service<
             cause: row.cause,
           })),
           suggestions: suggestions.map(toSuggestion),
+          notes: notes.map(toNote),
         });
       },
       Effect.mapError((cause) => new StoreError({ cause })),
@@ -1107,10 +1198,14 @@ export class Store extends Context.Service<
 
         return Option.some(
           yield* Effect.forEach(rows, (similarRow) =>
-            issueSuggestions(similarRow.id).pipe(
-              Effect.map((suggestions): Api.SimilarIssue =>
+            Effect.all([
+              issueSuggestions(similarRow.id),
+              issueNotes(similarRow.id),
+            ]).pipe(
+              Effect.map(([suggestions, notes]): Api.SimilarIssue =>
                 Object.assign(toSummary(similarRow, now, windows), {
                   suggestions: suggestions.map(toSuggestion),
+                  notes: notes.map(toNote),
                 }),
               ),
             ),
@@ -1288,23 +1383,74 @@ export class Store extends Context.Service<
       }
     });
 
-    const setStatus = Effect.fn("Store.setStatus")(function* (
-      issueId: string,
-      status: Issue.Status,
-    ) {
-      const rows = yield* sql`
+    const insertNote = (note: {
+      readonly issueId: string;
+      readonly createdAt: number;
+      readonly by: string;
+      readonly status: Api.NoteStatus | null;
+      readonly text: string;
+    }) => sql`
+      INSERT INTO notes ${sql.insert({
+        issue_id: note.issueId,
+        created_at: note.createdAt,
+        created_by: note.by,
+        status: note.status,
+        text: redactGeneric(note.text.trim()),
+      })}
+    `;
+
+    const toStoreError = (cause: SqlError.SqlError) =>
+      Effect.fail(new StoreError({ cause }));
+
+    const setStatus = Effect.fn("Store.setStatus")(
+      function* (issueId: string, status: Issue.Status, change: StatusChange) {
+        const now = yield* Clock.currentTimeMillis;
+
+        const rows = yield* sql`
           UPDATE issues SET
             status = ${status},
-            resolved_at = ${status === "resolved" ? yield* Clock.currentTimeMillis : null},
+            resolved_at = ${status === "resolved" ? now : null},
             regressed_at = NULL
           WHERE id = ${issueId} AND count > 0
           RETURNING id
-        `.pipe(Effect.mapError((cause) => new StoreError({ cause })));
+        `;
 
-      if (rows.length === 0) {
-        return yield* new IssueNotFound({ issueId });
-      }
-    });
+        if (rows.length === 0) {
+          return yield* new IssueNotFound({ issueId });
+        }
+
+        yield* insertNote({
+          issueId,
+          createdAt: now,
+          by: change.by,
+          status,
+          text: change.note ?? "",
+        });
+      },
+      sql.withTransaction,
+      Effect.catchTag("SqlError", toStoreError),
+    );
+
+    const addNote = Effect.fn("Store.addNote")(
+      function* (issueId: string, text: string, by: string) {
+        const rows = yield* sql`
+          SELECT id FROM issues WHERE id = ${issueId} AND count > 0
+        `;
+
+        if (rows.length === 0) {
+          return yield* new IssueNotFound({ issueId });
+        }
+
+        yield* insertNote({
+          issueId,
+          createdAt: yield* Clock.currentTimeMillis,
+          by,
+          status: null,
+          text,
+        });
+      },
+      Effect.catchTag("SqlError", toStoreError),
+    );
 
     const labelledDecisions = SqlSchema.findAll({
       Request: Schema.Void,
@@ -1417,6 +1563,7 @@ export class Store extends Context.Service<
       saveDecision,
       label,
       setStatus,
+      addNote,
       labelledDecisions,
       unsuggested,
       suggestedSince,

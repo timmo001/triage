@@ -301,6 +301,50 @@ export interface IssueSuggestion extends Schema.Schema.Type<
   typeof IssueSuggestion
 > {}
 
+/** The longest note, in characters. */
+export const maxNote = 10_000;
+
+/** A note's text, in Markdown, with something other than whitespace in it. */
+export const NoteText = Schema.String.check(
+  Schema.isMaxLength(maxNote),
+  Schema.isPattern(/\S/),
+);
+
+/**
+ * What happened with a note: the status someone set the issue to, or
+ * `regressed` when an event reopened it.
+ */
+export const NoteStatus = Schema.Literals([...Status.literals, "regressed"]);
+
+export type NoteStatus = typeof NoteStatus.Type;
+
+/**
+ * A note on an issue, such as why it was resolved, or a change to its status
+ * with or without one.
+ */
+export const IssueNote = Schema.Struct({
+  id: Schema.Int,
+  /** When it was written, in milliseconds since the Unix epoch. */
+  createdAt: Schema.Finite,
+  /**
+   * The admin who wrote it, or `cli` or `mcp` on the server's own machine.
+   * For a regression, the host whose event reopened the issue. Null for
+   * resolutions and regressions from before notes.
+   */
+  by: Schema.NullOr(Schema.String),
+  /** The status change it came with, or null for a note on its own. */
+  status: Schema.NullOr(NoteStatus),
+  /** The note, in Markdown, redacted like events. Empty for a status change without one. */
+  text: Schema.String,
+});
+
+export interface IssueNote extends Schema.Schema.Type<typeof IssueNote> {}
+
+/** Older servers don't send notes. */
+const notes = Schema.Array(IssueNote).pipe(
+  Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+);
+
 /** An issue with its latest events and what the models made of it. */
 export const IssueReview = Schema.Struct({
   ...IssueDetail.fields,
@@ -308,6 +352,8 @@ export const IssueReview = Schema.Struct({
   decisions: Schema.Array(IssueDecision),
   /** Each model's latest suggestion, newest first. */
   suggestions: Schema.Array(IssueSuggestion),
+  /** Notes and status changes, newest first. */
+  notes,
   /** The hand label, when someone has given one. */
   label: Schema.optional(Label),
   /**
@@ -326,6 +372,8 @@ export const SimilarIssue = Schema.Struct({
   ...IssueSummary.fields,
   /** Each model's latest suggestion, newest first. */
   suggestions: Schema.Array(IssueSuggestion),
+  /** Notes and status changes, newest first, such as how it was fixed. */
+  notes,
 });
 
 export interface SimilarIssue extends Schema.Schema.Type<typeof SimilarIssue> {}
@@ -449,7 +497,17 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
     }),
     HttpApiEndpoint.put("setStatus", "/:id/status", {
       params: { id: Schema.String },
-      payload: Schema.Struct({ status: Status }),
+      payload: Schema.Struct({
+        status: Status,
+        /** Why, such as what fixed it, kept in the issue's notes. */
+        note: Schema.optional(NoteText),
+      }),
+      success: HttpApiSchema.NoContent,
+      error: IssueNotFound,
+    }),
+    HttpApiEndpoint.post("addNote", "/:id/notes", {
+      params: { id: Schema.String },
+      payload: Schema.Struct({ text: NoteText }),
       success: HttpApiSchema.NoContent,
       error: IssueNotFound,
     }),
@@ -466,7 +524,7 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
     OpenApi.annotations({
       title: "Issues",
       description:
-        "Events grouped by fingerprint, similar issues and their suggested fixes, resolving or muting them, and labelling them worth fixing or noise",
+        "Events grouped by fingerprint, similar issues and their suggested fixes, resolving or muting them, notes on them, and labelling them worth fixing or noise",
     }),
   ) {}
 

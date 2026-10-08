@@ -74,6 +74,12 @@ export const makeRedact = (identities: Identities = {}) => {
 
 export type Redact = ReturnType<typeof makeRedact>;
 
+/**
+ * Redacts text with the rules alone, without any machine's names, for text
+ * that reaches the server from elsewhere, such as notes.
+ */
+export const redactGeneric: Redact = makeRedact();
+
 /** The first and last UIDs systemd gives regular users. */
 const userIds = { min: 1000, max: 60_000 } as const;
 
