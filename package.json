@@ -31,7 +31,7 @@
     "@effect/sql-sqlite-bun": "4.0.2",
     "@timmo001/effect-triage": "workspace:*",
     "@timmo001/effect-triage-client": "workspace:*",
-    "effect": "4.0.1"
+    "effect": "4.0.2"
   },
   "devDependencies": {
     "@effect/tsgo": "0.51.1",
