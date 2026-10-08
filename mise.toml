@@ -118,7 +118,7 @@ description = "Preview the built docs site"
 dir = "docs"
 run = "bun run preview"
 
-[tasks."serve:docs:dev"]
+[tasks."serve:docs"]
 description = "Start the docs dev server in the background through Pitchfork"
 run = "pitchfork start docs"
 
@@ -162,7 +162,7 @@ run = "pitchfork stop server"
 [tasks."serve:web"]
 description = "Start the web UI in the background through Pitchfork, using the background local server"
 depends = ["install"]
-run = ["pitchfork start server", "pitchfork start web"]
+run = "pitchfork start web"
 
 [tasks."serve:web:status"]
 description = "Show the background web UI status"

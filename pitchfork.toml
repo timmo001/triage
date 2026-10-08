@@ -13,9 +13,10 @@ health_cmd = 'curl -fsS "http://127.0.0.1:$PORT/api/health"'
 retry = true
 
 [daemons.docs]
-run = "exec mise run docs:dev"
-ready_http = "http://localhost:4321/"
-health_http = "http://localhost:4321/"
+run = 'exec mise run docs:dev --host 127.0.0.1 --port "$PORT"'
+port = { expect = [7190], bump = 10 }
+ready_cmd = 'curl -fsS "http://127.0.0.1:$PORT/"'
+health_cmd = 'curl -fsS "http://127.0.0.1:$PORT/"'
 retry = true
 
 # The web UI, rebuilt on each page load, using the background server's API.
@@ -24,6 +25,8 @@ retry = true
 [daemons.web]
 run = 'exec bun scripts/web-dev.ts'
 port = { expect = [7180], bump = 10 }
+depends = ["server"]
+env = { TRIAGE_DEV_API = "http://127.0.0.1:{{ daemons.server.port }}" }
 ready_cmd = 'curl -fsS "http://127.0.0.1:$PORT/"'
 health_cmd = 'curl -fsS "http://127.0.0.1:$PORT/"'
 retry = true
