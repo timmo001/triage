@@ -36,6 +36,24 @@ export class NothingToMerge extends Schema.TaggedError<NothingToMerge>()(
   }
 }
 
+export class FingerprintNotFound extends Schema.TaggedError<FingerprintNotFound>()(
+  "FingerprintNotFound",
+  { issueId: Schema.String, fingerprint: Schema.String },
+) {
+  override get message() {
+    return `Issue ${this.issueId} has no fingerprint ${this.fingerprint}`;
+  }
+}
+
+export class NothingToUnmerge extends Schema.TaggedError<NothingToUnmerge>()(
+  "NothingToUnmerge",
+  { issueId: Schema.String },
+) {
+  override get message() {
+    return `Issue ${this.issueId} has only one fingerprint, so there's nothing to unmerge`;
+  }
+}
+
 /** The issue that issues were merged into, and the IDs that now redirect to it. */
 export interface Merged {
   readonly id: string;
@@ -875,6 +893,20 @@ export class Store extends Context.Service<
       issueIds: ReadonlyArray<string>,
       by: string,
     ): Effect.Effect<Merged, IssueNotFound | NothingToMerge | StoreError>;
+    /**
+     * Move a fingerprint's events out of an issue into an issue of their own,
+     * which keeps the issue's status but none of its decisions, label or
+     * suggestions. Returns the new issue's ID: the fingerprint's own, unless
+     * the issue already has it. `by` is the admin, or `cli` or `mcp`.
+     */
+    unmerge(
+      issueId: string,
+      fingerprint: string,
+      by: string,
+    ): Effect.Effect<
+      string,
+      IssueNotFound | FingerprintNotFound | NothingToUnmerge | StoreError
+    >;
     /** Every decision on a labelled issue. */
     labelledDecisions: Effect.Effect<
       ReadonlyArray<LabelledDecision>,
@@ -1718,6 +1750,162 @@ export class Store extends Context.Service<
       ),
     );
 
+    const latestEvent = SqlSchema.findOneOption({
+      Request: Schema.Struct({ id: Schema.String, fingerprint: Schema.String }),
+      Result: Schema.Struct({ data: EventJson }),
+      execute: ({ id, fingerprint }) => sql`
+        SELECT data FROM events WHERE issue_id = ${id} AND fingerprint = ${fingerprint}
+        ORDER BY timestamp DESC LIMIT 1
+      `,
+    });
+
+    /** Count an issue's events again, after some moved in or out. */
+    const recount = (id: string) => sql`
+      UPDATE issues SET
+        first_seen = coalesce((SELECT MIN(timestamp) FROM events WHERE issue_id = ${id}), first_seen),
+        last_seen = coalesce((SELECT MAX(timestamp) FROM events WHERE issue_id = ${id}), last_seen),
+        count = (SELECT COUNT(*) FROM events WHERE issue_id = ${id})
+      WHERE id = ${id}
+    `;
+
+    const unmerge = Effect.fn("Store.unmerge")(
+      function* (issueId: string, fingerprint: string, by: string) {
+        const row = yield* findIssue(issueId);
+
+        if (Option.isNone(row)) {
+          return yield* new IssueNotFound({ issueId });
+        }
+
+        const source = row.value;
+
+        const owned = yield* sql<{ fingerprint: string; events: number }>`
+          SELECT fingerprint, (
+            SELECT COUNT(*) FROM events
+            WHERE events.issue_id = ${source.id}
+              AND events.fingerprint = issue_fingerprints.fingerprint
+          ) AS events
+          FROM issue_fingerprints WHERE issue_id = ${source.id}
+        `;
+
+        if (!owned.some((owner) => owner.fingerprint === fingerprint)) {
+          return yield* new FingerprintNotFound({
+            issueId: source.id,
+            fingerprint,
+          });
+        }
+
+        if (owned.length < 2) {
+          return yield* new NothingToUnmerge({ issueId: source.id });
+        }
+
+        const now = yield* Clock.currentTimeMillis;
+        const natural = Fingerprint.issueId(fingerprint);
+
+        const taken = yield* sql`SELECT 1 FROM issues WHERE id = ${natural}`;
+
+        const id =
+          taken.length === 0
+            ? natural
+            : Fingerprint.issueId(`${fingerprint}|${now}`);
+
+        const started = Option.map(
+          yield* latestEvent({ id: source.id, fingerprint }),
+          ({ data }) => Issue.fromEvent(data),
+        );
+
+        const status = yield* sql<{
+          status: string;
+          resolved_at: number | null;
+          regressed_at: number | null;
+        }>`SELECT status, resolved_at, regressed_at FROM issues WHERE id = ${source.id}`;
+
+        yield* sql`
+          INSERT INTO issues ${sql.insert({
+            id,
+            fingerprint,
+            kind: Option.match(started, {
+              onNone: () => source.kind,
+              onSome: (issue) => issue.kind,
+            }),
+            title: Option.match(started, {
+              onNone: () => source.title,
+              onSome: (issue) => issue.title,
+            }),
+            first_seen: source.first_seen,
+            last_seen: source.last_seen,
+            count: 0,
+            status: status[0]?.status ?? "open",
+            resolved_at: status[0]?.resolved_at ?? null,
+            regressed_at: status[0]?.regressed_at ?? null,
+          })}
+        `;
+        yield* sql`
+          UPDATE events SET issue_id = ${id}
+          WHERE issue_id = ${source.id} AND fingerprint = ${fingerprint}
+        `;
+        yield* sql`
+          UPDATE issue_fingerprints SET issue_id = ${id}
+          WHERE fingerprint = ${fingerprint}
+        `;
+        yield* sql`DELETE FROM issue_redirects WHERE id = ${id}`;
+        yield* recount(id);
+        yield* recount(source.id);
+
+        // The issue left behind takes the kind and title of its cause again.
+        const remaining = yield* Effect.forEach(
+          owned.filter((owner) => owner.fingerprint !== fingerprint),
+          (owner) =>
+            Effect.map(
+              latestEvent({ id: source.id, fingerprint: owner.fingerprint }),
+              Option.map(({ data }) => ({
+                issue: Issue.fromEvent(data),
+                events: owner.events,
+              })),
+            ),
+        );
+
+        const [cause] = remaining
+          .flatMap((found) => (Option.isSome(found) ? [found.value] : []))
+          .sort(
+            (a, b) =>
+              causeOrder.indexOf(a.issue.kind) -
+                causeOrder.indexOf(b.issue.kind) || b.events - a.events,
+          );
+
+        if (cause !== undefined) {
+          yield* sql`
+            UPDATE issues SET
+              fingerprint = ${cause.issue.fingerprint},
+              kind = ${cause.issue.kind},
+              title = ${cause.issue.title}
+            WHERE id = ${source.id}
+          `;
+        }
+
+        yield* insertNote({
+          issueId: source.id,
+          createdAt: now,
+          by,
+          status: null,
+          text: `Unmerged ${id}`,
+        });
+        yield* insertNote({
+          issueId: id,
+          createdAt: now,
+          by,
+          status: null,
+          text: `Unmerged from ${source.id}`,
+        });
+
+        return id;
+      },
+      sql.withTransaction,
+      Effect.catchTag("SqlError", toStoreError),
+      Effect.catchTag("SchemaError", (cause) =>
+        Effect.fail(new StoreError({ cause })),
+      ),
+    );
+
     const labelledDecisions = SqlSchema.findAll({
       Request: Schema.Void,
       Result: LabelledDecision,
@@ -1831,6 +2019,7 @@ export class Store extends Context.Service<
       setStatus,
       addNote,
       merge,
+      unmerge,
       labelledDecisions,
       unsuggested,
       suggestedSince,

@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { Event } from "@timmo001/effect-triage";
+import { Event, Issue } from "@timmo001/effect-triage";
 import { ConfigProvider, Effect, Layer, Option } from "effect";
 import {
+  FingerprintNotFound,
   IssueNotFound,
   type ListOptions,
   NothingToMerge,
+  NothingToUnmerge,
   Store,
 } from "./Store.js";
 
@@ -486,5 +488,63 @@ describe("Store", () => {
 
     expect(result.same).toBeInstanceOf(NothingToMerge);
     expect(result.missing).toEqual(new IssueNotFound({ issueId: "missing" }));
+  });
+
+  test("unmerges a fingerprint back into an issue of its own", async () => {
+    const crash = (id: string, timestamp: number, top: string) =>
+      Event.Event.cases.Crash.make({
+        id,
+        host: "desktop",
+        source: "journal",
+        timestamp,
+        severity: "crit",
+        message: "dumped core",
+        executable: "/usr/bin/zsh",
+        signal: "SIGSEGV",
+        frames: [{ function: top }],
+      });
+
+    const a = Issue.fromEvent(crash("a", 0, "a"));
+    const b = Issue.fromEvent(crash("b", 0, "b"));
+
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+      const now = Date.now();
+
+      yield* store.add([
+        crash("a1", now - 3000, "a"),
+        crash("b1", now - 2000, "b"),
+        crash("b2", now - 1000, "b"),
+      ]);
+      yield* store.merge([a.id, b.id], "cli");
+
+      const unmerged = yield* store.unmerge(b.id, b.fingerprint, "cli");
+
+      yield* store.add([crash("b3", now, "b")]);
+
+      const counts = (yield* store.issues({ limit: 10 })).map((issue) => [
+        issue.id,
+        issue.count,
+      ]);
+
+      return {
+        unmerged,
+        counts,
+        notes: Option.map(yield* store.review(b.id, 1), (review) =>
+          review.notes.map((note) => note.text),
+        ),
+        last: yield* Effect.flip(store.unmerge(a.id, a.fingerprint, "cli")),
+        other: yield* Effect.flip(store.unmerge(a.id, b.fingerprint, "cli")),
+      };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.unmerged).toBe(b.id);
+    expect(result.counts).toEqual([
+      [b.id, 3],
+      [a.id, 1],
+    ]);
+    expect(result.notes).toEqual(Option.some([`Unmerged from ${a.id}`]));
+    expect(result.last).toBeInstanceOf(NothingToUnmerge);
+    expect(result.other).toBeInstanceOf(FingerprintNotFound);
   });
 });
