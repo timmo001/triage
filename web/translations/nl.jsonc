@@ -150,6 +150,7 @@
     "other": "{count} geselecteerd"
   },
   "selection.clear": "Selectie wissen",
+  "selection.merge": "Samenvoegen",
   "selection.all": "Alle geladen problemen selecteren",
   "selection.allShort": "Alles selecteren",
   "selection.group": "Alle geladen problemen in {group} selecteren",
@@ -175,6 +176,9 @@
   "issue.yourLabel": "Jouw label",
   "issue.suggestions": "Voorgestelde oplossingen",
   "issue.eventList": "Gebeurtenissen",
+  "issue.fingerprints": "Vingerafdrukken",
+  "fingerprints.hint": "Problemen die in dit probleem zijn samengevoegd, per vingerafdruk die hun gebeurtenissen groepeert. Splitsen zet de gebeurtenissen van een vingerafdruk terug in een eigen probleem.",
+  "fingerprints.unmerge": "Splitsen",
   "issue.loadingEvents": "Gebeurtenissen laden",
   "issue.noEvents": "Geen gebeurtenissen.",
   "issue.loadMoreFailed": "Kon niet meer gebeurtenissen laden.",

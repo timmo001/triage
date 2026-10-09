@@ -156,6 +156,7 @@
     "other": "{count} seleccionadas"
   },
   "selection.clear": "Borrar selección",
+  "selection.merge": "Fusionar",
   "selection.all": "Seleccionar todas las incidencias cargadas",
   "selection.allShort": "Seleccionar todo",
   "selection.group": "Seleccionar todas las incidencias cargadas de {group}",
@@ -181,6 +182,9 @@
   "issue.yourLabel": "Tu etiqueta",
   "issue.suggestions": "Arreglos sugeridos",
   "issue.eventList": "Eventos",
+  "issue.fingerprints": "Huellas",
+  "fingerprints.hint": "Incidencias fusionadas en esta, por la huella que agrupa sus eventos. Separar devuelve los eventos de una huella a una incidencia propia.",
+  "fingerprints.unmerge": "Separar",
   "issue.loadingEvents": "Cargando eventos",
   "issue.noEvents": "No hay eventos.",
   "issue.loadMoreFailed": "No se pudieron cargar más eventos.",

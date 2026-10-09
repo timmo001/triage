@@ -145,6 +145,8 @@
   "selection.label": "Selected issues",
   "selection.count": { "one": "{count} selected", "other": "{count} selected" },
   "selection.clear": "Clear selection",
+  // Merges the selected issues into the one seen first.
+  "selection.merge": "Merge",
   "selection.all": "Select every loaded issue",
   "selection.allShort": "Select all",
   "selection.group": "Select every loaded {group} issue",
@@ -170,6 +172,11 @@
   "issue.yourLabel": "Your label",
   "issue.suggestions": "Suggested fixes",
   "issue.eventList": "Events",
+  // The fingerprints of the issues merged into this one. A fingerprint is the
+  // key that groups an issue's events.
+  "issue.fingerprints": "Fingerprints",
+  "fingerprints.hint": "Issues merged into this one, by the fingerprint that groups their events. Unmerge moves a fingerprint's events back out into an issue of their own.",
+  "fingerprints.unmerge": "Unmerge",
   "issue.loadingEvents": "Loading events",
   "issue.noEvents": "No events.",
   "issue.loadMoreFailed": "Couldn't load more events.",

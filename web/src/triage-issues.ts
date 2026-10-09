@@ -1,6 +1,7 @@
 import {
   mdiAlertCircleOutline,
   mdiBellOffOutline,
+  mdiCallMerge,
   mdiCheck,
   mdiCheckCircleOutline,
   mdiChevronDown,
@@ -62,6 +63,7 @@ import {
   issueList,
   ListSettings,
   listSettings,
+  mergeIssues,
   type RowHeights,
   rowHeights,
 } from "./triage.js";
@@ -874,6 +876,8 @@ export class TriageIssues extends LitElement {
 
   readonly #bulk = new AtomController(this, () => bulkAction);
 
+  readonly #merge = new AtomController(this, () => mergeIssues);
+
   readonly #rowHeights = new AtomController(this, () => rowHeights);
 
   readonly #table = new TableController<typeof features, Api.IssueSummary>(
@@ -1210,7 +1214,7 @@ export class TriageIssues extends LitElement {
       return nothing;
     }
 
-    const busy = this.#bulk.value.waiting;
+    const busy = this.#bulk.value.waiting || this.#merge.value.waiting;
 
     return html`
       <div
@@ -1232,6 +1236,24 @@ export class TriageIssues extends LitElement {
             </button>
           `,
         )}
+        ${
+          ids.length < 2
+            ? nothing
+            : html`
+                <button
+                  ?disabled=${busy}
+                  @click=${() => {
+                    registry.set(mergeIssues, {
+                      payload: { ids },
+                      reactivityKeys: ["issues"],
+                    });
+                    this.rowSelection = {};
+                  }}
+                >
+                  ${icon(mdiCallMerge)} ${t("selection.merge")}
+                </button>
+              `
+        }
         <button @click=${() => (this.rowSelection = {})}>
           ${icon(mdiClose)} ${t("selection.clear")}
         </button>

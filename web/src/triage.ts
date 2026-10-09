@@ -261,6 +261,10 @@ export const addNote = TriageApi.mutation("issues", "addNote");
 
 export const setLabel = TriageApi.mutation("issues", "setLabel");
 
+export const mergeIssues = TriageApi.mutation("issues", "merge");
+
+export const unmergeIssue = TriageApi.mutation("issues", "unmerge");
+
 export type Route = Data.TaggedEnum<{
   Issues: {};
   Issue: { readonly id: string };

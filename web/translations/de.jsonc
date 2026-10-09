@@ -147,6 +147,7 @@
     "other": "{count} ausgewählt"
   },
   "selection.clear": "Auswahl aufheben",
+  "selection.merge": "Zusammenführen",
   "selection.all": "Alle geladenen Probleme auswählen",
   "selection.allShort": "Alle auswählen",
   "selection.group": "Alle geladenen Probleme in {group} auswählen",
@@ -172,6 +173,9 @@
   "issue.yourLabel": "Deine Markierung",
   "issue.suggestions": "Vorgeschlagene Lösungen",
   "issue.eventList": "Ereignisse",
+  "issue.fingerprints": "Fingerabdrücke",
+  "fingerprints.hint": "In dieses Problem zusammengeführte Probleme, nach dem Fingerabdruck, der ihre Ereignisse gruppiert. Trennen verschiebt die Ereignisse eines Fingerabdrucks zurück in ein eigenes Problem.",
+  "fingerprints.unmerge": "Trennen",
   "issue.loadingEvents": "Ereignisse werden geladen",
   "issue.noEvents": "Keine Ereignisse.",
   "issue.loadMoreFailed": "Weitere Ereignisse konnten nicht geladen werden.",

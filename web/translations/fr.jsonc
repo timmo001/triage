@@ -156,6 +156,7 @@
     "other": "{count} sélectionnés"
   },
   "selection.clear": "Effacer la sélection",
+  "selection.merge": "Fusionner",
   "selection.all": "Sélectionner tous les problèmes chargés",
   "selection.allShort": "Tout sélectionner",
   "selection.group": "Sélectionner tous les problèmes chargés de {group}",
@@ -181,6 +182,9 @@
   "issue.yourLabel": "Votre étiquette",
   "issue.suggestions": "Corrections suggérées",
   "issue.eventList": "Événements",
+  "issue.fingerprints": "Empreintes",
+  "fingerprints.hint": "Problèmes fusionnés dans celui-ci, par l'empreinte qui regroupe leurs événements. Séparer replace les événements d'une empreinte dans un problème à part.",
+  "fingerprints.unmerge": "Séparer",
   "issue.loadingEvents": "Chargement des événements",
   "issue.noEvents": "Aucun événement.",
   "issue.loadMoreFailed": "Impossible de charger d’autres événements.",

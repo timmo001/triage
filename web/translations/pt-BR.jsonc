@@ -156,6 +156,7 @@
     "other": "{count} selecionados"
   },
   "selection.clear": "Limpar seleção",
+  "selection.merge": "Mesclar",
   "selection.all": "Selecionar todos os problemas carregados",
   "selection.allShort": "Selecionar tudo",
   "selection.group": "Selecionar todos os problemas carregados em {group}",
@@ -181,6 +182,9 @@
   "issue.yourLabel": "Seu rótulo",
   "issue.suggestions": "Correções sugeridas",
   "issue.eventList": "Eventos",
+  "issue.fingerprints": "Impressões digitais",
+  "fingerprints.hint": "Problemas mesclados neste, pela impressão digital que agrupa seus eventos. Separar move os eventos de uma impressão digital de volta para um problema próprio.",
+  "fingerprints.unmerge": "Separar",
   "issue.loadingEvents": "Carregando eventos",
   "issue.noEvents": "Nenhum evento.",
   "issue.loadMoreFailed": "Não foi possível carregar mais eventos.",

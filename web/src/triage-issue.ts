@@ -8,6 +8,7 @@ import {
   mdiBellOffOutline,
   mdiBellOutline,
   mdiBugOutline,
+  mdiCallSplit,
   mdiCheckCircleOutline,
   mdiChevronLeft,
   mdiChevronRight,
@@ -52,8 +53,10 @@ import {
   homeHref,
   issue,
   issueEvents,
+  issueHref,
   setLabel,
   setStatus,
+  unmergeIssue,
 } from "./triage.js";
 import {
   ago,
@@ -173,6 +176,25 @@ export class TriageIssue extends LitElement {
       .hosts .muted-text {
         margin-left: var(--triage-space-2);
         font-size: var(--triage-font-size-s);
+      }
+
+      .fingerprints {
+        list-style: none;
+        margin: 0 0 var(--triage-space-8);
+        padding: 0;
+        display: grid;
+        gap: var(--triage-space-2);
+      }
+
+      .fingerprints li {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--triage-space-2);
+      }
+
+      .fingerprints code {
+        overflow-wrap: anywhere;
       }
 
       .actions {
@@ -534,6 +556,8 @@ export class TriageIssue extends LitElement {
 
   readonly #setLabel = new AtomController(this, () => setLabel);
 
+  readonly #unmerge = new AtomController(this, () => unmergeIssue);
+
   readonly #events = new AtomController(this, () => issueEvents(this.issueId));
 
   readonly #virtualizer = new WindowVirtualizerController<HTMLLIElement>(this, {
@@ -625,6 +649,11 @@ export class TriageIssue extends LitElement {
             </span>
             <pre><code>${agentMessage(value.issue)}</code></pre>
           </div>
+          ${
+            value.fingerprints.length > 1
+              ? this.#renderFingerprints(value)
+              : nothing
+          }
           <h2>${t("issue.notes")}</h2>
           ${renderNotes(value.notes)}
           <h2>${t("issue.decisions")}</h2>
@@ -649,6 +678,29 @@ export class TriageIssue extends LitElement {
           ${this.#renderEvents()}
         `,
       })}
+    `;
+  }
+
+  #renderFingerprints(review: Api.IssueReview) {
+    return html`
+      <h2>${t("issue.fingerprints")}</h2>
+      <p class="muted-text">${t("fingerprints.hint")}</p>
+      <ul class="fingerprints">
+        ${review.fingerprints.map(
+          ({ fingerprint, count }) => html`
+            <li>
+              <code>${fingerprint}</code>
+              <span class="muted-text">${eventCount(count)}</span>
+              <button
+                ?disabled=${this.#unmerge.value.waiting}
+                @click=${() => this.#splitOut(review.issue.id, fingerprint)}
+              >
+                ${icon(mdiCallSplit)} ${t("fingerprints.unmerge")}
+              </button>
+            </li>
+          `,
+        )}
+      </ul>
     `;
   }
 
@@ -742,6 +794,20 @@ export class TriageIssue extends LitElement {
   }
 
   override updated() {
+    const detail = this.#detail.value;
+
+    // A merged issue's old link shows the issue it joined, under its own ID.
+    if (
+      AsyncResult.isSuccess(detail) &&
+      detail.value.issue.id !== this.issueId
+    ) {
+      history.replaceState(
+        null,
+        "",
+        new URL(issueHref(detail.value.issue.id), document.baseURI).href,
+      );
+    }
+
     const result = this.#events.value;
 
     if (!AsyncResult.isSuccess(result) || result.waiting || result.value.done) {
@@ -864,6 +930,25 @@ export class TriageIssue extends LitElement {
 
     if (Exit.isSuccess(exit) && this.note.trim() === sent) {
       this.note = "";
+    }
+  }
+
+  /** Unmerges a fingerprint, then reloads the events, which moved out with it. */
+  async #splitOut(id: string, fingerprint: string) {
+    registry.set(unmergeIssue, {
+      params: { id },
+      payload: { fingerprint },
+      reactivityKeys: ["issues"],
+    });
+
+    const exit = await Effect.runPromiseExit(
+      AtomRegistry.getResult(registry, unmergeIssue, {
+        suspendOnWaiting: true,
+      }),
+    );
+
+    if (Exit.isSuccess(exit)) {
+      registry.refresh(issueEvents(this.issueId));
     }
   }
 
