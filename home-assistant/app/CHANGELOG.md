@@ -1,26 +1,28 @@
-## Notes
+## Merging
 
-- Issues keep notes. Say why you resolved, muted or reopened one, such as what fixed it, the version with the fix and the hosts it's on, so when it comes back on another host you can tell whether that host has the fix or it's a different case. See [Notes](https://triage.timmo.dev/issues/#notes).
-- Every status change is kept with who made it and when, and so is each regression, with the host it came back on. Earlier resolutions and regressions are copied over, without a note.
-- Notes take Markdown and are redacted like events before they're stored or sent.
+- Issues that are the same problem can be merged into one, like Sentry: the same crash with different top frames, or the same error worded a little differently. See [Merging](https://triage.timmo.dev/issues/#merging).
+- The issue seen first is kept, then the one with more events, then the lower ID. It takes the kind and title of the cause, so a crash wins over the unit failure it caused, and it's muted if any of the issues was, open if any was and resolved otherwise.
+- The merged issues' IDs and links lead to the one kept, and new events for any of them join it.
+- Unmerging moves a fingerprint's events back out into an issue of their own, which models decide on afresh. Both issues get a note saying what happened.
+- An upgrade fills in each event's fingerprint. Crashes whose frames had a module of `n/a` no longer start a duplicate issue when they happen again.
 
 ## Web UI
 
-- The issue page has a note box: Resolve, Mute and Reopen save its note with the change, and **Add note** saves one on its own.
-- A **Notes** section lists the issue's notes and status changes, newest first.
+- Tick two or more issues in the list to **Merge** them.
+- A merged issue's page lists its fingerprints, each with an **Unmerge** button, and an old issue link switches to the issue it was merged into.
 
 ## CLI
 
-- `triage resolve`, `mute` and `reopen` take `--note` (or `-m`).
-- `triage note <issue> <text>` adds a note without changing the status.
+- `triage merge <issue> <issue>...` merges issues.
+- `triage unmerge <issue>` lists an issue's fingerprints, and `triage unmerge <issue> <fingerprint>` moves one back out.
 
 ## Agents
 
-- `set_issue_status` takes an optional `note`, and the new `add_issue_note` tool adds one on its own.
-- `get_issue` and `find_similar_issues` return each issue's notes, and agents are told to resolve with a note on what fixed it and to check the notes when an issue regresses.
+- The new `merge_issues` tool merges issues. Agents are told to ask you first, and it's marked destructive, so clients that check for that ask you to approve it as well.
+- `get_issue` returns the issue's fingerprints.
 
 ## Libraries
 
-- `@timmo001/effect-triage` adds the `IssueNote`, `NoteStatus` and `NoteText` schemas and `maxNote`, a `note` on the `setStatus` payload, and a `POST /api/issues/:id/notes` endpoint, `addNote`, to the `issues` group.
-- `IssueReview` and `SimilarIssue` have `notes`, which default to empty for older servers.
+- `@timmo001/effect-triage` adds the `IssueFingerprint` and `Merged` schemas, the `NothingToMerge`, `FingerprintNotFound` and `NothingToUnmerge` errors, and `POST /api/issues/merge` and `POST /api/issues/:id/unmerge` endpoints, `merge` and `unmerge`, to the `issues` group.
+- `IssueReview` has `fingerprints`, which default to empty for older servers.
 
