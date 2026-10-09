@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { Event } from "@timmo001/effect-triage";
 import { ConfigProvider, Effect, Layer, Option } from "effect";
-import { type ListOptions, Store } from "./Store.js";
+import {
+  IssueNotFound,
+  type ListOptions,
+  NothingToMerge,
+  Store,
+} from "./Store.js";
 
 const log = (id: string, timestamp: number) =>
   Event.Event.cases.LogError.make({
@@ -374,5 +379,112 @@ describe("Store", () => {
       similar[0]?.suggestions.map((suggestion) => suggestion.text),
     ).toEqual(["Restart bluetoothd"]);
     expect(result.missing).toEqual(Option.none());
+  });
+
+  test("merges issues into the one seen first, and redirects the others", async () => {
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+      const now = Date.now();
+
+      const failure = (id: string, ago: number) =>
+        Event.Event.cases.UnitFailure.make({
+          id,
+          host: "desktop",
+          source: "journal",
+          timestamp: now - ago,
+          severity: "err",
+          unit: "bluetooth.service",
+          result: "core-dump",
+          message: "failed",
+        });
+
+      const crash = (id: string, ago: number, top: string) =>
+        Event.Event.cases.Crash.make({
+          id,
+          host: "desktop",
+          source: "journal",
+          timestamp: now - ago,
+          severity: "crit",
+          unit: "bluetooth.service",
+          message: "dumped core",
+          executable: "/usr/lib/bluetooth/bluetoothd",
+          signal: "SIGSEGV",
+          frames: [{ function: top }],
+        });
+
+      yield* store.add([
+        failure("f1", 5000),
+        crash("c1", 4000, "a"),
+        crash("c2", 3000, "b"),
+        crash("c3", 2000, "b"),
+      ]);
+
+      const issues = yield* store.issues({ limit: 10 });
+
+      const id = (count: number, kind: string) =>
+        issues.find((issue) => issue.count === count && issue.kind === kind)
+          ?.id ?? "";
+
+      const unit = id(1, "UnitFailure");
+      const crashA = id(1, "Crash");
+      const crashB = id(2, "Crash");
+
+      yield* store.setStatus(crashB, "muted", { by: "cli", note: "Noisy" });
+      yield* store.label(crashA, true);
+
+      const first = yield* store.merge([crashA, crashB], "cli");
+      const second = yield* store.merge([unit, crashB], "cli");
+
+      // Both fingerprints still reach the merged issue, under any of its IDs.
+      yield* store.add([crash("c4", 1000, "a"), crash("c5", 500, "b")]);
+      yield* store.addNote(crashA, "Still crashing", "cli");
+
+      const review = Option.getOrThrow(yield* store.review(crashB, 10));
+
+      return {
+        first,
+        second,
+        review,
+        unit,
+        crashA,
+        listed: (yield* store.issues({ limit: 10 })).map((issue) => issue.id),
+        same: yield* Effect.flip(store.merge([crashA, unit], "cli")),
+        missing: yield* Effect.flip(store.merge([unit, "missing"], "cli")),
+      };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.first).toEqual({
+      id: result.crashA,
+      merged: [expect.any(String)],
+    });
+    expect(result.second.id).toBe(result.unit);
+    expect(result.second.merged).toEqual([result.crashA]);
+    expect(result.listed).toEqual([result.unit]);
+
+    expect(result.review.issue).toMatchObject({
+      id: result.unit,
+      kind: "Crash",
+      title: "bluetoothd crashed with SIGSEGV",
+      count: 6,
+      state: "muted",
+    });
+    expect(result.review.label).toBe("worth");
+    expect(result.review.events.map((event) => event.id)).toEqual([
+      "c5",
+      "c4",
+      "c3",
+      "c2",
+      "c1",
+      "f1",
+    ]);
+    expect(result.review.notes.map((note) => note.text)).toEqual([
+      "Still crashing",
+      `Merged ${result.crashA}`,
+      `Merged ${result.first.merged[0]}`,
+      "Noisy",
+    ]);
+
+    expect(result.same).toBeInstanceOf(NothingToMerge);
+    expect(result.missing).toEqual(new IssueNotFound({ issueId: "missing" }));
   });
 });

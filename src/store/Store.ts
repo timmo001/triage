@@ -27,6 +27,29 @@ export class IssueNotFound extends Schema.TaggedError<IssueNotFound>()(
   }
 }
 
+export class NothingToMerge extends Schema.TaggedError<NothingToMerge>()(
+  "NothingToMerge",
+  { issueIds: Schema.Array(Schema.String) },
+) {
+  override get message() {
+    return "Pick at least two different issues to merge";
+  }
+}
+
+/** The issue that issues were merged into, and the IDs that now redirect to it. */
+export interface Merged {
+  readonly id: string;
+  readonly merged: ReadonlyArray<string>;
+}
+
+/** Which issue's kind and title a merged issue takes: crashes first, as the cause. */
+const causeOrder: ReadonlyArray<Issue.Kind> = [
+  "Crash",
+  "OutOfMemory",
+  "UnitFailure",
+  "LogError",
+];
+
 export interface ListOptions extends Api.IssueFilters {
   /** The most issues to return. */
   readonly limit: number;
@@ -234,6 +257,78 @@ export interface StatusChange {
   readonly note?: string | undefined;
 }
 
+/** How merged issues end up: the status, and when each change happened. */
+const mergedStatus = (
+  rows: ReadonlyArray<{
+    readonly status: string;
+    readonly resolved_at: number | null;
+    readonly regressed_at: number | null;
+  }>,
+) => {
+  const latest = (values: ReadonlyArray<number | null>) =>
+    values.reduce<number | null>(
+      (max, value) =>
+        value !== null && (max === null || value > max) ? value : max,
+      null,
+    );
+
+  return {
+    status:
+      ["muted", "open"].find((s) => rows.some((row) => row.status === s)) ??
+      "resolved",
+    resolvedAt: latest(rows.map((row) => row.resolved_at)),
+    regressedAt: latest(rows.map((row) => row.regressed_at)),
+  };
+};
+
+/**
+ * Move an issue's events, decisions, label and suggestions to another issue,
+ * keeping the latest decision and suggestion from each model and the latest
+ * label, then delete it.
+ */
+const moveIssue = Effect.fnUntraced(function* (from: string, to: string) {
+  const sql = yield* SqlClient.SqlClient;
+
+  yield* sql`
+    INSERT INTO decisions (issue_id, model, decided_at, decided_by,
+      issue_count, worth, severity, cause, answers)
+    SELECT ${to}, model, decided_at, decided_by, issue_count, worth,
+      severity, cause, answers
+    FROM decisions WHERE issue_id = ${from}
+    ON CONFLICT (issue_id, model) DO UPDATE SET
+      decided_at = excluded.decided_at, decided_by = excluded.decided_by,
+      issue_count = excluded.issue_count, worth = excluded.worth,
+      severity = excluded.severity, cause = excluded.cause,
+      answers = excluded.answers
+    WHERE excluded.decided_at > decisions.decided_at
+  `;
+  yield* sql`
+    INSERT INTO labels (issue_id, worth, labelled_at)
+    SELECT ${to}, worth, labelled_at FROM labels WHERE issue_id = ${from}
+    ON CONFLICT (issue_id) DO UPDATE SET
+      worth = excluded.worth, labelled_at = excluded.labelled_at
+    WHERE excluded.labelled_at > labels.labelled_at
+  `;
+  yield* sql`
+    INSERT INTO suggestions (issue_id, model, suggested_at, suggested_by,
+      issue_count, text, evidence)
+    SELECT ${to}, model, suggested_at, suggested_by, issue_count, text,
+      evidence
+    FROM suggestions WHERE issue_id = ${from}
+    ON CONFLICT (issue_id, model) DO UPDATE SET
+      suggested_at = excluded.suggested_at,
+      suggested_by = excluded.suggested_by,
+      issue_count = excluded.issue_count, text = excluded.text,
+      evidence = excluded.evidence
+    WHERE excluded.suggested_at > suggestions.suggested_at
+  `;
+  yield* sql`UPDATE events SET issue_id = ${to} WHERE issue_id = ${from}`;
+  yield* sql`DELETE FROM decisions WHERE issue_id = ${from}`;
+  yield* sql`DELETE FROM labels WHERE issue_id = ${from}`;
+  yield* sql`DELETE FROM suggestions WHERE issue_id = ${from}`;
+  yield* sql`DELETE FROM issues WHERE id = ${from}`;
+});
+
 /**
  * Merge issues into the issue for a fingerprint, creating it when it doesn't
  * exist. The merged issue is muted if any of them was, open if any was and
@@ -252,25 +347,16 @@ const mergeIssues = Effect.fnUntraced(function* (
     return;
   }
 
-  const rows = yield* sql<{
-    status: string;
-    resolved_at: number | null;
-    regressed_at: number | null;
-  }>`
-    SELECT status, resolved_at, regressed_at FROM issues
-    WHERE id IN ${sql.in([next, ...sources])}
-  `;
-
-  const status =
-    ["muted", "open"].find((s) => rows.some((row) => row.status === s)) ??
-    "resolved";
-
-  const latest = (values: ReadonlyArray<number | null>) =>
-    values.reduce<number | null>(
-      (max, value) =>
-        value !== null && (max === null || value > max) ? value : max,
-      null,
-    );
+  const merged = mergedStatus(
+    yield* sql<{
+      status: string;
+      resolved_at: number | null;
+      regressed_at: number | null;
+    }>`
+      SELECT status, resolved_at, regressed_at FROM issues
+      WHERE id IN ${sql.in([next, ...sources])}
+    `,
+  );
 
   yield* sql`
     INSERT OR IGNORE INTO issues (id, fingerprint, kind, title, first_seen,
@@ -280,44 +366,7 @@ const mergeIssues = Effect.fnUntraced(function* (
   `;
 
   for (const id of sources) {
-    yield* sql`
-      INSERT INTO decisions (issue_id, model, decided_at, decided_by,
-        issue_count, worth, severity, cause, answers)
-      SELECT ${next}, model, decided_at, decided_by, issue_count, worth,
-        severity, cause, answers
-      FROM decisions WHERE issue_id = ${id}
-      ON CONFLICT (issue_id, model) DO UPDATE SET
-        decided_at = excluded.decided_at, decided_by = excluded.decided_by,
-        issue_count = excluded.issue_count, worth = excluded.worth,
-        severity = excluded.severity, cause = excluded.cause,
-        answers = excluded.answers
-      WHERE excluded.decided_at > decisions.decided_at
-    `;
-    yield* sql`
-      INSERT INTO labels (issue_id, worth, labelled_at)
-      SELECT ${next}, worth, labelled_at FROM labels WHERE issue_id = ${id}
-      ON CONFLICT (issue_id) DO UPDATE SET
-        worth = excluded.worth, labelled_at = excluded.labelled_at
-      WHERE excluded.labelled_at > labels.labelled_at
-    `;
-    yield* sql`
-      INSERT INTO suggestions (issue_id, model, suggested_at, suggested_by,
-        issue_count, text, evidence)
-      SELECT ${next}, model, suggested_at, suggested_by, issue_count, text,
-        evidence
-      FROM suggestions WHERE issue_id = ${id}
-      ON CONFLICT (issue_id, model) DO UPDATE SET
-        suggested_at = excluded.suggested_at,
-        suggested_by = excluded.suggested_by,
-        issue_count = excluded.issue_count, text = excluded.text,
-        evidence = excluded.evidence
-      WHERE excluded.suggested_at > suggestions.suggested_at
-    `;
-    yield* sql`UPDATE events SET issue_id = ${next} WHERE issue_id = ${id}`;
-    yield* sql`DELETE FROM decisions WHERE issue_id = ${id}`;
-    yield* sql`DELETE FROM labels WHERE issue_id = ${id}`;
-    yield* sql`DELETE FROM suggestions WHERE issue_id = ${id}`;
-    yield* sql`DELETE FROM issues WHERE id = ${id}`;
+    yield* moveIssue(id, next);
   }
 
   yield* sql`
@@ -325,9 +374,9 @@ const mergeIssues = Effect.fnUntraced(function* (
       first_seen = (SELECT MIN(timestamp) FROM events WHERE issue_id = ${next}),
       last_seen = (SELECT MAX(timestamp) FROM events WHERE issue_id = ${next}),
       count = (SELECT COUNT(*) FROM events WHERE issue_id = ${next}),
-      status = ${status},
-      resolved_at = ${latest(rows.map((row) => row.resolved_at))},
-      regressed_at = ${latest(rows.map((row) => row.regressed_at))}
+      status = ${merged.status},
+      resolved_at = ${merged.resolvedAt},
+      regressed_at = ${merged.regressedAt}
     WHERE id = ${next}
   `;
 });
@@ -814,6 +863,18 @@ export class Store extends Context.Service<
       text: string,
       by: string,
     ): Effect.Effect<void, IssueNotFound | StoreError>;
+    /**
+     * Merge issues into one, like Sentry: the issue seen first is kept, then
+     * the one with more events, then the lower ID. It takes the kind and title
+     * of the cause, a crash before an OOM kill, a unit failure or an error,
+     * and is muted if any of them was, open if any was and resolved otherwise.
+     * Each merged issue's ID redirects to it. `by` is the admin, or `cli` or
+     * `mcp`.
+     */
+    merge(
+      issueIds: ReadonlyArray<string>,
+      by: string,
+    ): Effect.Effect<Merged, IssueNotFound | NothingToMerge | StoreError>;
     /** Every decision on a labelled issue. */
     labelledDecisions: Effect.Effect<
       ReadonlyArray<LabelledDecision>,
@@ -1148,10 +1209,15 @@ export class Store extends Context.Service<
       `,
     });
 
+    /** An issue's ID, or the ID of the issue it was merged into. */
+    const target = (id: string) =>
+      sql`coalesce((SELECT issue_id FROM issue_redirects WHERE id = ${id}), ${id})`;
+
     const findIssue = SqlSchema.findOneOption({
       Request: Schema.String,
       Result: IssueRow,
-      execute: (id) => sql`SELECT * FROM issues WHERE id = ${id} AND count > 0`,
+      execute: (id) =>
+        sql`SELECT * FROM issues WHERE id = ${target(id)} AND count > 0`,
     });
 
     const issueEvents = SqlSchema.findAll({
@@ -1173,7 +1239,7 @@ export class Store extends Context.Service<
           return Option.none();
         }
 
-        const rows = yield* issueEvents({ id, limit, offset: 0 });
+        const rows = yield* issueEvents({ id: row.value.id, limit, offset: 0 });
 
         return Option.some({
           issue: toIssue(row.value, yield* Clock.currentTimeMillis, windows),
@@ -1191,7 +1257,7 @@ export class Store extends Context.Service<
           return Option.none();
         }
 
-        const rows = yield* issueEvents({ id, ...page });
+        const rows = yield* issueEvents({ ...page, id: row.value.id });
 
         return Option.some<Api.IssueEvents>({
           total: row.value.count,
@@ -1235,12 +1301,14 @@ export class Store extends Context.Service<
     });
 
     const review = Effect.fn("Store.review")(
-      function* (id: string, limit: number) {
-        const detail = yield* issue(id, limit);
+      function* (requested: string, limit: number) {
+        const detail = yield* issue(requested, limit);
 
         if (Option.isNone(detail)) {
           return Option.none();
         }
+
+        const id = detail.value.issue.id;
 
         const decisions = yield* issueDecisions(id);
         const suggestions = yield* issueSuggestions(id);
@@ -1291,7 +1359,7 @@ export class Store extends Context.Service<
         const rows = yield* decodeSummaries(
           yield* sql`
             SELECT * FROM (${summaries({}, now)})
-            WHERE id != ${id}
+            WHERE id != ${row.value.id}
               AND instr(fingerprint, ${Fingerprint.family(row.value.fingerprint)}) = 1
             ORDER BY state = 'resolved' DESC, last_seen DESC, id
             LIMIT ${limit}
@@ -1473,7 +1541,7 @@ export class Store extends Context.Service<
       const rows = yield* sql`
           INSERT INTO labels (issue_id, worth, labelled_at)
           SELECT id, ${worth ? 1 : 0}, ${yield* Clock.currentTimeMillis}
-          FROM issues WHERE id = ${issueId} AND count > 0
+          FROM issues WHERE id = ${target(issueId)} AND count > 0
           ON CONFLICT (issue_id) DO UPDATE SET
             worth = excluded.worth,
             labelled_at = excluded.labelled_at
@@ -1508,21 +1576,23 @@ export class Store extends Context.Service<
       function* (issueId: string, status: Issue.Status, change: StatusChange) {
         const now = yield* Clock.currentTimeMillis;
 
-        const rows = yield* sql`
+        const rows = yield* sql<{ id: string }>`
           UPDATE issues SET
             status = ${status},
             resolved_at = ${status === "resolved" ? now : null},
             regressed_at = NULL
-          WHERE id = ${issueId} AND count > 0
+          WHERE id = ${target(issueId)} AND count > 0
           RETURNING id
         `;
 
-        if (rows.length === 0) {
+        const [row] = rows;
+
+        if (row === undefined) {
           return yield* new IssueNotFound({ issueId });
         }
 
         yield* insertNote({
-          issueId,
+          issueId: row.id,
           createdAt: now,
           by: change.by,
           status,
@@ -1535,16 +1605,18 @@ export class Store extends Context.Service<
 
     const addNote = Effect.fn("Store.addNote")(
       function* (issueId: string, text: string, by: string) {
-        const rows = yield* sql`
-          SELECT id FROM issues WHERE id = ${issueId} AND count > 0
+        const rows = yield* sql<{ id: string }>`
+          SELECT id FROM issues WHERE id = ${target(issueId)} AND count > 0
         `;
 
-        if (rows.length === 0) {
+        const [row] = rows;
+
+        if (row === undefined) {
           return yield* new IssueNotFound({ issueId });
         }
 
         yield* insertNote({
-          issueId,
+          issueId: row.id,
           createdAt: yield* Clock.currentTimeMillis,
           by,
           status: null,
@@ -1552,6 +1624,98 @@ export class Store extends Context.Service<
         });
       },
       Effect.catchTag("SqlError", toStoreError),
+    );
+
+    const merge = Effect.fn("Store.merge")(
+      function* (issueIds: ReadonlyArray<string>, by: string) {
+        const found = new Map<string, typeof IssueRow.Type>();
+
+        for (const issueId of issueIds) {
+          const row = yield* findIssue(issueId);
+
+          if (Option.isNone(row)) {
+            return yield* new IssueNotFound({ issueId });
+          }
+
+          found.set(row.value.id, row.value);
+        }
+
+        const [kept, ...rest] = [...found.values()].sort(
+          (a, b) =>
+            a.first_seen - b.first_seen ||
+            b.count - a.count ||
+            (a.id < b.id ? -1 : 1),
+        );
+
+        if (kept === undefined || rest.length === 0) {
+          return yield* new NothingToMerge({ issueIds });
+        }
+
+        const cause = [kept, ...rest].reduce((best, row) =>
+          causeOrder.indexOf(row.kind) < causeOrder.indexOf(best.kind)
+            ? row
+            : best,
+        );
+
+        const merged = mergedStatus(
+          yield* sql<{
+            status: string;
+            resolved_at: number | null;
+            regressed_at: number | null;
+          }>`
+            SELECT status, resolved_at, regressed_at FROM issues
+            WHERE id IN ${sql.in([...found.keys()])}
+          `,
+        );
+
+        for (const { id } of rest) {
+          yield* sql`
+            UPDATE issue_fingerprints SET issue_id = ${kept.id}
+            WHERE issue_id = ${id}
+          `;
+          yield* sql`UPDATE notes SET issue_id = ${kept.id} WHERE issue_id = ${id}`;
+          yield* sql`
+            UPDATE issue_redirects SET issue_id = ${kept.id}
+            WHERE issue_id = ${id}
+          `;
+          yield* moveIssue(id, kept.id);
+          yield* sql`
+            INSERT INTO issue_redirects ${sql.insert({ id, issue_id: kept.id })}
+          `;
+        }
+
+        yield* sql`
+          UPDATE issues SET
+            fingerprint = ${cause.fingerprint},
+            kind = ${cause.kind},
+            title = ${cause.title},
+            first_seen = (SELECT MIN(timestamp) FROM events WHERE issue_id = ${kept.id}),
+            last_seen = (SELECT MAX(timestamp) FROM events WHERE issue_id = ${kept.id}),
+            count = (SELECT COUNT(*) FROM events WHERE issue_id = ${kept.id}),
+            status = ${merged.status},
+            resolved_at = ${merged.resolvedAt},
+            regressed_at = ${merged.regressedAt}
+          WHERE id = ${kept.id}
+        `;
+
+        const ids = rest.map((row) => row.id);
+
+        yield* insertNote({
+          issueId: kept.id,
+          createdAt: yield* Clock.currentTimeMillis,
+          by,
+          status: null,
+          text: `Merged ${ids.join(", ")}`,
+        });
+
+        return { id: kept.id, merged: ids };
+      },
+      Effect.provideService(SqlClient.SqlClient, sql),
+      sql.withTransaction,
+      Effect.catchTag("SqlError", toStoreError),
+      Effect.catchTag("SchemaError", (cause) =>
+        Effect.fail(new StoreError({ cause })),
+      ),
     );
 
     const labelledDecisions = SqlSchema.findAll({
@@ -1666,6 +1830,7 @@ export class Store extends Context.Service<
       label,
       setStatus,
       addNote,
+      merge,
       labelledDecisions,
       unsuggested,
       suggestedSince,
