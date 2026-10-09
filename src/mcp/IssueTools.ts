@@ -81,7 +81,7 @@ const ListIssues = Tool.make("list_issues", {
   .annotate(Tool.OpenWorld, false);
 
 const GetIssue = Tool.make("get_issue", {
-  description: `Read a triage issue: its kind, state and counts, the hosts it happened on, what the decision models made of it, suggested fixes, its notes and status history, and its latest ${Api.latestEvents} events, newest first. The notes say why it was resolved or muted before, and which host's event made it regress, so read them before fixing it again. Everything personal was redacted before it was stored. issue.count is how many events it has in all; read the rest with get_issue_events.`,
+  description: `Read a triage issue: its kind, state and counts, the hosts it happened on, what the decision models made of it, suggested fixes, its notes and status history, the fingerprints it owns, more than one once issues are merged into it, and its latest ${Api.latestEvents} events, newest first. The notes say why it was resolved or muted before, and which host's event made it regress, so read them before fixing it again. Everything personal was redacted before it was stored. issue.count is how many events it has in all; read the rest with get_issue_events.`,
   parameters: Schema.Struct({ issue: IssueParameter }),
   success: Api.IssueReview,
   failure: IssueToolError,
@@ -193,9 +193,25 @@ const LabelIssue = Tool.make("label_issue", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
+const MergeIssues = Tool.make("merge_issues", {
+  description: `Merge triage issues that are the same problem into one, such as the same crash with different frames, or a unit failure and the crash behind it. Only after asking the user: show them the issues and why you think they're the same, since a wrong merge mixes their events and statuses. The issue seen first is kept, and the others' IDs and links lead to it. It's muted if any of them was, open if any was and resolved otherwise. Split a fingerprint back out with triage unmerge or the issue's page.`,
+  parameters: Schema.Struct({
+    issues: Schema.Array(IssueParameter).annotate({
+      description: "At least two issues to merge",
+    }),
+  }),
+  success: Api.Merged,
+  failure: IssueToolError,
+  failureMode: "return",
+})
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, true)
+  .annotate(Tool.Idempotent, false)
+  .annotate(Tool.OpenWorld, false);
+
 /**
  * Tools for agents to find and read a server's issues and their events, to
- * resolve, mute, reopen and label them, and to note why.
+ * resolve, mute, reopen, label and merge them, and to note why.
  */
 export const IssueTools = Toolkit.make(
   ListIssues,
@@ -205,6 +221,7 @@ export const IssueTools = Toolkit.make(
   SetIssueStatus,
   AddIssueNote,
   LabelIssue,
+  MergeIssues,
 );
 
 const toIssueToolError = (error: { readonly message: string }) =>
@@ -312,6 +329,13 @@ export const IssueToolsLayer = IssueTools.toLayer(
 
         return { id, label };
       }),
+      merge_issues: Effect.fn("IssueTools.merge_issues")(function* ({
+        issues,
+      }) {
+        return yield* admin
+          .merge(issues.map(issueId))
+          .pipe(Effect.mapError(toIssueToolError));
+      }),
     });
   }),
 );
@@ -321,7 +345,7 @@ export const mcpOptions = {
   name: "triage",
   version: packageJson.version,
   instructions:
-    "Read crashes and errors triage collected from your machines. Find issues with list_issues, or pass get_issue an issue ID or a link to the issue's page, then page through its events with get_issue_events. find_similar_issues shows how issues like it were fixed. An issue's notes say why it was resolved or muted before and which host it regressed on: when one comes back, check whether that fix reached the host or it's a different case. Once you've fixed an issue, don't wait to be asked to close it. get_issue lists every host it happened on, and each one needs the fix: check it's in place on the hosts you can reach, and ask the user about the others. Then ask the user before resolving it with set_issue_status, with a note on what fixed it, the commit, package or version, and the hosts it's in place on. Keep findings along the way with add_issue_note. Mute an issue that's noise and can't be fixed, rather than resolving it, with a note on why, and label issues worth fixing or noise with label_issue.",
+    "Read crashes and errors triage collected from your machines. Find issues with list_issues, or pass get_issue an issue ID or a link to the issue's page, then page through its events with get_issue_events. find_similar_issues shows how issues like it were fixed. An issue's notes say why it was resolved or muted before and which host it regressed on: when one comes back, check whether that fix reached the host or it's a different case. Once you've fixed an issue, don't wait to be asked to close it. get_issue lists every host it happened on, and each one needs the fix: check it's in place on the hosts you can reach, and ask the user about the others. Then ask the user before resolving it with set_issue_status, with a note on what fixed it, the commit, package or version, and the hosts it's in place on. Keep findings along the way with add_issue_note. Mute an issue that's noise and can't be fixed, rather than resolving it, with a note on why, and label issues worth fixing or noise with label_issue. When issues are the same problem, ask the user before merging them with merge_issues.",
   protocols: [
     McpProtocol.v2026_07_28,
     McpProtocol.v2025_11_25,
