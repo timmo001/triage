@@ -603,6 +603,91 @@ const migrations = SqliteMigrator.fromRecord({
       WHERE regressed_at IS NOT NULL
     `;
   }),
+  // An issue can own several fingerprints, so merged issues keep getting their
+  // events, and each event keeps its own fingerprint to unmerge by. A merged
+  // issue's ID redirects to the one it joined.
+  "0014_issue_fingerprints": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const decodeEvent = Schema.decodeUnknownEffect(EventJson);
+
+    yield* sql`
+      CREATE TABLE issue_fingerprints (
+        fingerprint TEXT PRIMARY KEY,
+        issue_id TEXT NOT NULL REFERENCES issues (id)
+      )
+    `;
+
+    yield* sql`CREATE INDEX issue_fingerprints_issue ON issue_fingerprints (issue_id)`;
+
+    yield* sql`
+      CREATE TABLE issue_redirects (
+        id TEXT PRIMARY KEY,
+        issue_id TEXT NOT NULL REFERENCES issues (id)
+      )
+    `;
+
+    yield* sql`ALTER TABLE events ADD COLUMN fingerprint TEXT NOT NULL DEFAULT ''`;
+
+    yield* sql`
+      UPDATE events SET fingerprint = (
+        SELECT fingerprint FROM issues WHERE issues.id = events.issue_id
+      )
+    `;
+
+    // Events merged in by 0011 or 0012 have a fingerprint of their own.
+    let last = 0;
+
+    while (true) {
+      const rows = yield* sql<{ rowid: number; data: string }>`
+        SELECT rowid, data FROM events WHERE rowid > ${last}
+        ORDER BY rowid LIMIT 1000
+      `;
+
+      if (rows.length === 0) {
+        break;
+      }
+
+      for (const row of rows) {
+        const event = yield* Effect.option(decodeEvent(row.data));
+
+        if (Option.isSome(event)) {
+          yield* sql`
+            UPDATE events SET fingerprint = ${Fingerprint.fingerprint(event.value)}
+            WHERE rowid = ${row.rowid}
+          `;
+        }
+      }
+
+      last = rows.at(-1)?.rowid ?? last;
+    }
+
+    // An issue's own fingerprint wins, since that's where ingest sends it now.
+    yield* sql`
+      INSERT INTO issue_fingerprints (fingerprint, issue_id)
+      SELECT fingerprint, id FROM issues
+    `;
+
+    yield* sql`
+      INSERT OR IGNORE INTO issue_fingerprints (fingerprint, issue_id)
+      SELECT DISTINCT fingerprint, issue_id FROM events
+    `;
+
+    const owned = yield* sql<{ fingerprint: string; issue_id: string }>`
+      SELECT fingerprint, issue_id FROM issue_fingerprints
+    `;
+
+    for (const { fingerprint, issue_id } of owned) {
+      const id = Fingerprint.issueId(fingerprint);
+
+      if (id !== issue_id) {
+        yield* sql`
+          INSERT OR IGNORE INTO issue_redirects (id, issue_id)
+          SELECT ${id}, ${issue_id}
+          WHERE NOT EXISTS (SELECT 1 FROM issues WHERE id = ${id})
+        `;
+      }
+    }
+  }),
 });
 
 /**
@@ -777,24 +862,41 @@ export class Store extends Context.Service<
     const insert = Effect.fnUntraced(function* (event: Event.Event) {
       const issue = Issue.fromEvent(event);
 
-      yield* sql`
-        INSERT INTO issues ${sql.insert({
-          id: issue.id,
-          fingerprint: issue.fingerprint,
-          kind: issue.kind,
-          title: issue.title,
-          first_seen: issue.firstSeen,
-          last_seen: issue.lastSeen,
-          count: 0,
-        })}
-        ON CONFLICT (id) DO NOTHING
+      const owner = yield* sql<{ issue_id: string }>`
+        SELECT issue_id FROM issue_fingerprints
+        WHERE fingerprint = ${issue.fingerprint}
       `;
+
+      const issueId = owner[0]?.issue_id ?? issue.id;
+
+      if (owner.length === 0) {
+        yield* sql`
+          INSERT INTO issues ${sql.insert({
+            id: issue.id,
+            fingerprint: issue.fingerprint,
+            kind: issue.kind,
+            title: issue.title,
+            first_seen: issue.firstSeen,
+            last_seen: issue.lastSeen,
+            count: 0,
+          })}
+          ON CONFLICT (id) DO NOTHING
+        `;
+
+        yield* sql`
+          INSERT INTO issue_fingerprints ${sql.insert({
+            fingerprint: issue.fingerprint,
+            issue_id: issue.id,
+          })}
+        `;
+      }
 
       const inserted = yield* sql`
         INSERT INTO events ${sql.insert({
           host: event.host,
           id: event.id,
-          issue_id: issue.id,
+          issue_id: issueId,
+          fingerprint: issue.fingerprint,
           timestamp: event.timestamp,
           data: yield* encodeEvent(event),
         })}
@@ -811,7 +913,7 @@ export class Store extends Context.Service<
           count = count + 1,
           first_seen = min(first_seen, ${event.timestamp}),
           last_seen = max(last_seen, ${event.timestamp})
-        WHERE id = ${issue.id}
+        WHERE id = ${issueId}
       `;
 
       // Events from before an issue was resolved, sent late, don't reopen it.
@@ -822,7 +924,7 @@ export class Store extends Context.Service<
           status = 'open',
           resolved_at = NULL,
           regressed_at = ${now}
-        WHERE id = ${issue.id}
+        WHERE id = ${issueId}
           AND status = 'resolved'
           AND resolved_at < ${event.timestamp}
         RETURNING id
@@ -831,7 +933,7 @@ export class Store extends Context.Service<
       if (regressed.length > 0) {
         yield* sql`
           INSERT INTO notes ${sql.insert({
-            issue_id: issue.id,
+            issue_id: issueId,
             created_at: now,
             created_by: event.host,
             status: "regressed",
