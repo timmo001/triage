@@ -52,6 +52,27 @@ export class IssueAdmin extends Context.Service<
       id: string,
       label: Api.Label,
     ): Effect.Effect<void, Api.IssueNotFound | IssueAdminError>;
+    /** Merge issues into the one seen first, which the others' IDs lead to. */
+    merge(
+      ids: ReadonlyArray<string>,
+    ): Effect.Effect<
+      Api.Merged,
+      Api.IssueNotFound | Api.NothingToMerge | IssueAdminError
+    >;
+    /**
+     * Move a fingerprint's events out of an issue into an issue of their own,
+     * returning its ID.
+     */
+    unmerge(
+      id: string,
+      fingerprint: string,
+    ): Effect.Effect<
+      string,
+      | Api.IssueNotFound
+      | Api.FingerprintNotFound
+      | Api.NothingToUnmerge
+      | IssueAdminError
+    >;
     readonly agreement: Effect.Effect<
       ReadonlyArray<Api.Agreement>,
       IssueAdminError
@@ -113,6 +134,32 @@ export class IssueAdmin extends Context.Service<
             store.addNote(id, redact(text), options.by).pipe(notFound(id)),
           setLabel: (id, label) =>
             store.label(id, label === "worth").pipe(notFound(id)),
+          merge: (ids) =>
+            store.merge(ids, options.by).pipe(
+              Effect.catchTags({
+                IssueNotFound: (error) =>
+                  Effect.fail(new Api.IssueNotFound({ id: error.issueId })),
+                NothingToMerge: () =>
+                  Effect.fail(new Api.NothingToMerge({ ids })),
+                StoreError: (error) => Effect.fail(toIssueAdminError(error)),
+              }),
+            ),
+          unmerge: (id, fingerprint) =>
+            store.unmerge(id, fingerprint, options.by).pipe(
+              Effect.catchTags({
+                IssueNotFound: () => Effect.fail(new Api.IssueNotFound({ id })),
+                FingerprintNotFound: (error) =>
+                  Effect.fail(
+                    new Api.FingerprintNotFound({
+                      id: error.issueId,
+                      fingerprint,
+                    }),
+                  ),
+                NothingToUnmerge: (error) =>
+                  Effect.fail(new Api.NothingToUnmerge({ id: error.issueId })),
+                StoreError: (error) => Effect.fail(toIssueAdminError(error)),
+              }),
+            ),
           agreement: store.labelledDecisions.pipe(
             Effect.map(agreement),
             Effect.mapError(toIssueAdminError),
@@ -172,6 +219,15 @@ export class IssueAdmin extends Context.Service<
                 ),
               );
 
+            const isMergeError = Schema.is(
+              Schema.Union([
+                Api.IssueNotFound,
+                Api.NothingToMerge,
+                Api.FingerprintNotFound,
+                Api.NothingToUnmerge,
+              ]),
+            );
+
             return IssueAdmin.of({
               list: (options) =>
                 client.issues
@@ -195,6 +251,23 @@ export class IssueAdmin extends Context.Service<
                 client.issues
                   .setLabel({ params: { id }, payload: { label } })
                   .pipe(notFound),
+              merge: (ids) =>
+                client.issues.merge({ payload: { ids } }).pipe(
+                  Effect.catchIf(
+                    (error) => !isMergeError(error),
+                    (error) => Effect.fail(toIssueAdminError(error)),
+                  ),
+                ),
+              unmerge: (id, fingerprint) =>
+                client.issues
+                  .unmerge({ params: { id }, payload: { fingerprint } })
+                  .pipe(
+                    Effect.map((unmerged) => unmerged.id),
+                    Effect.catchIf(
+                      (error) => !isMergeError(error),
+                      (error) => Effect.fail(toIssueAdminError(error)),
+                    ),
+                  ),
               agreement: client.decisions
                 .agreement()
                 .pipe(Effect.mapError(toIssueAdminError)),

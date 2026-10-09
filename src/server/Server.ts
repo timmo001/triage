@@ -217,6 +217,43 @@ const IssuesHandlers = HttpApiBuilder.group(
             StoreError: Effect.die,
           }),
         ),
+      merge: Effect.fn(function* ({ payload }) {
+        const admin = yield* Api.CurrentAdmin;
+
+        return yield* store.merge(payload.ids, admin.name).pipe(
+          Effect.catchTags({
+            IssueNotFound: (error) =>
+              Effect.fail(new Api.IssueNotFound({ id: error.issueId })),
+            NothingToMerge: () =>
+              Effect.fail(new Api.NothingToMerge({ ids: payload.ids })),
+            StoreError: Effect.die,
+          }),
+        );
+      }),
+      unmerge: Effect.fn(function* ({ params, payload }) {
+        const admin = yield* Api.CurrentAdmin;
+
+        const id = yield* store
+          .unmerge(params.id, payload.fingerprint, admin.name)
+          .pipe(
+            Effect.catchTags({
+              IssueNotFound: () =>
+                Effect.fail(new Api.IssueNotFound({ id: params.id })),
+              FingerprintNotFound: (error) =>
+                Effect.fail(
+                  new Api.FingerprintNotFound({
+                    id: error.issueId,
+                    fingerprint: error.fingerprint,
+                  }),
+                ),
+              NothingToUnmerge: (error) =>
+                Effect.fail(new Api.NothingToUnmerge({ id: error.issueId })),
+              StoreError: Effect.die,
+            }),
+          );
+
+        return { id };
+      }),
     });
   }),
 );

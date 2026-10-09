@@ -45,6 +45,36 @@ export class IssueNotFound extends Schema.TaggedError<IssueNotFound>()(
   }
 }
 
+export class NothingToMerge extends Schema.TaggedError<NothingToMerge>()(
+  "NothingToMerge",
+  { ids: Schema.Array(Schema.String) },
+  { httpApiStatus: 400 },
+) {
+  override get message() {
+    return "Pick at least two different issues to merge";
+  }
+}
+
+export class FingerprintNotFound extends Schema.TaggedError<FingerprintNotFound>()(
+  "FingerprintNotFound",
+  { id: Schema.String, fingerprint: Schema.String },
+  { httpApiStatus: 404 },
+) {
+  override get message() {
+    return `Issue ${this.id} has no fingerprint ${this.fingerprint}`;
+  }
+}
+
+export class NothingToUnmerge extends Schema.TaggedError<NothingToUnmerge>()(
+  "NothingToUnmerge",
+  { id: Schema.String },
+  { httpApiStatus: 400 },
+) {
+  override get message() {
+    return `Issue ${this.id} has only one fingerprint, so there's nothing to unmerge`;
+  }
+}
+
 /**
  * What a token can do: a host uploads events, an admin reads issues and
  * manages tokens, and a worker decides on issues or suggests fixes for them.
@@ -345,6 +375,24 @@ const notes = Schema.Array(IssueNote).pipe(
   Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
 );
 
+/** A fingerprint an issue owns, and how many of its events have it. */
+export const IssueFingerprint = Schema.Struct({
+  fingerprint: Schema.String,
+  count: Schema.Int,
+});
+
+export interface IssueFingerprint extends Schema.Schema.Type<
+  typeof IssueFingerprint
+> {}
+
+/** The issue that issues were merged into, and the IDs that now lead to it. */
+export const Merged = Schema.Struct({
+  id: Schema.String,
+  merged: Schema.Array(Schema.String),
+});
+
+export interface Merged extends Schema.Schema.Type<typeof Merged> {}
+
 /** An issue with its latest events and what the models made of it. */
 export const IssueReview = Schema.Struct({
   ...IssueDetail.fields,
@@ -361,6 +409,13 @@ export const IssueReview = Schema.Struct({
    * don't send this.
    */
   hosts: Schema.Array(HostCount).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+  ),
+  /**
+   * The fingerprints it owns, most events first: more than one once issues
+   * are merged into it. Older servers don't send this.
+   */
+  fingerprints: Schema.Array(IssueFingerprint).pipe(
     Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
   ),
 });
@@ -517,6 +572,22 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
       success: HttpApiSchema.NoContent,
       error: IssueNotFound,
     }),
+    /**
+     * Merge issues into one: the issue seen first is kept, then the one with
+     * more events, then the lower ID. The others' IDs lead to it.
+     */
+    HttpApiEndpoint.post("merge", "/merge", {
+      payload: Schema.Struct({ ids: Schema.Array(Schema.String) }),
+      success: Merged,
+      error: [IssueNotFound, NothingToMerge],
+    }),
+    /** Move a fingerprint's events out into an issue of their own, returning its ID. */
+    HttpApiEndpoint.post("unmerge", "/:id/unmerge", {
+      params: { id: Schema.String },
+      payload: Schema.Struct({ fingerprint: Schema.String }),
+      success: Schema.Struct({ id: Schema.String }),
+      error: [IssueNotFound, FingerprintNotFound, NothingToUnmerge],
+    }),
   )
   .middleware(AdminAuthorization)
   .prefix("/api/issues")
@@ -524,7 +595,7 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
     OpenApi.annotations({
       title: "Issues",
       description:
-        "Events grouped by fingerprint, similar issues and their suggested fixes, resolving or muting them, notes on them, and labelling them worth fixing or noise",
+        "Events grouped by fingerprint, similar issues and their suggested fixes, resolving or muting them, notes on them, labelling them worth fixing or noise, and merging and unmerging them",
     }),
   ) {}
 

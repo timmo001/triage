@@ -55,10 +55,7 @@ export class NothingToUnmerge extends Schema.TaggedError<NothingToUnmerge>()(
 }
 
 /** The issue that issues were merged into, and the IDs that now redirect to it. */
-export interface Merged {
-  readonly id: string;
-  readonly merged: ReadonlyArray<string>;
-}
+export type Merged = Api.Merged;
 
 /** Which issue's kind and title a merged issue takes: crashes first, as the cause. */
 const causeOrder: ReadonlyArray<Issue.Kind> = [
@@ -1332,6 +1329,20 @@ export class Store extends Context.Service<
       `,
     });
 
+    const issueFingerprints = SqlSchema.findAll({
+      Request: Schema.String,
+      Result: Api.IssueFingerprint,
+      execute: (id) => sql`
+        SELECT fingerprint, (
+          SELECT COUNT(*) FROM events
+          WHERE events.issue_id = ${id}
+            AND events.fingerprint = issue_fingerprints.fingerprint
+        ) AS count
+        FROM issue_fingerprints WHERE issue_id = ${id}
+        ORDER BY count DESC, fingerprint
+      `,
+    });
+
     const review = Effect.fn("Store.review")(
       function* (requested: string, limit: number) {
         const detail = yield* issue(requested, limit);
@@ -1347,6 +1358,7 @@ export class Store extends Context.Service<
         const notes = yield* issueNotes(id);
         const label = yield* issueLabel(id);
         const hostCounts = yield* issueHosts(id);
+        const fingerprints = yield* issueFingerprints(id);
 
         return Option.some<Api.IssueReview>({
           ...detail.value,
@@ -1373,6 +1385,7 @@ export class Store extends Context.Service<
           })),
           suggestions: suggestions.map(toSuggestion),
           notes: notes.map(toNote),
+          fingerprints,
         });
       },
       Effect.mapError((cause) => new StoreError({ cause })),
