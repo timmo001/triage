@@ -8,6 +8,8 @@
     "**/node_modules/**",
     "**/dist/**",
     ".agents/**",
+    // A symlink to .agents/skills, for Claude Code.
+    ".claude/skills/**",
     // Copied as-is from the latest GitHub release notes by the Release workflow.
     "home-assistant/app/CHANGELOG.md",
   ],
