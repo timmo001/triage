@@ -24,6 +24,8 @@ Each command has its own page with its help, as `triage <command> --help` prints
 | [`mute`](/commands/mute) | None |
 | [`reopen`](/commands/reopen) | None |
 | [`note`](/commands/note) | None |
+| [`merge`](/commands/merge) | None |
+| [`unmerge`](/commands/unmerge) | None |
 | [`agreement`](/commands/agreement) | None |
 | [`mcp`](/commands/mcp) | None |
 
@@ -59,6 +61,8 @@ SUBCOMMANDS
   mute         Mute issues, so they're never decided on or suggested fixes for, however often they happen
   reopen       Reopen resolved or muted issues
   note         Add a note to one of the server's issues without changing its status
+  merge        Merge issues that are the same problem into the one seen first. The others' IDs lead to it, and unmerge splits them apart again
+  unmerge      Move a fingerprint's events out of a merged issue into an issue of their own, or list its fingerprints
   agreement    Compare each decision model with the hand labels: how often it's sure enough to act on, and how often it's right when it is
   mcp          Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed, and resolve, mute, label or note on them
 ```

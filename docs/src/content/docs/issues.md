@@ -51,13 +51,27 @@ triage resolve <issue> --note "Fixed in 1.4.2, updated on every host"
 
 Each issue keeps its notes with every status change, who made it and when, and when it regressed and on which host. When a resolved issue comes back, they show whether that host has the fix or whether it's a different case. The issue page, `get_issue` and `find_similar_issues` all show them, newest first.
 
+## Merging
+
+Grouping can't catch everything: the same crash with different top frames, or the same error worded a little differently, ends up as two issues. Merge them into one:
+
+```bash
+triage merge <issue> <issue>...
+triage unmerge <issue>                  # list its fingerprints
+triage unmerge <issue> <fingerprint>    # move one back out
+```
+
+Like Sentry, the issue seen first is kept, then the one with more events, then the lower ID. It takes the kind and title of the cause, so a crash wins over the unit failure it caused. It's muted if any of the issues was, open if any was and resolved otherwise, and keeps the latest decision, suggestion and label. The others' IDs and links lead to it, and new events for any of them join it.
+
+Each issue it took in shows as a fingerprint, the key that groups an issue's events. Unmerging one moves its events back out into an issue of their own, with the same status but no decisions, label or suggestions, so they're decided on afresh. Both issues get a note saying what happened.
+
 ## In a browser
 
 The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues with the hosts each happened on, loading more as you scroll. Search their titles, sort them by when they were last or first seen, how likely the latest decision says they're worth fixing, how many events they have or their title, and group them by state, kind or label. Groups collapse, and the page remembers which ones you collapsed.
 
 **Filters** opens a panel with lists of states, hosts, kinds and labels, with how many issues each has. States start with regressed, new and ongoing ticked, so quiet, resolved and muted issues stay out of the way; everything else starts ticked. Untick what you don't want to see, and each list's clear button goes back to how it started. The page remembers these choices in the browser.
 
-Tick issues, or a whole group, to resolve, mute, reopen or label them together. To go through issues that have stopped happening, tick only **Quiet** in Filters and resolve or mute the ones you're done with. Each issue's page shows how often it happened on each host, its 20 latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, its notes, and buttons to resolve, mute, reopen or unmute it with an optional note, or to add a note on its own.
+Tick issues, or a whole group, to resolve, mute, reopen or label them together, or tick two or more to [merge](#merging) them. To go through issues that have stopped happening, tick only **Quiet** in Filters and resolve or mute the ones you're done with. Each issue's page shows how often it happened on each host, its 20 latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, its notes, and buttons to resolve, mute, reopen or unmute it with an optional note, or to add a note on its own. A merged issue's page lists its fingerprints, each with an **Unmerge** button.
 
 Sign in with an [admin token](/setup/server#tokens). It's kept in that browser until you sign out. In the [Home Assistant app](/setup/server#home-assistant), open **Triage** in Home Assistant's sidebar instead, with no token needed.
 

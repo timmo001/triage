@@ -15,6 +15,8 @@
   "/commands/mute",
   "/commands/reopen",
   "/commands/note",
+  "/commands/merge",
+  "/commands/unmerge",
   "/commands/agreement",
   "/commands/mcp"
 ]

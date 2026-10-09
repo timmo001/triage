@@ -10,16 +10,19 @@ The tools see what the web UI does: redacted events, the names hosts were enroll
 | Tool | Does |
 | --- | --- |
 | `list_issues` | Issues, the latest seen first, filtered by title, state, kind, host or label like the web UI's list, and sorted the same ways. Pass `nextOffset` back until it's missing to page through them |
-| `get_issue` | The issue, the hosts it happened on, decisions, suggested fixes, [notes](/issues#notes) and its latest 20 events |
+| `get_issue` | The issue, the hosts it happened on, decisions, suggested fixes, [notes](/issues#notes), its fingerprints and its latest 20 events |
 | `get_issue_events` | A page of its events, newest first, up to 500 at a time. Pass `nextOffset` back until it's missing to read them all |
 | `find_similar_issues` | Issues like it, with the fixes suggested for each and their notes, resolved ones first |
 | `set_issue_status` | Resolves, mutes or reopens the issue, with an optional note on why |
 | `add_issue_note` | Adds a note to the issue without changing its status |
 | `label_issue` | Labels the issue worth fixing or noise |
+| `merge_issues` | [Merges](/issues#merging) issues that are the same problem into the one seen first |
 
 `find_similar_issues` counts an issue as similar when it's a crash of the same program with the same signal, the same unit failing in any way, another error from the same program, or another OOM kill.
 
 The server tells agents to close an issue once they've fixed it, without waiting to be asked. Each host the issue happened on needs the fix, so the agent checks it's in place on the hosts it can reach and asks you about the others. Then it asks you before resolving the issue. Issues that are noise and can't be fixed get muted instead.
+
+Agents ask you before merging issues too, since a wrong merge mixes their events and statuses. `merge_issues` is marked destructive, so clients that check for that ask you to approve it as well.
 
 ## Over stdio
 
