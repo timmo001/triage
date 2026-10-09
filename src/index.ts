@@ -534,6 +534,79 @@ const note = Command.make(
   ),
 );
 
+const merge = Command.make(
+  "merge",
+  {
+    issues: Argument.String("issue").pipe(
+      Argument.withDescription("The IDs of the issues"),
+      Argument.atLeast(2),
+    ),
+    server: serverFlag(
+      "Merge the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
+  },
+  Effect.fn(function* (input) {
+    const merged = yield* withIssueAdmin(
+      input.server,
+      Effect.gen(function* () {
+        const admin = yield* IssueAdmin;
+
+        return yield* admin.merge(input.issues);
+      }),
+    );
+
+    yield* Console.log(`Merged ${merged.merged.join(", ")} into ${merged.id}`);
+  }),
+).pipe(
+  Command.withDescription(
+    "Merge issues that are the same problem into the one seen first. The others' IDs lead to it, and unmerge splits them apart again",
+  ),
+);
+
+const unmerge = Command.make(
+  "unmerge",
+  {
+    issue: Argument.String("issue").pipe(
+      Argument.withDescription("The issue's ID"),
+    ),
+    fingerprint: Argument.String("fingerprint").pipe(
+      Argument.withDescription(
+        "The fingerprint to move out. Leave it out to list the issue's fingerprints",
+      ),
+      Argument.optional,
+    ),
+    server: serverFlag(
+      "Unmerge the issue on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
+  },
+  Effect.fn(function* (input) {
+    yield* withIssueAdmin(
+      input.server,
+      Effect.gen(function* () {
+        const admin = yield* IssueAdmin;
+
+        if (Option.isNone(input.fingerprint)) {
+          const review = yield* admin.review(input.issue);
+
+          for (const { fingerprint, count } of review.fingerprints) {
+            yield* Console.log(`${String(count).padStart(6)}  ${fingerprint}`);
+          }
+
+          return;
+        }
+
+        const id = yield* admin.unmerge(input.issue, input.fingerprint.value);
+
+        yield* Console.log(`Unmerged ${input.fingerprint.value} into ${id}`);
+      }),
+    );
+  }),
+).pipe(
+  Command.withDescription(
+    "Move a fingerprint's events out of a merged issue into an issue of their own, or list its fingerprints",
+  ),
+);
+
 const agreementCommand = Command.make(
   "agreement",
   {
@@ -953,6 +1026,8 @@ const triage = Command.make("triage").pipe(
     mute,
     reopen,
     note,
+    merge,
+    unmerge,
     agreementCommand,
     mcp,
   ]),
