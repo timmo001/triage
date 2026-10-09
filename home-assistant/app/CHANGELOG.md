@@ -1,6 +1,6 @@
 ## Merging
 
-- Issues that are the same problem can be merged into one, like Sentry: the same crash with different top frames, or the same error worded a little differently. See [Merging](https://triage.timmo.dev/issues/#merging).
+- Issues that are the same problem can be merged into one: the same crash with different top frames, or the same error worded a little differently. See [Merging](https://triage.timmo.dev/issues/#merging).
 - The issue seen first is kept, then the one with more events, then the lower ID. It takes the kind and title of the cause, so a crash wins over the unit failure it caused, and it's muted if any of the issues was, open if any was and resolved otherwise.
 - The merged issues' IDs and links lead to the one kept, and new events for any of them join it.
 - Unmerging moves a fingerprint's events back out into an issue of their own, which models decide on afresh. Both issues get a note saying what happened.

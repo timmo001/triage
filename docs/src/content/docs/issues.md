@@ -61,7 +61,7 @@ triage unmerge <issue>                  # list its fingerprints
 triage unmerge <issue> <fingerprint>    # move one back out
 ```
 
-Like Sentry, the issue seen first is kept, then the one with more events, then the lower ID. It takes the kind and title of the cause, so a crash wins over the unit failure it caused. It's muted if any of the issues was, open if any was and resolved otherwise, and keeps the latest decision, suggestion and label. The others' IDs and links lead to it, and new events for any of them join it.
+The issue seen first is kept, then the one with more events, then the lower ID. It takes the kind and title of the cause, so a crash wins over the unit failure it caused. It's muted if any of the issues was, open if any was and resolved otherwise, and keeps the latest decision, suggestion and label. The others' IDs and links lead to it, and new events for any of them join it.
 
 Each issue it took in shows as a fingerprint, the key that groups an issue's events. Unmerging one moves its events back out into an issue of their own, with the same status but no decisions, label or suggestions, so they're decided on afresh. Both issues get a note saying what happened.
 

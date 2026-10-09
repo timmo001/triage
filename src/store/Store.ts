@@ -879,8 +879,8 @@ export class Store extends Context.Service<
       by: string,
     ): Effect.Effect<void, IssueNotFound | StoreError>;
     /**
-     * Merge issues into one, like Sentry: the issue seen first is kept, then
-     * the one with more events, then the lower ID. It takes the kind and title
+     * Merge issues into one: the issue seen first is kept, then the one with
+     * more events, then the lower ID. It takes the kind and title
      * of the cause, a crash before an OOM kill, a unit failure or an error,
      * and is muted if any of them was, open if any was and resolved otherwise.
      * Each merged issue's ID redirects to it. `by` is the admin, or `cli` or
