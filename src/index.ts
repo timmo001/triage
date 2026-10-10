@@ -223,7 +223,7 @@ const upload = Command.make(
     yield* Console.log(
       input.json
         ? JSON.stringify(result)
-        : `Sent ${result.sent} events, ${result.added} new to the server`,
+        : `Sent ${result.sent} events, ${result.added} new to the server, and ${result.warnings} warning counts`,
     );
   }),
 ).pipe(

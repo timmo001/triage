@@ -104,6 +104,17 @@ export const family = (key: string): string => {
   }
 };
 
+/**
+ * The program or unit a fingerprint belongs to: the crashed executable, the
+ * failed unit, the program that logged the error or the process killed for
+ * memory. Warnings from it are shown with the issue.
+ */
+export const program = (key: string): string | undefined => {
+  const [, name] = key.split("|");
+
+  return name === undefined || name === "" || name === "?" ? undefined : name;
+};
+
 /** A short, stable ID for a fingerprint: 64-bit FNV-1a as 16 hex digits. */
 export const issueId = (fingerprint: string): string => {
   let hash = 0xcbf29ce484222325n;

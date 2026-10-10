@@ -10,6 +10,7 @@ import {
 } from "effect/http-api";
 import { Event } from "./Event.js";
 import { Issue, Kind, State, Status } from "./Issue.js";
+import { Warning } from "./Warning.js";
 
 /** The enrolled host a request was authenticated as. */
 export class CurrentHost extends Context.Service<
@@ -167,10 +168,36 @@ export const IngestResult = Schema.Struct({
 
 export interface IngestResult extends Schema.Schema.Type<typeof IngestResult> {}
 
+/** A warning the program behind an issue logged on one host, across boots. */
+export const IssueWarning = Schema.Struct({
+  /** The host's enrolled name. */
+  host: Schema.String,
+  /** The redacted message with the parts that change replaced. */
+  template: Schema.String,
+  /** The latest redacted message. */
+  example: Schema.String,
+  count: Schema.Int,
+  /** When the first and latest were logged, in milliseconds since the Unix epoch. */
+  firstSeen: Schema.Finite,
+  lastSeen: Schema.Finite,
+});
+
+export interface IssueWarning extends Schema.Schema.Type<typeof IssueWarning> {}
+
+/** The most warnings that come with an issue. */
+export const maxIssueWarnings = 20;
+
 export const IssueDetail = Schema.Struct({
   issue: Issue,
   /** The latest events, newest first. */
   events: Schema.Array(Event),
+  /**
+   * The most frequent warnings the issue's program logged on the hosts it
+   * happened on, most first. Older servers don't send these.
+   */
+  warnings: Schema.Array(IssueWarning).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+  ),
 });
 
 export interface IssueDetail extends Schema.Schema.Type<typeof IssueDetail> {}
@@ -497,13 +524,26 @@ export class IngestGroup extends HttpApiGroup.make("ingest")
       }),
       success: IngestResult,
     }),
+    /**
+     * Warning counts, each replacing the last one sent for its boot. Only
+     * those for a program with an issue that isn't muted are kept, and
+     * `added` is how many were.
+     */
+    HttpApiEndpoint.post("warnings", "/warnings", {
+      payload: Schema.Struct({
+        warnings: Schema.Array(Warning).pipe(
+          Schema.check(Schema.isMaxLength(maxBatch)),
+        ),
+      }),
+      success: IngestResult,
+    }),
   )
   .middleware(HostAuthorization)
   .prefix("/api")
   .annotateMerge(
     OpenApi.annotations({
       title: "Ingest",
-      description: "Events sent by enrolled hosts",
+      description: "Events and warning counts sent by enrolled hosts",
     }),
   ) {}
 

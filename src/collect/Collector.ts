@@ -2,7 +2,7 @@ import { Event } from "@timmo001/effect-triage";
 import { Context, Effect, Layer, Option, Stream } from "effect";
 import { type Entry, text } from "../journal/Entry.js";
 import { Journal, type JournalError } from "../journal/Journal.js";
-import { rawUnit, toEvent } from "../journal/toEvent.js";
+import { rawUnit, toEvent, toWarning } from "../journal/toEvent.js";
 import { Redactor } from "../redact.js";
 import { Store, type StoreError } from "../store/Store.js";
 import { Attribution } from "./Attribution.js";
@@ -31,7 +31,8 @@ export interface CollectOptions {
 
 /**
  * Reads this machine's journal from where it last stopped, turns entries into
- * redacted events and stores them, saving the cursor with each batch.
+ * redacted events and warning counts and stores them, saving the cursor with
+ * each batch.
  */
 export class Collector extends Context.Service<
   Collector,
@@ -122,6 +123,9 @@ export class Collector extends Context.Service<
                     source,
                     events,
                     last.__CURSOR,
+                    entries.flatMap((entry) =>
+                      Option.toArray(toWarning(entry, redact)),
+                    ),
                   );
 
                   totals.entries += entries.length;

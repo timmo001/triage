@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Option, Schema, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { Entry, fields, text } from "./Entry.js";
-import { MessageId, errorPriority } from "./toEvent.js";
+import { MessageId, warningPriority } from "./toEvent.js";
 
 export class JournalError extends Schema.TaggedError<JournalError>()(
   "JournalError",
@@ -34,9 +34,9 @@ const decodeEntryOption = Schema.decodeUnknownOption(
 );
 
 /**
- * Reads the entries triage cares about from the journal: everything at err or
- * worse, plus the catalog messages for crashes, failures and OOM kills at any
- * priority.
+ * Reads the entries triage cares about from the journal: everything at
+ * warning or worse, plus the catalog messages for crashes, failures and OOM
+ * kills at any priority.
  */
 export class Journal extends Context.Service<
   Journal,
@@ -71,7 +71,7 @@ export class Journal extends Context.Service<
                 : [`--after-cursor=${options.after}`]),
               ...(options.follow ? ["--follow"] : []),
               ...Array.from(
-                { length: errorPriority + 1 },
+                { length: warningPriority + 1 },
                 (_, priority) => `PRIORITY=${priority}`,
               ),
               "+",

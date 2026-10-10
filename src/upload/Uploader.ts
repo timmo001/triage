@@ -8,12 +8,16 @@ export interface UploadResult {
   readonly sent: number;
   /** Events the server hadn't seen before. */
   readonly added: number;
+  /** Warning counts sent to the server. */
+  readonly warnings: number;
 }
 
 /**
  * Sends stored events to a triage server in batches. Events stay in the local
  * store, which works as the spool when the server can't be reached, and each
- * batch is marked as sent only once the server accepts it.
+ * batch is marked as sent only once the server accepts it. Warning counts for
+ * programs with an issue follow, and a server too old to take them only
+ * skips them.
  */
 export class Uploader extends Context.Service<
   Uploader,
@@ -58,7 +62,7 @@ const upload = Effect.fnUntraced(function* (
     const batch = yield* store.pending(target, Api.maxBatch);
 
     if (batch.events.length === 0) {
-      return { sent, added };
+      break;
     }
 
     const result = yield* client.ingest.events({
@@ -69,5 +73,40 @@ const upload = Effect.fnUntraced(function* (
 
     sent += batch.events.length;
     added += result.added;
+  }
+
+  // Sent after the events, so the server has their issues to match them to.
+  const warnings = yield* uploadWarnings(target, store, client).pipe(
+    Effect.catch((error) =>
+      Effect.logWarning("Couldn't upload warnings", {
+        error: error.message,
+      }).pipe(Effect.as(0)),
+    ),
+  );
+
+  return { sent, added, warnings };
+});
+
+const uploadWarnings = Effect.fnUntraced(function* (
+  target: string,
+  store: Store["Service"],
+  client: TriageClient["Service"],
+) {
+  let sent = 0;
+
+  while (true) {
+    const batch = yield* store.pendingWarnings(target, Api.maxBatch);
+
+    if (batch.warnings.length === 0) {
+      return sent;
+    }
+
+    yield* client.ingest.warnings({
+      payload: { warnings: batch.warnings },
+    });
+
+    yield* store.warningsUploaded(target, batch.versions);
+
+    sent += batch.warnings.length;
   }
 });

@@ -1,4 +1,9 @@
-import { Event, Fingerprint, Severity } from "@timmo001/effect-triage";
+import {
+  Event,
+  Fingerprint,
+  Severity,
+  type Warning,
+} from "@timmo001/effect-triage";
 import { Option } from "effect";
 import type { Redact } from "../redact.js";
 import { type Entry, type Field, text } from "./Entry.js";
@@ -17,8 +22,17 @@ export const MessageId = {
  */
 const jobFailed = "be02cf6855d2428ba40df7e9d022f03d";
 
+/** Catalog messages that become events, or are skipped as part of one. */
+const eventMessageIds = new Set<string>([
+  ...Object.values(MessageId),
+  jobFailed,
+]);
+
 /** The most verbose journald priority captured as a log error: `err`. */
 export const errorPriority = 3;
+
+/** The journald priority counted as a warning: `warning`. */
+export const warningPriority = 4;
 
 const frameLine = /^#\d+\s+0x[0-9a-f]+\s+(\S+)\s+\(([^\s)]+)/i;
 
@@ -185,4 +199,54 @@ export const toEvent = (
           )
         : Option.none();
   }
+};
+
+/**
+ * Turn a journal entry logged at warning into one occurrence of a warning, or
+ * nothing for any other entry. Kernel messages are left out, since the kernel
+ * logs for everything, firewall blocks included, under one identifier. Like
+ * events, every text field is redacted here and the boot ID is hashed.
+ */
+export const toWarning = (
+  entry: Entry,
+  redact: Redact,
+): Option.Option<Warning.Warning> => {
+  const messageId = text(entry, "MESSAGE_ID") ?? "";
+  const message = text(entry, "MESSAGE") ?? "";
+
+  if (
+    Number(text(entry, "PRIORITY")) !== warningPriority ||
+    text(entry, "_TRANSPORT") === "kernel" ||
+    eventMessageIds.has(messageId) ||
+    message.trim() === ""
+  ) {
+    return Option.none();
+  }
+
+  const example = redact(message);
+  const template = Fingerprint.template(example);
+  const identifier = text(entry, "SYSLOG_IDENTIFIER");
+  const unit = rawUnit(entry);
+
+  if (template === "" || (identifier === undefined && unit === undefined)) {
+    return Option.none();
+  }
+
+  const hostname = text(entry, "_HOSTNAME");
+  const bootId = text(entry, "_BOOT_ID");
+  const timestamp = Math.floor(entry.__REALTIME_TIMESTAMP / 1000);
+
+  return Option.some({
+    host: hostname === undefined ? "<host>" : redact(hostname),
+    bootId: bootId === undefined ? "" : Fingerprint.issueId(bootId),
+    ...(identifier !== undefined && { identifier: redact(identifier) }),
+    ...(unit !== undefined && {
+      unit: Fingerprint.unitTemplate(redact(unit.unit)),
+    }),
+    template,
+    example,
+    count: 1,
+    firstSeen: timestamp,
+    lastSeen: timestamp,
+  });
 };

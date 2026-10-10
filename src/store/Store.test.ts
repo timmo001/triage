@@ -547,4 +547,106 @@ describe("Store", () => {
     expect(result.last).toBeInstanceOf(NothingToUnmerge);
     expect(result.other).toBeInstanceOf(FingerprintNotFound);
   });
+
+  const warning = (identifier: string, lastSeen: number) => ({
+    host: "omarchy",
+    bootId: "boot",
+    identifier,
+    template: "slow reply",
+    example: "slow reply",
+    count: 1,
+    firstSeen: lastSeen,
+    lastSeen,
+  });
+
+  test("counts warnings and sends only those for programs with an issue", async () => {
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+      const now = Date.now();
+
+      yield* store.record("journal", [], "c1", [
+        warning("bluetoothd", now - 2000),
+        warning("bluetoothd", now - 1000),
+        warning("kdeconnectd", now - 1000),
+        warning("bluetoothd", now - 8 * 24 * 60 * 60 * 1000),
+      ]);
+
+      const beforeIssue = yield* store.pendingWarnings("server", 10);
+
+      yield* store.record("journal", [log("1", now)], "c2");
+
+      const pending = yield* store.pendingWarnings("server", 10);
+
+      yield* store.warningsUploaded("server", pending.versions);
+
+      const sent = yield* store.pendingWarnings("server", 10);
+
+      yield* store.record("journal", [], "c3", [warning("bluetoothd", now)]);
+
+      const changed = yield* store.pendingWarnings("server", 10);
+      const [issue] = yield* store.issues({ limit: 1 });
+
+      yield* store.setStatus(issue?.id ?? "", "muted", { by: "cli" });
+
+      const muted = yield* store.pendingWarnings("server", 10);
+      const detail = yield* store.issue(issue?.id ?? "", 1);
+
+      return { beforeIssue, pending, sent, changed, muted, detail };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.beforeIssue.warnings).toEqual([]);
+    expect(result.pending.warnings).toMatchObject([
+      { identifier: "bluetoothd", count: 2 },
+    ]);
+    expect(result.sent.warnings).toEqual([]);
+    expect(result.changed.warnings).toMatchObject([
+      { identifier: "bluetoothd", count: 3 },
+    ]);
+    expect(result.muted.warnings).toEqual([]);
+    expect(Option.map(result.detail, (detail) => detail.warnings)).toEqual(
+      Option.some([
+        {
+          host: "omarchy",
+          template: "slow reply",
+          example: "slow reply",
+          count: 3,
+          firstSeen: expect.any(Number),
+          lastSeen: expect.any(Number),
+        },
+      ]),
+    );
+  });
+
+  test("keeps sent warnings only for programs with an open issue", async () => {
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+
+      yield* store.add([log("1", 10)]);
+
+      const kept = yield* store.addWarnings([
+        warning("bluetoothd", 10),
+        warning("kdeconnectd", 10),
+      ]);
+
+      yield* store.addWarnings([{ ...warning("bluetoothd", 20), count: 5 }]);
+
+      const [issue] = yield* store.issues({ limit: 1 });
+
+      return { kept, detail: yield* store.issue(issue?.id ?? "", 1) };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.kept).toBe(1);
+    expect(Option.map(result.detail, (detail) => detail.warnings)).toEqual(
+      Option.some([
+        {
+          host: "omarchy",
+          template: "slow reply",
+          example: "slow reply",
+          count: 5,
+          firstSeen: 20,
+          lastSeen: 20,
+        },
+      ]),
+    );
+  });
 });

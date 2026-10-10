@@ -1,5 +1,11 @@
 import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-bun";
-import { Api, Event, Fingerprint, Issue } from "@timmo001/effect-triage";
+import {
+  Api,
+  Event,
+  Fingerprint,
+  Issue,
+  Warning,
+} from "@timmo001/effect-triage";
 import {
   Clock,
   Config,
@@ -83,6 +89,15 @@ export interface Pending {
   readonly events: ReadonlyArray<Event.Event>;
   /** The position to mark as uploaded once they're sent. */
   readonly last: number;
+}
+
+export interface PendingWarnings {
+  readonly warnings: ReadonlyArray<Warning.Warning>;
+  /** Each count's ID and version, to mark as uploaded once they're sent. */
+  readonly versions: ReadonlyArray<{
+    readonly id: number;
+    readonly version: number;
+  }>;
 }
 
 export const TokenScope = Api.TokenScope;
@@ -752,7 +767,143 @@ const migrations = SqliteMigrator.fromRecord({
       }
     }
   }),
+  // Warning counts for each host, boot, program and template. A host keeps
+  // every program's for a while and sends those for programs with an issue;
+  // `version` changes with each count, so it knows which to send again.
+  "0015_warnings": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`
+      CREATE TABLE warnings (
+        id INTEGER PRIMARY KEY,
+        host TEXT NOT NULL,
+        boot_id TEXT NOT NULL,
+        identifier TEXT NOT NULL,
+        unit TEXT NOT NULL,
+        template TEXT NOT NULL,
+        example TEXT NOT NULL,
+        count INTEGER NOT NULL,
+        first_seen INTEGER NOT NULL,
+        last_seen INTEGER NOT NULL,
+        version INTEGER NOT NULL,
+        UNIQUE (host, boot_id, identifier, unit, template)
+      )
+    `;
+
+    yield* sql`CREATE INDEX warnings_identifier ON warnings (identifier)`;
+    yield* sql`CREATE INDEX warnings_unit ON warnings (unit)`;
+    yield* sql`CREATE INDEX warnings_last_seen ON warnings (last_seen)`;
+
+    yield* sql`
+      CREATE TABLE warning_uploads (
+        target TEXT NOT NULL,
+        warning_id INTEGER NOT NULL REFERENCES warnings (id) ON DELETE CASCADE,
+        version INTEGER NOT NULL,
+        PRIMARY KEY (target, warning_id)
+      )
+    `;
+  }),
 });
+
+/** How long a host keeps warning counts, sent or not. */
+const warningRetention = 7 * 24 * 60 * 60 * 1000;
+
+const warningKey = (warning: Warning.Warning) =>
+  JSON.stringify([
+    warning.host,
+    warning.bootId,
+    warning.identifier ?? "",
+    warning.unit ?? "",
+    warning.template,
+  ]);
+
+/** Add up occurrences of the same warning, keeping the latest example. */
+const sumWarnings = (warnings: ReadonlyArray<Warning.Warning>) => {
+  const sums = new Map<string, Warning.Warning>();
+
+  for (const warning of warnings) {
+    const key = warningKey(warning);
+    const sum = sums.get(key);
+
+    sums.set(
+      key,
+      sum === undefined
+        ? warning
+        : Object.assign({}, sum, {
+            example:
+              warning.lastSeen >= sum.lastSeen ? warning.example : sum.example,
+            count: sum.count + warning.count,
+            firstSeen: Math.min(sum.firstSeen, warning.firstSeen),
+            lastSeen: Math.max(sum.lastSeen, warning.lastSeen),
+          }),
+    );
+  }
+
+  return [...sums.values()];
+};
+
+const WarningRow = Schema.Struct({
+  id: Schema.Int,
+  host: Schema.String,
+  boot_id: Schema.String,
+  identifier: Schema.String,
+  unit: Schema.String,
+  template: Schema.String,
+  example: Schema.String,
+  count: Schema.Int,
+  first_seen: Schema.Finite,
+  last_seen: Schema.Finite,
+  version: Schema.Int,
+});
+
+const toWarning = (row: typeof WarningRow.Type): Warning.Warning => ({
+  host: row.host,
+  bootId: row.boot_id,
+  ...(row.identifier !== "" && { identifier: row.identifier }),
+  ...(row.unit !== "" && { unit: row.unit }),
+  template: row.template,
+  example: row.example,
+  count: row.count,
+  firstSeen: row.first_seen,
+  lastSeen: row.last_seen,
+});
+
+/** Each host's counts of a warning, added up across boots, most first. */
+const issueWarnings = (
+  rows: ReadonlyArray<typeof WarningRow.Type>,
+): ReadonlyArray<Api.IssueWarning> =>
+  sumWarnings(
+    rows.map((row) => ({
+      host: row.host,
+      bootId: "",
+      template: row.template,
+      example: row.example,
+      count: row.count,
+      firstSeen: row.first_seen,
+      lastSeen: row.last_seen,
+    })),
+  )
+    .sort((a, b) => b.count - a.count || b.lastSeen - a.lastSeen)
+    .slice(0, Api.maxIssueWarnings)
+    .map(({ host, template, example, count, firstSeen, lastSeen }) => ({
+      host,
+      template,
+      example,
+      count,
+      firstSeen,
+      lastSeen,
+    }));
+
+/** The programs the given fingerprints belong to. */
+const programsOf = (fingerprints: ReadonlyArray<string>) => [
+  ...new Set(
+    fingerprints.flatMap((key) => {
+      const name = Fingerprint.program(key);
+
+      return name === undefined ? [] : [name];
+    }),
+  ),
+];
 
 /**
  * Where triage keeps events and the issues they group into. Events are stored
@@ -764,16 +915,27 @@ export class Store extends Context.Service<
     /** Where reading a source should resume, if it has been read before. */
     cursor(source: string): Effect.Effect<Option.Option<string>, StoreError>;
     /**
-     * Store events and the cursor after them together, so a source never
-     * skips or double counts events. Returns how many events were new.
+     * Store events, warnings and the cursor after them together, so a source
+     * never skips or double counts them. Warnings add to the counts so far,
+     * and counts older than a week are dropped. Returns how many events were
+     * new.
      */
     record(
       source: string,
       events: ReadonlyArray<Event.Event>,
       cursor: string,
+      warnings?: ReadonlyArray<Warning.Warning>,
     ): Effect.Effect<number, StoreError>;
     /** Store events sent by a host. Returns how many events were new. */
     add(events: ReadonlyArray<Event.Event>): Effect.Effect<number, StoreError>;
+    /**
+     * Store warning counts sent by a host, each replacing the last one for
+     * its boot, keeping only those for a program with an issue that isn't
+     * muted. Returns how many were kept.
+     */
+    addWarnings(
+      warnings: ReadonlyArray<Warning.Warning>,
+    ): Effect.Effect<number, StoreError>;
     issues(
       options: ListOptions,
     ): Effect.Effect<ReadonlyArray<Api.IssueSummary>, StoreError>;
@@ -783,17 +945,14 @@ export class Store extends Context.Service<
     ): Effect.Effect<Api.IssueCounts, StoreError>;
     /** Every host that has sent events, most recently seen first. */
     readonly hosts: Effect.Effect<ReadonlyArray<Api.HostSummary>, StoreError>;
-    /** An issue with its latest events, newest first. */
+    /**
+     * An issue with its latest events, newest first, and the warnings its
+     * program logged.
+     */
     issue(
       id: string,
       events: number,
-    ): Effect.Effect<
-      Option.Option<{
-        readonly issue: Issue.Issue;
-        readonly events: ReadonlyArray<Event.Event>;
-      }>,
-      StoreError
-    >;
+    ): Effect.Effect<Option.Option<Api.IssueDetail>, StoreError>;
     /** An issue with its latest events and each model's latest answers. */
     review(
       id: string,
@@ -837,6 +996,19 @@ export class Store extends Context.Service<
     pending(target: string, limit: number): Effect.Effect<Pending, StoreError>;
     /** Mark events up to `last` as uploaded to a server. */
     uploaded(target: string, last: number): Effect.Effect<void, StoreError>;
+    /**
+     * Warning counts for programs with an issue that isn't muted, which
+     * changed since they were last uploaded to a server.
+     */
+    pendingWarnings(
+      target: string,
+      limit: number,
+    ): Effect.Effect<PendingWarnings, StoreError>;
+    /** Mark warning counts as uploaded to a server. */
+    warningsUploaded(
+      target: string,
+      versions: PendingWarnings["versions"],
+    ): Effect.Effect<void, StoreError>;
     /**
      * Open issues a model hasn't decided on since they were first seen or
      * last regressed, most recently seen first.
@@ -1035,13 +1207,51 @@ export class Store extends Context.Service<
       return 1;
     });
 
+    const countWarnings = Effect.fnUntraced(function* (
+      warnings: ReadonlyArray<Warning.Warning>,
+    ) {
+      const cutoff = (yield* Clock.currentTimeMillis) - warningRetention;
+
+      const recent = warnings.filter((warning) => warning.lastSeen >= cutoff);
+
+      for (const warning of sumWarnings(recent)) {
+        yield* sql`
+          INSERT INTO warnings (host, boot_id, identifier, unit, template,
+            example, count, first_seen, last_seen, version)
+          SELECT ${warning.host}, ${warning.bootId}, ${warning.identifier ?? ""},
+            ${warning.unit ?? ""}, ${warning.template}, ${warning.example},
+            ${warning.count}, ${warning.firstSeen}, ${warning.lastSeen},
+            coalesce(MAX(version), 0) + 1
+          FROM warnings
+          WHERE true
+          ON CONFLICT (host, boot_id, identifier, unit, template) DO UPDATE SET
+            example = CASE WHEN excluded.last_seen >= last_seen
+              THEN excluded.example ELSE example END,
+            count = count + excluded.count,
+            first_seen = min(first_seen, excluded.first_seen),
+            last_seen = max(last_seen, excluded.last_seen),
+            version = excluded.version
+        `;
+      }
+
+      yield* sql`
+        DELETE FROM warning_uploads WHERE warning_id IN (
+          SELECT id FROM warnings WHERE last_seen < ${cutoff}
+        )
+      `;
+      yield* sql`DELETE FROM warnings WHERE last_seen < ${cutoff}`;
+    });
+
     const record = Effect.fn("Store.record")(
       function* (
         source: string,
         events: ReadonlyArray<Event.Event>,
         next: string,
+        warnings: ReadonlyArray<Warning.Warning> = [],
       ) {
         const added = yield* Effect.forEach(events, insert);
+
+        yield* countWarnings(warnings);
 
         yield* sql`
           INSERT INTO cursors ${sql.insert({ source, cursor: next })}
@@ -1049,6 +1259,56 @@ export class Store extends Context.Service<
         `;
 
         return added.reduce<number>((total, count) => total + count, 0);
+      },
+      sql.withTransaction,
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    /** The programs that have an issue that isn't muted. */
+    const activePrograms = Effect.map(
+      sql<{ fingerprint: string }>`
+        SELECT issue_fingerprints.fingerprint FROM issue_fingerprints
+        JOIN issues ON issues.id = issue_fingerprints.issue_id
+        WHERE issues.status != 'muted' AND issues.count > 0
+      `,
+      (rows) => programsOf(rows.map((row) => row.fingerprint)),
+    );
+
+    /** Warnings that belong to one of the given programs. */
+    const ofPrograms = (programs: ReadonlyArray<string>) =>
+      sql`(identifier IN ${sql.in(programs)} OR unit IN ${sql.in(programs)})`;
+
+    const addWarnings = Effect.fn("Store.addWarnings")(
+      function* (warnings: ReadonlyArray<Warning.Warning>) {
+        const programs = new Set(yield* activePrograms);
+
+        const kept = sumWarnings(warnings).filter((warning) =>
+          Warning.programs(warning).some((name) => programs.has(name)),
+        );
+
+        for (const warning of kept) {
+          yield* sql`
+            INSERT INTO warnings ${sql.insert({
+              host: warning.host,
+              boot_id: warning.bootId,
+              identifier: warning.identifier ?? "",
+              unit: warning.unit ?? "",
+              template: warning.template,
+              example: warning.example,
+              count: warning.count,
+              first_seen: warning.firstSeen,
+              last_seen: warning.lastSeen,
+              version: 0,
+            })}
+            ON CONFLICT (host, boot_id, identifier, unit, template) DO UPDATE SET
+              example = excluded.example,
+              count = excluded.count,
+              first_seen = excluded.first_seen,
+              last_seen = excluded.last_seen
+          `;
+        }
+
+        return kept.length;
       },
       sql.withTransaction,
       Effect.mapError((cause) => new StoreError({ cause })),
@@ -1260,6 +1520,33 @@ export class Store extends Context.Service<
         sql`SELECT data FROM events WHERE issue_id = ${id} ORDER BY timestamp DESC, host, id LIMIT ${limit} OFFSET ${offset}`,
     });
 
+    const decodeWarnings = Schema.decodeUnknownEffect(Schema.Array(WarningRow));
+
+    /** The warnings an issue's program logged on the hosts it happened on. */
+    const warningsFor = Effect.fnUntraced(function* (id: string) {
+      const owned = yield* sql<{ fingerprint: string }>`
+        SELECT fingerprint FROM issue_fingerprints WHERE issue_id = ${id}
+      `;
+
+      const programs = programsOf(owned.map((row) => row.fingerprint));
+
+      if (programs.length === 0) {
+        return [];
+      }
+
+      return issueWarnings(
+        yield* decodeWarnings(
+          yield* sql`
+            SELECT * FROM warnings
+            WHERE ${ofPrograms(programs)}
+              AND host IN (SELECT DISTINCT host FROM events WHERE issue_id = ${id})
+            ORDER BY last_seen DESC
+            LIMIT 1000
+          `,
+        ),
+      );
+    });
+
     const issue = Effect.fn("Store.issue")(
       function* (id: string, limit: number) {
         const row = yield* findIssue(id);
@@ -1273,6 +1560,7 @@ export class Store extends Context.Service<
         return Option.some({
           issue: toIssue(row.value, yield* Clock.currentTimeMillis, windows),
           events: rows.map((event) => event.data),
+          warnings: yield* warningsFor(row.value.id),
         });
       },
       Effect.mapError((cause) => new StoreError({ cause })),
@@ -1523,6 +1811,53 @@ export class Store extends Context.Service<
           ON CONFLICT (target) DO UPDATE SET last_event = excluded.last_event
         `;
       },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const pendingWarnings = Effect.fn("Store.pendingWarnings")(
+      function* (target: string, limit: number) {
+        const programs = yield* activePrograms;
+
+        if (programs.length === 0) {
+          return { warnings: [], versions: [] };
+        }
+
+        const rows = yield* decodeWarnings(
+          yield* sql`
+            SELECT warnings.* FROM warnings
+            LEFT JOIN warning_uploads ON warning_uploads.warning_id = warnings.id
+              AND warning_uploads.target = ${target}
+            WHERE (warning_uploads.version IS NULL
+                OR warning_uploads.version != warnings.version)
+              AND ${ofPrograms(programs)}
+            ORDER BY warnings.id
+            LIMIT ${limit}
+          `,
+        );
+
+        return {
+          warnings: rows.map(toWarning),
+          versions: rows.map(({ id, version }) => ({ id, version })),
+        };
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const warningsUploaded = Effect.fn("Store.warningsUploaded")(
+      function* (target: string, versions: PendingWarnings["versions"]) {
+        for (const { id, version } of versions) {
+          yield* sql`
+            INSERT INTO warning_uploads ${sql.insert({
+              target,
+              warning_id: id,
+              version,
+            })}
+            ON CONFLICT (target, warning_id) DO UPDATE SET
+              version = excluded.version
+          `;
+        }
+      },
+      sql.withTransaction,
       Effect.mapError((cause) => new StoreError({ cause })),
     );
 
@@ -2012,6 +2347,7 @@ export class Store extends Context.Service<
       cursor,
       record,
       add,
+      addWarnings,
       issues,
       issueCounts,
       hosts,
@@ -2025,6 +2361,8 @@ export class Store extends Context.Service<
       removeToken,
       pending,
       uploaded,
+      pendingWarnings,
+      warningsUploaded,
       undecided,
       decidedSince,
       saveDecision,

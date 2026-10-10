@@ -112,18 +112,36 @@ const IngestHandlers = HttpApiBuilder.group(
   Effect.fn(function* (handlers) {
     const store = yield* Store;
 
-    return handlers.handle(
-      "events",
-      Effect.fn(function* ({ payload }) {
-        const host = yield* Api.CurrentHost;
+    return handlers
+      .handle(
+        "events",
+        Effect.fn(function* ({ payload }) {
+          const host = yield* Api.CurrentHost;
 
-        const added = yield* store
-          .add(payload.events.map((event) => ({ ...event, host: host.name })))
-          .pipe(Effect.orDie);
+          const added = yield* store
+            .add(payload.events.map((event) => ({ ...event, host: host.name })))
+            .pipe(Effect.orDie);
 
-        return { added };
-      }),
-    );
+          return { added };
+        }),
+      )
+      .handle(
+        "warnings",
+        Effect.fn(function* ({ payload }) {
+          const host = yield* Api.CurrentHost;
+
+          const added = yield* store
+            .addWarnings(
+              payload.warnings.map((warning) => ({
+                ...warning,
+                host: host.name,
+              })),
+            )
+            .pipe(Effect.orDie);
+
+          return { added };
+        }),
+      );
   }),
 );
 

@@ -3,7 +3,7 @@ import { Fingerprint } from "@timmo001/effect-triage";
 import { Option } from "effect";
 import { makeRedact, regularUsers } from "../redact.js";
 import type { Entry } from "./Entry.js";
-import { MessageId, toEvent } from "./toEvent.js";
+import { MessageId, toEvent, toWarning } from "./toEvent.js";
 
 const redact = makeRedact({ users: ["alex"], hosts: ["laptop"] });
 
@@ -76,6 +76,52 @@ describe("toEvent", () => {
     });
 
     expect(log.message).toBe("bad é");
+  });
+});
+
+describe("toWarning", () => {
+  test("redacts a warning and reduces it to its template", () => {
+    const warning = Option.getOrThrow(
+      toWarning(
+        entry({
+          PRIORITY: "4",
+          SYSLOG_IDENTIFIER: "kdeconnectd",
+          _SYSTEMD_USER_UNIT: "app-kdeconnectd@1234.service",
+          MESSAGE: 'No uuids found for "/home/alex/phone" at 10.0.0.5',
+        }),
+        redact,
+      ),
+    );
+
+    expect(warning).toEqual({
+      host: "<host>",
+      bootId: Fingerprint.issueId("boot"),
+      identifier: "kdeconnectd",
+      unit: "app-kdeconnectd@<n>.service",
+      template: 'No uuids found for "~<path>" at <ip>',
+      example: 'No uuids found for "~/phone" at <ip>',
+      count: 1,
+      firstSeen: 1_700_000_000_123,
+      lastSeen: 1_700_000_000_123,
+    });
+  });
+
+  test("skips the kernel, other priorities and events", () => {
+    const skipped = [
+      { PRIORITY: "4", _TRANSPORT: "kernel", MESSAGE: "[UFW BLOCK] IN=wlan0" },
+      { PRIORITY: "3", SYSLOG_IDENTIFIER: "app", MESSAGE: "failed" },
+      { PRIORITY: "5", SYSLOG_IDENTIFIER: "app", MESSAGE: "notice" },
+      {
+        PRIORITY: "4",
+        MESSAGE_ID: MessageId.unitFailed,
+        UNIT: "sync.service",
+        MESSAGE: "sync.service: Failed with result 'exit-code'.",
+      },
+    ];
+
+    expect(skipped.map((fields) => toWarning(entry(fields), redact))).toEqual(
+      skipped.map(() => Option.none()),
+    );
   });
 });
 
