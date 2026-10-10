@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { Fingerprint, Issue } from "@timmo001/effect-triage";
 import type { Entry } from "../journal/Entry.js";
 import { makeRedact } from "../redact.js";
-import { coreEvent, coreRecords, coreWarning } from "./coreLog.js";
+import {
+  coreEvent,
+  coreRecords,
+  coreWarning,
+  lastRecordStart,
+} from "./coreLog.js";
 
 const redact = makeRedact({ hosts: ["kitchen-pi"] });
 
@@ -55,6 +60,13 @@ describe("coreRecords", () => {
     ]);
 
     expect(records.map((record) => record.severity)).toEqual(["warning"]);
+  });
+});
+
+describe("lastRecordStart", () => {
+  test("finds where the last record starts, so its traceback can be held back", () => {
+    expect(lastRecordStart([...traceback, ...traceback])).toBe(5);
+    expect(lastRecordStart(traceback.slice(1))).toBeUndefined();
   });
 });
 

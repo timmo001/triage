@@ -34,6 +34,23 @@ const severityOf = (level: string): Severity.Severity | undefined => {
   }
 };
 
+const lineOf = (entry: Entry) =>
+  (text(entry, "MESSAGE") ?? "").replace(colours, "");
+
+/**
+ * Where the last record starts in `entries`, or `undefined` when none does.
+ * The lines from there on may be followed by more of its traceback.
+ */
+export const lastRecordStart = (
+  entries: ReadonlyArray<Entry>,
+): number | undefined => {
+  const index = entries.findLastIndex((entry) =>
+    recordStart.test(lineOf(entry)),
+  );
+
+  return index === -1 ? undefined : index;
+};
+
 /** One record Core logged, with the lines that followed it, such as a traceback. */
 export interface CoreRecord {
   /** The journal entry that started it. */
@@ -62,7 +79,7 @@ export const coreRecords = (
   }> = [];
 
   for (const entry of entries) {
-    const line = (text(entry, "MESSAGE") ?? "").replace(colours, "");
+    const line = lineOf(entry);
     const start = recordStart.exec(line)?.groups;
 
     if (start !== undefined) {

@@ -1,5 +1,5 @@
 import { Effect, FileSystem, Layer, Option, Stream } from "effect";
-import { text } from "../journal/Entry.js";
+import { type Entry, text } from "../journal/Entry.js";
 import { Journal } from "../journal/Journal.js";
 import { type Redact, Redactor } from "../redact.js";
 import { Store } from "../store/Store.js";
@@ -8,10 +8,14 @@ import {
   coreIdentifier,
   coreRecords,
   coreWarning,
+  lastRecordStart,
 } from "./coreLog.js";
 
 /** The store's cursor key for Core's entries in the host journal. */
 const source = "homeassistant-core";
+
+/** The most journal entries stored together. */
+const batchSize = 1000;
 
 /** Where the Supervisor mounts the host journal with `journald: true`. */
 const journalDirectories = ["/var/log/journal", "/run/log/journal"];
@@ -70,6 +74,12 @@ export const layer = (options: { readonly host: string }) =>
         for (const follow of [false, true]) {
           const after = yield* store.cursor(source);
 
+          // A full batch means more entries are already waiting, so the last
+          // record's traceback may go on in the next one. Hold it back until
+          // then, and leave the cursor before it, so a restart reads it again.
+          let carried: ReadonlyArray<Entry> = [];
+          let collected = 0;
+
           yield* journal
             .read({
               after: Option.getOrUndefined(after),
@@ -78,9 +88,20 @@ export const layer = (options: { readonly host: string }) =>
               merge: true,
             })
             .pipe(
-              Stream.groupedWithin(1000, "1 second"),
+              Stream.groupedWithin(batchSize, "1 second"),
               Stream.runForEach(
-                Effect.fnUntraced(function* (entries) {
+                Effect.fnUntraced(function* (batch) {
+                  const all = [...carried, ...batch];
+
+                  const split =
+                    batch.length === batchSize
+                      ? lastRecordStart(all) || all.length
+                      : all.length;
+
+                  const entries = all.slice(0, split);
+
+                  carried = all.slice(split);
+
                   const last = entries.at(-1);
 
                   if (last === undefined) {
@@ -107,7 +128,9 @@ export const layer = (options: { readonly host: string }) =>
                     }),
                   );
 
-                  if (added > 0) {
+                  collected += added;
+
+                  if (follow && added > 0) {
                     yield* Effect.logInfo(
                       "Collected",
                       added,
@@ -117,6 +140,14 @@ export const layer = (options: { readonly host: string }) =>
                 }),
               ),
             );
+
+          if (!follow && collected > 0) {
+            yield* Effect.logInfo(
+              "Caught up on",
+              collected,
+              "new Home Assistant Core errors",
+            );
+          }
         }
       });
 
