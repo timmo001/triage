@@ -1181,11 +1181,28 @@ type Field = readonly [
 
 /**
  * A Home Assistant integration, with links to its docs and Core's issues for
- * a built-in one.
+ * a built-in one, or its version and issue tracker for a custom one.
  */
 const renderIntegration = (integration: Event.Integration) => {
   if (integration.custom) {
-    return html`${integration.domain} (${t("integration.custom")})`;
+    const name =
+      integration.version === undefined
+        ? integration.domain
+        : `${integration.domain} ${integration.version}`;
+
+    // Only web links, since the manifest is whatever its author wrote.
+    const tracker =
+      integration.issueTracker !== undefined &&
+      /^https?:\/\//.test(integration.issueTracker)
+        ? integration.issueTracker
+        : undefined;
+
+    return tracker === undefined
+      ? html`${name} (${t("integration.custom")})`
+      : html`${name} (${t("integration.custom")},
+          <a href=${tracker} target="_blank" rel="noreferrer"
+            >${t("integration.issues")}</a
+          >)`;
   }
 
   const domain = encodeURIComponent(integration.domain);

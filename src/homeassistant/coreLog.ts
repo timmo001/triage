@@ -186,17 +186,21 @@ const common = (record: CoreRecord, host: string) => {
   };
 };
 
+const unchanged: Redact = (text) => text;
+
 /**
  * Turn a Core record at error or worse into a log error from its logger, with
  * any traceback after the message and what Core logged just before, or
  * nothing for a warning. Redacted here, before it's stored, like every other
- * event.
+ * event, with Home Assistant's own names taken out of the message by
+ * `redactNames` first.
  */
 export const coreEvent = (
   record: CoreRecord,
   host: string,
   redact: Redact,
   breadcrumbs: ReadonlyArray<string> = [],
+  redactNames: Redact = unchanged,
 ): Event.Event | undefined => {
   if (record.severity === "warning") {
     return undefined;
@@ -205,6 +209,7 @@ export const coreEvent = (
   const { bootId, ...rest } = common(record, host);
   const identifier = redact(record.logger);
   const integration = integrationOf(identifier);
+  const redactText = (text: string) => redact(redactNames(text));
 
   return Event.Event.cases.LogError.make({
     ...rest,
@@ -213,8 +218,10 @@ export const coreEvent = (
     ...(bootId !== "" && { bootId }),
     severity: record.severity,
     identifier,
-    message: redact(record.lines.join("\n").trimEnd()),
-    ...(breadcrumbs.length > 0 && { breadcrumbs: breadcrumbs.map(redact) }),
+    message: redactText(record.lines.join("\n").trimEnd()),
+    ...(breadcrumbs.length > 0 && {
+      breadcrumbs: breadcrumbs.map(redactText),
+    }),
     ...(integration !== undefined && { integration }),
   });
 };
@@ -224,8 +231,9 @@ export const coreWarning = (
   record: CoreRecord,
   host: string,
   redact: Redact,
+  redactNames: Redact = unchanged,
 ): Warning.Warning | undefined => {
-  const example = redact(record.lines[0] ?? "");
+  const example = redact(redactNames(record.lines[0] ?? ""));
   const template = Fingerprint.template(example);
 
   if (record.severity !== "warning" || template === "") {

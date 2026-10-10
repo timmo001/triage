@@ -35,6 +35,10 @@ export const Integration = Schema.Struct({
   domain: Schema.NonEmptyString,
   /** Whether it's a custom integration rather than one built into Core. */
   custom: Schema.Boolean,
+  /** A custom integration's version, from its manifest. */
+  version: Schema.optionalKey(Schema.String),
+  /** Where to report a custom integration's issues, from its manifest. */
+  issueTracker: Schema.optionalKey(Schema.String),
 });
 
 export interface Integration extends Schema.Schema.Type<typeof Integration> {}
