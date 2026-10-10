@@ -799,6 +799,46 @@ export class DecisionsGroup extends HttpApiGroup.make("decisions")
     }),
   ) {}
 
+/** A redaction token, such as `<ip:71d0a3c2>`, and the value behind it. */
+export const Redaction = Schema.Struct({
+  token: Schema.String,
+  /** What it is, such as `ip`, `device` or `user`. */
+  kind: Schema.String,
+  value: Schema.String,
+});
+
+export interface Redaction extends Schema.Schema.Type<typeof Redaction> {}
+
+/** The most tokens looked up at once. */
+export const maxTokens = 500;
+
+export class RedactionsGroup extends HttpApiGroup.make("redactions")
+  .add(
+    /**
+     * The values behind redaction tokens that this server captured itself,
+     * leaving out any it doesn't know. Only answered for someone looking at
+     * the web UI through Home Assistant: anywhere else, it's empty, so an
+     * agent with an admin token can't use it.
+     */
+    HttpApiEndpoint.post("resolve", "/resolve", {
+      payload: Schema.Struct({
+        tokens: Schema.Array(Schema.String).pipe(
+          Schema.check(Schema.isMaxLength(maxTokens)),
+        ),
+      }),
+      success: Schema.Array(Redaction),
+    }),
+  )
+  .middleware(AdminAuthorization)
+  .prefix("/api/redactions")
+  .annotateMerge(
+    OpenApi.annotations({
+      title: "Redactions",
+      description:
+        "The values behind redaction tokens, for showing them in the web UI through Home Assistant",
+    }),
+  ) {}
+
 /** The forms a plural message can take, as `Intl.PluralRules` names them. */
 export const PluralForm = Schema.Literals([
   "zero",
@@ -858,5 +898,6 @@ export class Api extends HttpApi.make("triage")
   .add(WorkGroup)
   .add(DecisionsGroup)
   .add(TokensGroup)
+  .add(RedactionsGroup)
   .add(SystemGroup)
   .annotateMerge(OpenApi.annotations({ title: "triage" })) {}

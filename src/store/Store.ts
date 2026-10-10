@@ -18,7 +18,12 @@ import {
   Schema,
 } from "effect";
 import { SqlClient, type SqlError, SqlSchema } from "effect/sql";
-import { type Redaction, RedactionVault, redactGeneric } from "../redact.js";
+import {
+  isKind,
+  type Redaction,
+  RedactionVault,
+  redactGeneric,
+} from "../redact.js";
 
 export class StoreError extends Schema.TaggedError<StoreError>()("StoreError", {
   cause: Schema.Defect(),
@@ -1041,6 +1046,10 @@ export class Store extends Context.Service<
     remember(
       redactions: ReadonlyArray<Redaction>,
     ): Effect.Effect<void, StoreError>;
+    /** The values behind these redaction tokens, leaving out any not kept here. */
+    resolve(
+      tokens: ReadonlyArray<string>,
+    ): Effect.Effect<ReadonlyArray<Redaction>, StoreError>;
     /**
      * Store events, warnings and the cursor after them together, so a source
      * never skips or double counts them. Warnings add to the counts so far,
@@ -1292,6 +1301,24 @@ export class Store extends Context.Service<
             })),
           )}
         `;
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const resolve = Effect.fn("Store.resolve")(
+      function* (tokens: ReadonlyArray<string>) {
+        if (tokens.length === 0) {
+          return [];
+        }
+
+        const rows = yield* sql<{ token: string; kind: string; value: string }>`
+          SELECT token, kind, value FROM redactions
+          WHERE ${sql.in("token", tokens)}
+        `;
+
+        return rows.flatMap((row) =>
+          isKind(row.kind) ? [{ ...row, kind: row.kind }] : [],
+        );
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -2569,6 +2596,7 @@ export class Store extends Context.Service<
       cursor,
       redactionKey,
       remember,
+      resolve,
       record,
       add,
       addWarnings,

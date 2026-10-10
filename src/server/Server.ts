@@ -387,8 +387,30 @@ const SystemHandlers = HttpApiBuilder.group(Api.Api, "system", (handlers) =>
   }),
 );
 
+/**
+ * Looks up the values behind redaction tokens only when `resolve` is set, for
+ * the web UI through Home Assistant, where someone signed in is looking. On
+ * any other port it answers with nothing, so an admin token alone, as an agent
+ * has, can't read them.
+ */
+const RedactionsHandlers = (resolve: boolean) =>
+  HttpApiBuilder.group(
+    Api.Api,
+    "redactions",
+    Effect.fn(function* (handlers) {
+      const store = yield* Store;
+
+      return handlers.handle("resolve", ({ payload }) =>
+        resolve
+          ? store.resolve(payload.tokens).pipe(Effect.orDie)
+          : Effect.succeed([]),
+      );
+    }),
+  );
+
 const apiRoutes = (
   adminAuthorization: Layer.Layer<Api.AdminAuthorization, never, Tokens>,
+  options: { readonly resolveTokens: boolean },
 ) =>
   HttpApiBuilder.layer(Api.Api, {
     openapiPath: "/api/openapi.json",
@@ -400,6 +422,7 @@ const apiRoutes = (
       WorkHandlers,
       DecisionsHandlers,
       TokensHandlers,
+      RedactionsHandlers(options.resolveTokens),
       SystemHandlers,
     ]),
     Layer.provide([
@@ -413,7 +436,9 @@ const apiRoutes = (
  * The triage API's routes, needing a `Store`, `Tokens`, `Translations`,
  * `CollectionStatus` and the local `Work`.
  */
-export const routes = apiRoutes(AdminAuthorizationLayer);
+export const routes = apiRoutes(AdminAuthorizationLayer, {
+  resolveTokens: false,
+});
 
 /**
  * Admin access for Home Assistant ingress, where Home Assistant has already
@@ -620,7 +645,9 @@ export const layer = (options: ServeOptions) =>
         Layer.merge(
           HttpRouter.serve(
             Layer.mergeAll(
-              apiRoutes(IngressAdminAuthorizationLayer),
+              apiRoutes(IngressAdminAuthorizationLayer, {
+                resolveTokens: true,
+              }),
               mcpRoutes,
               web({ ingress: true }),
             ),

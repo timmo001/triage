@@ -1,24 +1,29 @@
 import { createHmac } from "node:crypto";
-import { Config, Context, Effect, FileSystem, Layer } from "effect";
+import { Config, Context, Effect, FileSystem, Layer, Schema } from "effect";
 
 /**
  * The kinds of personal detail redaction replaces with a token, which this
  * machine can show again. Secrets, long IDs and home directories are never
  * kept, and stay plain placeholders.
  */
-export type Kind =
-  | "email"
-  | "ip"
-  | "mac"
-  | "serial"
-  | "ssid"
-  | "user"
-  | "host"
-  | "device"
-  | "entity"
-  | "area"
-  | "floor"
-  | "home";
+export const Kind = Schema.Literals([
+  "email",
+  "ip",
+  "mac",
+  "serial",
+  "ssid",
+  "user",
+  "host",
+  "device",
+  "entity",
+  "area",
+  "floor",
+  "home",
+]);
+
+export type Kind = typeof Kind.Type;
+
+export const isKind = Schema.is(Kind);
 
 /** A redacted value and the token that replaced it. */
 export interface Redaction {
