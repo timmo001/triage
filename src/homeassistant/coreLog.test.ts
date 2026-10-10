@@ -104,11 +104,11 @@ describe("withBreadcrumbs", () => {
       coreRecords([
         at(
           0,
-          "2026-10-10 12:00:00.000 WARNING (MainThread) [homeassistant.components.iss] Too old",
+          "2026-10-10 12:00:00.000 WARNING (MainThread) [homeassistant.components.demo] Too old",
         ),
         at(
           40,
-          "2026-10-10 12:00:40.000 WARNING (MainThread) [homeassistant.components.iss] Timed out",
+          "2026-10-10 12:00:40.000 WARNING (MainThread) [homeassistant.components.demo] Timed out",
         ),
       ]),
     );
@@ -118,7 +118,7 @@ describe("withBreadcrumbs", () => {
       coreRecords([
         at(
           50,
-          "2026-10-10 12:00:50.000 ERROR (MainThread) [homeassistant.components.iss.coordinator] Error fetching iss data",
+          "2026-10-10 12:00:50.000 ERROR (MainThread) [homeassistant.components.demo.coordinator] Error fetching demo data",
         ),
       ]),
     );
@@ -126,7 +126,7 @@ describe("withBreadcrumbs", () => {
     const [error] = second.records;
 
     expect(error?.breadcrumbs).toEqual([
-      "WARNING [homeassistant.components.iss] Timed out",
+      "WARNING [homeassistant.components.demo] Timed out",
     ]);
 
     const event =
@@ -134,15 +134,15 @@ describe("withBreadcrumbs", () => {
       coreEvent(error.record, "home-assistant", redact, error.breadcrumbs);
 
     expect(event?.breadcrumbs).toEqual([
-      "WARNING [homeassistant.components.iss] Timed out",
+      "WARNING [homeassistant.components.demo] Timed out",
     ]);
   });
 });
 
 describe("integrationOf", () => {
   test("reads built-in and custom integrations from the logger", () => {
-    expect(integrationOf("homeassistant.components.iss.coordinator")).toEqual({
-      domain: "iss",
+    expect(integrationOf("homeassistant.components.demo.coordinator")).toEqual({
+      domain: "demo",
       custom: false,
     });
     expect(integrationOf("custom_components.thing")).toEqual({

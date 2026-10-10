@@ -18,13 +18,13 @@ describe("redact", () => {
     ["via fe80::1c2b:3d4e:5f60:7a8b%wlan0 up", "via <ip> up"],
     ["to 2001:db8:85a3:0:0:8a2e:370:7334 ok", "to <ip> ok"],
     [
-      "from fd6a:6c76:8d26:94ea:1a2b:d534:f6d2:c020: Unexpected error",
+      "from fd00:1:2:3:4:5:6:7: Unexpected error",
       "from <ip>: Unexpected error",
     ],
     ["from fd6a::1: closed", "from <ip>: closed"],
     [
-      "Timeout fetching Google Tasks RXlnd3MwTkZYZFc3R0w5OQ data",
-      "Timeout fetching Google Tasks <id> data",
+      "Timeout fetching list Ab3dEf6hIj9kLm2n data",
+      "Timeout fetching list <id> data",
     ],
     ["usb SerialNumber: ABC123XYZ", "usb SerialNumber: <serial>"],
     ["joined SSID 'Home Network' ok", "joined SSID <ssid> ok"],
