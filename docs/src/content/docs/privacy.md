@@ -33,7 +33,7 @@ Redaction happens on the host, when an event or warning is captured, before it's
 - any other names in `TRIAGE_REDACT_NAMES`, comma-separated, such as a GitHub account that shows up in repository URLs
 - IPv4 and IPv6 addresses
 - MAC addresses
-- UUIDs, and other long hex or token-like strings
+- UUIDs, account and list IDs, and other long hex or token-like strings
 - serial numbers
 - Wi-Fi network names
 

@@ -17,13 +17,24 @@ const rules: ReadonlyArray<readonly [RegExp, string]> = [
   ],
   [/\b[0-9a-f]{2}([:_-])[0-9a-f]{2}(?:\1[0-9a-f]{2}){4}\b/gi, "<mac>"],
   [/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, "<ip>"],
-  [/(?<![\w:])(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}(?:%\w+)?(?![\w:])/gi, "<ip>"],
+  // An IPv6 address may be followed by a colon, as in "from <address>: ...",
+  // just not by another group.
   [
-    /(?<![\w:])(?=[0-9a-f:]*[0-9a-f])(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?(?:%\w+)?(?![\w:])/gi,
+    /(?<![\w:])(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}(?:%\w+)?(?!\w|:[0-9a-f:])/gi,
+    "<ip>",
+  ],
+  [
+    /(?<![\w:])(?=[0-9a-f:]*[0-9a-f])(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4}){0,6})?(?:%\w+)?(?!\w|:[0-9a-f:])/gi,
     "<ip>",
   ],
   [/\b[0-9a-f]{32,}\b/gi, "<id>"],
   [/\b[A-Za-z0-9+_-]{40,}={0,2}/g, "<redacted>"],
+  // Account and list IDs, such as a Google Tasks list's: 16 or more letters
+  // and digits mixing upper and lower case and digits, which words don't.
+  [
+    /\b(?=[A-Za-z0-9]*[A-Z])(?=[A-Za-z0-9]*[a-z])(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{16,}={0,2}(?![\w+/-])/g,
+    "<id>",
+  ],
   [/\b(serial(?:\s*number)?|SerialNumber)(\s*[=:]\s*)\S+/gi, "$1$2<serial>"],
   [/\b(ssid)(\s*[=:]?\s*)(?:(['"]).*?\3|\S+)/gi, "$1$2<ssid>"],
 ];
@@ -54,7 +65,8 @@ export interface Identities {
 
 /**
  * Remove secrets and personal details from text before it is stored or sent
- * anywhere: credentials, emails, home directories, UUIDs and other long IDs,
+ * anywhere: credentials, emails, home directories, UUIDs, account IDs and
+ * other long IDs,
  * MAC and IP addresses, serial numbers, Wi-Fi network names, long token-like
  * strings, and the given user and host names.
  */
