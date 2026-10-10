@@ -15,6 +15,16 @@ export interface ReadOptions {
   readonly after?: string | undefined;
   /** Keep reading new entries as they're written. */
   readonly follow: boolean;
+  /**
+   * Read every entry this program logged, at any priority, instead of the
+   * entries triage cares about from every program.
+   */
+  readonly identifier?: string | undefined;
+  /**
+   * Read every journal found rather than only this machine's, for a journal
+   * mounted without its machine ID, as in a Home Assistant app.
+   */
+  readonly merge?: boolean | undefined;
 }
 
 export interface BeforeOptions {
@@ -70,12 +80,17 @@ export class Journal extends Context.Service<
                 ? []
                 : [`--after-cursor=${options.after}`]),
               ...(options.follow ? ["--follow"] : []),
-              ...Array.from(
-                { length: warningPriority + 1 },
-                (_, priority) => `PRIORITY=${priority}`,
-              ),
-              "+",
-              ...Object.values(MessageId).map((id) => `MESSAGE_ID=${id}`),
+              ...(options.merge === true ? ["--merge"] : []),
+              ...(options.identifier === undefined
+                ? [
+                    ...Array.from(
+                      { length: warningPriority + 1 },
+                      (_, priority) => `PRIORITY=${priority}`,
+                    ),
+                    "+",
+                    ...Object.values(MessageId).map((id) => `MESSAGE_ID=${id}`),
+                  ]
+                : [`SYSLOG_IDENTIFIER=${options.identifier}`]),
             ]),
           )
           .pipe(

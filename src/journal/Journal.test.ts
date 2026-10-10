@@ -42,4 +42,37 @@ describe("Journal", () => {
     expect(command.args).toContain("--after-cursor=s=1;i=2");
     expect(command.args).toContain("--follow");
   });
+
+  test("reads one program at every priority, from every journal mounted", async () => {
+    const seen: Array<ChildProcess.Command> = [];
+
+    const spawner = Layer.mock(ChildProcessSpawner.ChildProcessSpawner, {
+      streamLines: (command) => {
+        seen.push(command);
+
+        return Stream.empty;
+      },
+    });
+
+    await Effect.gen(function* () {
+      const journal = yield* Journal;
+
+      yield* journal
+        .read({ follow: false, identifier: "homeassistant", merge: true })
+        .pipe(Stream.runDrain);
+    }).pipe(
+      Effect.provide(Journal.layer.pipe(Layer.provide(spawner))),
+      Effect.runPromise,
+    );
+
+    const [command] = seen;
+
+    if (command?._tag !== "StandardCommand") {
+      throw new Error("Expected a journalctl command");
+    }
+
+    expect(command.args).toContain("--merge");
+    expect(command.args).toContain("SYSLOG_IDENTIFIER=homeassistant");
+    expect(command.args.some((arg) => arg.startsWith("PRIORITY="))).toBe(false);
+  });
 });
