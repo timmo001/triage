@@ -1,28 +1,18 @@
-## Home Assistant
-
-The app now collects much more than Core's errors, all as the host `home-assistant`, with the same redaction, Home Assistant's names included:
-
-- **The Supervisor's errors**, read like Core's, with their tracebacks. On by default with `collect_supervisor`.
-- **Apps' errors.** Apps log in all sorts of formats, so only lines that give a level near their start are read, such as `ERROR:`, `[W]`, `WRN` or `[warning]`. Apps that log in Core's format keep their tracebacks. Each event is named by its app, and triage's own log is left out. New apps are picked up within the hour. On by default with `collect_apps`.
-- **The host's own journal**: crashes, failed units, out-of-memory kills and errors from the kernel, systemd and the host's services. Docker puts every container's output in the same journal, so that's left out here, and nothing is collected twice. On by default with `collect_host`.
-- **The Supervisor plugins' errors**, such as DNS and audio, read the same way as apps. Off by default with `collect_plugins`, since DNS logs a lot of lookups that time out.
-
-The issues page now says Home Assistant's errors aren't being collected, rather than only Core's, when the app can't read the host journal. See [Setting up the server](https://triage.timmo.dev/setup/server#home-assistant).
-
-## Grouping
-
-- URLs are templated as `<url>`, so the same failure against several endpoints is one issue.
-- Numbers with a unit, such as `30s`, `250ms` or `512kB`, are templated with the unit kept, so a back-off's growing delays and every OOM kill's memory sizes don't each start an issue.
-- Crash frames no longer keep `n/a` as their module, which grouped them as `a`. A migration fixes stored crashes, and their issues keep their events.
-
-Issues whose messages have URLs or numbers with units get a new fingerprint, so each one starts a new issue once, on its next event. Resolve or mute the old ones as they go quiet.
-
 ## Privacy
 
-- The user name and password in a URL are redacted, as in `https://<redacted>@example.com`.
-- Unit names with an `@` are no longer mistaken for email addresses when their instance has a colon in it, as socket-activated ones do, such as `sshd@3-<ip>:22-<ip>:51234.service`, or when they're a drop-in directory.
+Redaction keeps everything personal out of what's stored and sent, as before, but personal details can now be shown again where it's safe to:
+
+- **Tokens.** Addresses, MAC addresses, user and host names, Wi-Fi networks, email addresses, serial numbers and Home Assistant's devices, entities, areas, floors and home become a token with a code, such as `<ip:71d0a3c2e94b>`, instead of a plain `<ip>`. The code comes from a key made on the machine that captured the event, which never leaves it, and the same value always gets the same code there. That machine keeps the value behind each code, and forgets it once nothing stored holds it. Credentials, UUIDs, long IDs and home directories stay plain placeholders, and nothing keeps them. Codes don't change how issues group.
+- **The web UI through Home Assistant** shows the real value in place of each token it knows, underlined, with the token in its tooltip, in event messages, the lines logged before them, programs, units and warning examples. Only through Home Assistant: the server's own port never answers with values, even to an admin token, so agents, MCP and scripts only see tokens.
+- **Models on your own network** can see the values with `TRIAGE_DECISION_INTERNAL` or `TRIAGE_LLM_INTERNAL`, when their API is on the same machine or a local address. Cloudflare, and OpenAI's and Anthropic's own APIs, never see them.
+- **A server on your own network** can be sent a host's values with `TRIAGE_SERVER_INTERNAL`, so its web UI and models can show them too. Never a server anywhere else.
+
+All three settings are off by default, and the log says when one is ignored because the address isn't local. See [Privacy](https://triage.timmo.dev/privacy).
+
+Events captured before this release keep their plain placeholders, so only new events show values.
 
 ## API
 
-- **Breaking:** `GET /api/hosts/collection` returns `homeAssistant` instead of `homeAssistantCore`, and `Api.CoreCollection` is now `Api.HomeAssistantCollection`, since it covers more than Core.
+- `POST /api/redactions`: hosts send the values behind their tokens, only with `TRIAGE_SERVER_INTERNAL`.
+- `POST /api/redactions/resolve`: the values behind tokens, for the web UI, answered only through Home Assistant ingress.
 
