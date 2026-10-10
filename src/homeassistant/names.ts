@@ -177,11 +177,17 @@ export const namesRedactor = (
     const withoutIds =
       entityIds === undefined
         ? text
-        : text.replace(
-            entityIds,
-            (entityId) =>
-              `${entityId.slice(0, entityId.indexOf("."))}.${mark("entity", entityId)}`,
-          );
+        : text.replace(entityIds, (entityId) => {
+            const dot = entityId.indexOf(".");
+
+            // The domain stays in the text, so the token only stands for
+            // the object ID after it.
+            return `${entityId.slice(0, dot)}.${mark(
+              "entity",
+              entityId,
+              entityId.slice(dot + 1),
+            )}`;
+          });
 
     return byName === undefined
       ? withoutIds

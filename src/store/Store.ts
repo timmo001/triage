@@ -937,6 +937,25 @@ const migrations = SqliteMigrator.fromRecord({
       )
     `;
   }),
+  // An entity ID's token only stands for its object ID, since its domain stays
+  // in the text, so a value kept as the whole entity ID showed the domain
+  // twice. Names, which have spaces or capitals, are left alone.
+  "0020_entity_object_ids": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    const rows = yield* sql<{ token: string; value: string }>`
+      SELECT token, value FROM redactions WHERE kind = 'entity'
+    `;
+
+    for (const { token, value } of rows) {
+      if (/^[a-z0-9_]+\.[a-z0-9_]+$/.test(value)) {
+        yield* sql`
+          UPDATE redactions SET value = ${value.slice(value.indexOf(".") + 1)}
+          WHERE token = ${token}
+        `;
+      }
+    }
+  }),
 });
 
 /** How long a host keeps warning counts, sent or not. */

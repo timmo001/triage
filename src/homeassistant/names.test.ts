@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { type Redaction, tokenize } from "../redact.js";
 import { namesRedactor, parseRegistries } from "./names.js";
 
 const registries = {
@@ -80,5 +81,19 @@ describe("namesRedactor", () => {
 
   test("changes nothing without registries", () => {
     expect(namesRedactor({ entityIds: [], names: [] })("Study")).toBe("Study");
+  });
+
+  test("keeps only an entity ID's object ID behind its token, after its domain", () => {
+    const kept: Array<Redaction> = [];
+
+    const redacted = namesRedactor(
+      parseRegistries(registries),
+      tokenize(new Uint8Array(32).fill(7), (redaction) => kept.push(redaction)),
+    )("Error setting up light.reading_light");
+
+    expect(redacted).toMatch(/^Error setting up light\.<entity:[0-9a-f]{12}>$/);
+    expect(kept.map(({ kind, value }) => [kind, value])).toEqual([
+      ["entity", "reading_light"],
+    ]);
   });
 });

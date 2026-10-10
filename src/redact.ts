@@ -37,7 +37,15 @@ export interface Redaction {
  * machine keeps the values behind its tokens, or a plain placeholder such as
  * `<ip>` otherwise.
  */
-export type Mark = (kind: Kind, value: string) => string;
+export type Mark = (
+  kind: Kind,
+  value: string,
+  /**
+   * What to show for it, when that's only part of `value`, such as an entity
+   * ID's object ID, which follows its domain where the token goes.
+   */
+  shown?: string,
+) => string;
 
 /** A plain placeholder, such as `<ip>`, which keeps nothing. */
 export const placeholder: Mark = (kind) => `<${kind}>`;
@@ -55,7 +63,7 @@ const tokenLength = 12;
  */
 export const tokenize =
   (key: Uint8Array, remember: (redaction: Redaction) => void): Mark =>
-  (kind, value) => {
+  (kind, value, shown = value) => {
     const hash = createHmac("sha256", key)
       .update(`${kind}\0${value.toLowerCase()}`)
       .digest("hex")
@@ -63,7 +71,7 @@ export const tokenize =
 
     const token = `<${kind}:${hash}>`;
 
-    remember({ token, kind, value });
+    remember({ token, kind, value: shown });
 
     return token;
   };
