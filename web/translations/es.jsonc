@@ -185,6 +185,13 @@
   "issue.fingerprints": "Huellas",
   "fingerprints.hint": "Incidencias fusionadas en esta, por la huella que agrupa sus eventos. Separar devuelve los eventos de una huella a una incidencia propia.",
   "fingerprints.unmerge": "Separar",
+  "issue.warnings": "Avisos",
+  "warnings.hint": "Los avisos más frecuentes del mismo programa en estos equipos, contados en cada equipo y enviados mientras tenga una incidencia que no esté silenciada.",
+  "warnings.seen": {
+    "one": "{count} vez en {host}, la última {last}",
+    "many": "{count} de veces en {host}, la última {last}",
+    "other": "{count} veces en {host}, la última {last}"
+  },
   "issue.loadingEvents": "Cargando eventos",
   "issue.noEvents": "No hay eventos.",
   "issue.loadMoreFailed": "No se pudieron cargar más eventos.",

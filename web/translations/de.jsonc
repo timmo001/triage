@@ -176,6 +176,12 @@
   "issue.fingerprints": "Fingerabdrücke",
   "fingerprints.hint": "In dieses Problem zusammengeführte Probleme, nach dem Fingerabdruck, der ihre Ereignisse gruppiert. Trennen verschiebt die Ereignisse eines Fingerabdrucks zurück in ein eigenes Problem.",
   "fingerprints.unmerge": "Trennen",
+  "issue.warnings": "Warnungen",
+  "warnings.hint": "Wovor dasselbe Programm auf diesen Hosts am häufigsten gewarnt hat, auf jedem Host gezählt und gesendet, solange es ein Problem hat, das nicht stummgeschaltet ist.",
+  "warnings.seen": {
+    "one": "{count}-mal auf {host}, zuletzt {last}",
+    "other": "{count}-mal auf {host}, zuletzt {last}"
+  },
   "issue.loadingEvents": "Ereignisse werden geladen",
   "issue.noEvents": "Keine Ereignisse.",
   "issue.loadMoreFailed": "Weitere Ereignisse konnten nicht geladen werden.",

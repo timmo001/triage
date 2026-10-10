@@ -188,6 +188,14 @@
   "issue.fingerprints": "Odciski",
   "fingerprints.hint": "Problemy scalone z tym, według odcisku, który grupuje ich zdarzenia. Rozdziel przenosi zdarzenia odcisku z powrotem do osobnego problemu.",
   "fingerprints.unmerge": "Rozdziel",
+  "issue.warnings": "Ostrzeżenia",
+  "warnings.hint": "Najczęstsze ostrzeżenia tego samego programu na tych hostach, liczone na każdym hoście i wysyłane, dopóki ma problem, który nie jest wyciszony.",
+  "warnings.seen": {
+    "one": "{count} raz na {host}, ostatnio {last}",
+    "few": "{count} razy na {host}, ostatnio {last}",
+    "many": "{count} razy na {host}, ostatnio {last}",
+    "other": "{count} razy na {host}, ostatnio {last}"
+  },
   "issue.loadingEvents": "Wczytywanie zdarzeń",
   "issue.noEvents": "Brak zdarzeń.",
   "issue.loadMoreFailed": "Nie udało się wczytać kolejnych zdarzeń.",

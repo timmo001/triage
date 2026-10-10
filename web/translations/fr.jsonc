@@ -185,6 +185,13 @@
   "issue.fingerprints": "Empreintes",
   "fingerprints.hint": "Problèmes fusionnés dans celui-ci, par l'empreinte qui regroupe leurs événements. Séparer replace les événements d'une empreinte dans un problème à part.",
   "fingerprints.unmerge": "Séparer",
+  "issue.warnings": "Avertissements",
+  "warnings.hint": "Les avertissements les plus fréquents du même programme sur ces hôtes, comptés sur chaque hôte et envoyés tant qu'il a un problème qui n'est pas mis en sourdine.",
+  "warnings.seen": {
+    "one": "{count} fois sur {host}, dernier {last}",
+    "many": "{count} de fois sur {host}, dernier {last}",
+    "other": "{count} fois sur {host}, dernier {last}"
+  },
   "issue.loadingEvents": "Chargement des événements",
   "issue.noEvents": "Aucun événement.",
   "issue.loadMoreFailed": "Impossible de charger d’autres événements.",

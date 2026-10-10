@@ -178,7 +178,8 @@ export class TriageIssue extends LitElement {
         font-size: var(--triage-font-size-s);
       }
 
-      .fingerprints {
+      .fingerprints,
+      .warnings {
         list-style: none;
         margin: 0 0 var(--triage-space-8);
         padding: 0;
@@ -186,14 +187,16 @@ export class TriageIssue extends LitElement {
         gap: var(--triage-space-2);
       }
 
-      .fingerprints li {
+      .fingerprints li,
+      .warnings li {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: var(--triage-space-2);
       }
 
-      .fingerprints code {
+      .fingerprints code,
+      .warnings code {
         overflow-wrap: anywhere;
       }
 
@@ -674,6 +677,7 @@ export class TriageIssue extends LitElement {
           </div>
           <h2>${t("issue.suggestions")}</h2>
           ${renderSuggestions(value.suggestions)}
+          ${value.warnings.length > 0 ? renderWarnings(value.warnings) : nothing}
           <h2>${t("issue.eventList")}</h2>
           ${this.#renderEvents()}
         `,
@@ -1100,6 +1104,29 @@ const renderSuggestions = (suggestions: ReadonlyArray<Api.IssueSuggestion>) =>
           )}
         </ol>
       `;
+
+const renderWarnings = (warnings: ReadonlyArray<Api.IssueWarning>) => html`
+  <h2>${t("issue.warnings")}</h2>
+  <p class="muted-text">${t("warnings.hint")}</p>
+  <ul class="warnings">
+    ${warnings.map(
+      (warning) => html`
+        <li>
+          <code title=${warning.example}>${warning.template}</code>
+          <span class="muted-text">
+            ${parts("warnings.seen", {
+              count: warning.count,
+              host: warning.host,
+              last: html`<span title=${formatTime(warning.lastSeen)}
+                >${ago(warning.lastSeen)}</span
+              >`,
+            })}
+          </span>
+        </li>
+      `,
+    )}
+  </ul>
+`;
 
 const renderHosts = (hosts: ReadonlyArray<Api.HostCount>) => html`
   <ul class="hosts">

@@ -179,6 +179,12 @@
   "issue.fingerprints": "Vingerafdrukken",
   "fingerprints.hint": "Problemen die in dit probleem zijn samengevoegd, per vingerafdruk die hun gebeurtenissen groepeert. Splitsen zet de gebeurtenissen van een vingerafdruk terug in een eigen probleem.",
   "fingerprints.unmerge": "Splitsen",
+  "issue.warnings": "Waarschuwingen",
+  "warnings.hint": "Waar hetzelfde programma op deze hosts het vaakst voor waarschuwde, per host geteld en verstuurd zolang het een probleem heeft dat niet gedempt is.",
+  "warnings.seen": {
+    "one": "{count} keer op {host}, laatst {last}",
+    "other": "{count} keer op {host}, laatst {last}"
+  },
   "issue.loadingEvents": "Gebeurtenissen laden",
   "issue.noEvents": "Geen gebeurtenissen.",
   "issue.loadMoreFailed": "Kon niet meer gebeurtenissen laden.",

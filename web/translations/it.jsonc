@@ -185,6 +185,13 @@
   "issue.fingerprints": "Impronte",
   "fingerprints.hint": "Problemi uniti in questo, per l'impronta che ne raggruppa gli eventi. Separa sposta gli eventi di un'impronta in un problema a sé.",
   "fingerprints.unmerge": "Separa",
+  "issue.warnings": "Avvisi",
+  "warnings.hint": "Gli avvisi più frequenti dello stesso programma su questi host, contati su ogni host e inviati finché ha un problema non silenziato.",
+  "warnings.seen": {
+    "one": "{count} volta su {host}, l'ultima {last}",
+    "many": "{count} di volte su {host}, l'ultima {last}",
+    "other": "{count} volte su {host}, l'ultima {last}"
+  },
   "issue.loadingEvents": "Caricamento degli eventi",
   "issue.noEvents": "Nessun evento.",
   "issue.loadMoreFailed": "Impossibile caricare altri eventi.",

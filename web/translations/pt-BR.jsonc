@@ -185,6 +185,13 @@
   "issue.fingerprints": "Impressões digitais",
   "fingerprints.hint": "Problemas mesclados neste, pela impressão digital que agrupa seus eventos. Separar move os eventos de uma impressão digital de volta para um problema próprio.",
   "fingerprints.unmerge": "Separar",
+  "issue.warnings": "Avisos",
+  "warnings.hint": "Os avisos mais frequentes do mesmo programa nestes hosts, contados em cada host e enviados enquanto ele tiver um problema que não esteja silenciado.",
+  "warnings.seen": {
+    "one": "{count} vez em {host}, a última {last}",
+    "many": "{count} de vezes em {host}, a última {last}",
+    "other": "{count} vezes em {host}, a última {last}"
+  },
   "issue.loadingEvents": "Carregando eventos",
   "issue.noEvents": "Nenhum evento.",
   "issue.loadMoreFailed": "Não foi possível carregar mais eventos.",

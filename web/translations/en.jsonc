@@ -177,6 +177,16 @@
   "issue.fingerprints": "Fingerprints",
   "fingerprints.hint": "Issues merged into this one, by the fingerprint that groups their events. Unmerge moves a fingerprint's events back out into an issue of their own.",
   "fingerprints.unmerge": "Unmerge",
+  // Warnings the program behind the issue logged, which aren't issues of their
+  // own.
+  "issue.warnings": "Warnings",
+  "warnings.hint": "What the same program warned about most often on these hosts, counted on each host and sent while it has an issue that isn't muted.",
+  // Next to a warning. {host} is the host's name and {last} is a relative
+  // time, such as "3 days ago".
+  "warnings.seen": {
+    "one": "{count} time on {host}, last {last}",
+    "other": "{count} times on {host}, last {last}"
+  },
   "issue.loadingEvents": "Loading events",
   "issue.noEvents": "No events.",
   "issue.loadMoreFailed": "Couldn't load more events.",
