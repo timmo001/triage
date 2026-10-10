@@ -186,13 +186,16 @@ jobs:
             .scripts/linux/triage-worker.service
             .scripts/linux/triage.install
 
+      # Named by the run alone, not its attempt, so re-running only a failed
+      # build still finds the files this job made on an earlier attempt.
       - name: Upload package files
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: arch-triage-bin-${{ github.run_id }}-${{ github.run_attempt }}
+          name: arch-triage-bin-${{ github.run_id }}
           path: ${{ runner.temp }}/arch-bin
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
 
   arch-bin:
     name: Arch package (triage-bin)
@@ -200,7 +203,7 @@ jobs:
     uses: timmo001/workflows/.github/workflows/build-arch-package.yml@dee521f49caa2626c8adeed2af4767887b2f202b # 20261009.1
     with:
       package-name: triage-bin
-      package-files-artifact-name: arch-triage-bin-${{ github.run_id }}-${{ github.run_attempt }}
+      package-files-artifact-name: arch-triage-bin-${{ github.run_id }}
       pkgbuild-path: PKGBUILD
     secrets:
       ARCH_REPO_DISPATCH_TOKEN: ${{ secrets.ARCH_REPO_DISPATCH_TOKEN }}
