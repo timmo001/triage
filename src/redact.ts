@@ -8,8 +8,11 @@ const rules: ReadonlyArray<readonly [RegExp, string]> = [
     /\b(password|passwd|secret|token|api[_-]?key|auth(?:orization)?)(\s*[=:]\s*)\S+/gi,
     "$1$2<redacted>",
   ],
+  // An email address, but not a templated unit's name, such as
+  // getty@tty1.service or sshd@3-10.0.0.1:22-10.0.0.2:51234.service, whose
+  // instance can hold dots, colons and escapes before its unit type.
   [
-    /[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.(?!(?:service|socket|timer|target|mount|automount|scope|slice|path|swap|device)\b)[\w-]+(?![\w-]|\.[\w-])/g,
+    /[\w.+-]+@(?![\w.:\\@-]*\.(?:service|socket|timer|target|mount|automount|scope|slice|path|swap|device)(?![\w-]))[\w-]+(?:\.[\w-]+)*\.[\w-]+(?![\w-]|\.[\w-])/g,
     "<email>",
   ],
   [/\/home\/[^/\s]+/g, "~"],

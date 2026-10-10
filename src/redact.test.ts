@@ -10,6 +10,21 @@ describe("redact", () => {
     ["mail alex.smith+x@example.co.uk now", "mail <email> now"],
     ["sent to sam@example.com.", "sent to <email>."],
     ["getty@tty1.service failed", "getty@tty1.service failed"],
+    ["app-example@autostart.service", "app-example@autostart.service"],
+    [
+      "app-org.example.App@autostart.service: Failed",
+      "app-org.example.App@autostart.service: Failed",
+    ],
+    [
+      "sshd@3-10.0.0.1:22-10.0.0.2:51234.service",
+      "sshd@3-<ip>:22-<ip>:51234.service",
+    ],
+    [
+      "systemd-fsck@dev-disk-by\\x2duuid-1234.service",
+      "systemd-fsck@dev-disk-by\\x2duuid-1234.service",
+    ],
+    ["drop-in foo@bar.service.d", "drop-in foo@bar.service.d"],
+    ["notify sam@example.com: done", "notify <email>: done"],
     ["open /home/alex/.config/app.json", "open ~/.config/app.json"],
     ["fs 1f0e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b", "fs <uuid>"],
     ["machine 0123456789abcdef0123456789abcdef", "machine <id>"],
