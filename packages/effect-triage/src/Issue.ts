@@ -80,8 +80,9 @@ export const title = (event: Event): string =>
       `${unitTemplate(failure.unit ?? failure.identifier ?? "A unit")} failed${failure.result === undefined ? "" : ` (${failure.result})`}`,
     OutOfMemory: (oom) =>
       `${oom.process ?? (oom.unit === undefined ? "A process" : unitTemplate(oom.unit))} was killed for memory`,
+    // Only the first line, since a traceback can follow it.
     LogError: (log) =>
-      `${log.identifier ?? (log.unit === undefined ? "unknown" : unitTemplate(log.unit))}: ${template(log.message)}`,
+      `${log.identifier ?? (log.unit === undefined ? "unknown" : unitTemplate(log.unit))}: ${template(log.message.split("\n")[0] ?? "")}`,
   });
 
 /** The issue an event starts, before any other event joins it. */
