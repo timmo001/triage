@@ -10,6 +10,12 @@ import { type Entry, text } from "../journal/Entry.js";
 /** The journal's `SYSLOG_IDENTIFIER` for Home Assistant Core's container. */
 export const coreIdentifier = "homeassistant";
 
+/**
+ * Where Core's events come from, apart from the host's own journal, and the
+ * store's cursor key for reading them.
+ */
+export const coreSource = "homeassistant-core";
+
 /** Terminal colour codes, which Core's log has even when it isn't a terminal. */
 const colours = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 
@@ -128,7 +134,7 @@ export const coreEvent = (
   return Event.Event.cases.LogError.make({
     ...rest,
     id: Fingerprint.issueId(record.entry.__CURSOR),
-    source: "journal",
+    source: coreSource,
     ...(bootId !== "" && { bootId }),
     severity: record.severity,
     identifier: redact(record.logger),

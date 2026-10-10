@@ -7,12 +7,10 @@ import {
   coreEvent,
   coreIdentifier,
   coreRecords,
+  coreSource,
   coreWarning,
   lastRecordStart,
 } from "./coreLog.js";
-
-/** The store's cursor key for Core's entries in the host journal. */
-const source = "homeassistant-core";
 
 /** The most journal entries stored together. */
 const batchSize = 1000;
@@ -72,7 +70,7 @@ export const layer = (options: { readonly host: string }) =>
         // journalctl --follow only reads the current boot, so catch up on
         // earlier boots with a plain read before following.
         for (const follow of [false, true]) {
-          const after = yield* store.cursor(source);
+          const after = yield* store.cursor(coreSource);
 
           // A full batch means more entries are already waiting, so the last
           // record's traceback may go on in the next one. Hold it back until
@@ -114,7 +112,7 @@ export const layer = (options: { readonly host: string }) =>
                   }));
 
                   const added = yield* store.record(
-                    source,
+                    coreSource,
                     records.flatMap(({ record, redact }) => {
                       const event = coreEvent(record, options.host, redact);
 

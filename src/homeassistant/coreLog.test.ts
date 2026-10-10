@@ -77,6 +77,7 @@ describe("coreEvent", () => {
 
     expect(event?._tag).toBe("LogError");
     expect(event?.host).toBe("home-assistant");
+    expect(event?.source).toBe("homeassistant-core");
     expect(event?.identifier).toBe("homeassistant.components.hue");
     expect(event?.bootId).toBe(Fingerprint.issueId("boot"));
     expect(event?.message).toContain("Bridge at <ip>");
