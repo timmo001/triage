@@ -1,6 +1,6 @@
 import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic";
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai-compat";
-import { type Api, Event, Issue } from "@timmo001/effect-triage";
+import { type Api, Issue } from "@timmo001/effect-triage";
 import {
   Config,
   Context,
@@ -35,7 +35,7 @@ export type LlmProvider = typeof LlmProvider.Type;
  */
 const maxOutput = 4096;
 
-const instructions = `You help someone fix a crash or error on their own Linux machine, often Arch Linux with the Omarchy Hyprland desktop. You're given an issue grouped from the system journal, with sample messages, for crashes the top stack frames, and when known the systemd unit, whether it's a system or user unit, and the lines it logged just before. Personal details were redacted before you saw them: <user>, <host>, <ip>, <mac>, <uuid>, <id>, <email>, <redacted>, and ~ for the home directory.
+const instructions = `You help someone fix a crash or error on their own Linux machine, often Arch Linux with the Omarchy Hyprland desktop. You're given an issue grouped from the system journal, with sample messages, for crashes the top stack frames, and when known the systemd unit, whether it's a system or user unit, the lines it logged just before, and the warnings the same program logged most often, with how many times. Personal details were redacted before you saw them: <user>, <host>, <ip>, <mac>, <uuid>, <id>, <email>, <redacted>, and ~ for the home directory.
 
 Reply in Markdown, in under 250 words:
 1. The most likely cause, in one or two sentences.
@@ -231,11 +231,15 @@ const languageModel = (options: {
 /** The longest breadcrumb line sent, matching the decision models' messages. */
 const maxBreadcrumb = 300;
 
+/** How many of the program's most frequent warnings are sent. */
+const maxWarnings = 5;
+
 /**
- * The decision models' description of an issue, plus its unit and the lines
- * the unit logged before the latest event that has them.
+ * The decision models' description of an issue, plus its unit, the lines the
+ * unit logged before the latest event that has them, and the warnings its
+ * program logged most often.
  */
-const describe = (issue: Issue.Issue, events: ReadonlyArray<Event.Event>) => {
+const describe = ({ issue, events, warnings }: Api.IssueDetail) => {
   const state = toState(issue, events);
   const latest = events.find((event) => event.breadcrumbs !== undefined);
   const unit = latest ?? events[0];
@@ -250,6 +254,12 @@ const describe = (issue: Issue.Issue, events: ReadonlyArray<Event.Event>) => {
           line.slice(0, maxBreadcrumb),
         ),
       }),
+      ...(warnings.length > 0 && {
+        warnings: warnings.slice(0, maxWarnings).map((warning) => ({
+          message: warning.template.slice(0, maxBreadcrumb),
+          count: warning.count,
+        })),
+      }),
     },
   };
 };
@@ -258,10 +268,12 @@ const suggestFor = Effect.fnUntraced(function* (
   work: Work["Service"],
   model: LanguageModel.LanguageModel,
   name: string,
-  { issue, events }: Api.IssueDetail,
+  detail: Api.IssueDetail,
 ) {
+  const { issue, events } = detail;
+
   const response = yield* model.generateText({
-    prompt: Prompt.make(JSON.stringify(describe(issue, events), null, 2)).pipe(
+    prompt: Prompt.make(JSON.stringify(describe(detail), null, 2)).pipe(
       Prompt.setSystem(instructions),
     ),
   });

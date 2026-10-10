@@ -81,7 +81,7 @@ const ListIssues = Tool.make("list_issues", {
   .annotate(Tool.OpenWorld, false);
 
 const GetIssue = Tool.make("get_issue", {
-  description: `Read a triage issue: its kind, state and counts, the hosts it happened on, what the decision models made of it, suggested fixes, its notes and status history, the fingerprints it owns, more than one once issues are merged into it, and its latest ${Api.latestEvents} events, newest first. The notes say why it was resolved or muted before, and which host's event made it regress, so read them before fixing it again. Everything personal was redacted before it was stored. issue.count is how many events it has in all; read the rest with get_issue_events.`,
+  description: `Read a triage issue: its kind, state and counts, the hosts it happened on, what the decision models made of it, suggested fixes, its notes and status history, the fingerprints it owns, more than one once issues are merged into it, its latest ${Api.latestEvents} events, newest first, and the warnings the same program logged most often on those hosts. The notes say why it was resolved or muted before, and which host's event made it regress, so read them before fixing it again. Everything personal was redacted before it was stored. issue.count is how many events it has in all; read the rest with get_issue_events.`,
   parameters: Schema.Struct({ issue: IssueParameter }),
   success: Api.IssueReview,
   failure: IssueToolError,
