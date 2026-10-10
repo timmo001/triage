@@ -15,6 +15,7 @@ import {
   Layer,
   Option,
   Path,
+  Schedule,
   Schema,
 } from "effect";
 import { SqlClient, type SqlError, SqlSchema } from "effect/sql";
@@ -941,6 +942,20 @@ const migrations = SqliteMigrator.fromRecord({
 /** How long a host keeps warning counts, sent or not. */
 const warningRetention = 7 * 24 * 60 * 60 * 1000;
 
+/** Redaction tokens, such as `<ip:71d0a3c2e94b>`, as stored text holds them. */
+const storedTokens = /<[a-z]+:[0-9a-f]{12}>/g;
+
+/**
+ * How long a redaction value is kept before it can be forgotten, since it's
+ * written a moment before the event that holds its token.
+ */
+const pruneGrace = 60 * 60 * 1000;
+
+/** When an open store first forgets unused redaction values, then how often. */
+const firstPrune = "10 minutes";
+
+const pruneEvery = "1 day";
+
 const warningKey = (warning: Warning.Warning) =>
   JSON.stringify([
     warning.host,
@@ -1074,6 +1089,13 @@ export class Store extends Context.Service<
       target: string,
       tokens: ReadonlyArray<string>,
     ): Effect.Effect<void, StoreError>;
+    /**
+     * Forget values behind tokens no stored event or warning holds any more,
+     * such as one from a warning's example that a newer one replaced, kept
+     * since before `before`. Returns how many were forgotten. Runs by itself
+     * every day while the store is open.
+     */
+    pruneRedactions(before: number): Effect.Effect<number, StoreError>;
     /**
      * Store events, warnings and the cursor after them together, so a source
      * never skips or double counts them. Warnings add to the counts so far,
@@ -1383,6 +1405,91 @@ export class Store extends Context.Service<
         `;
       },
       Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const pruneRedactions = Effect.fn("Store.pruneRedactions")(
+      function* (before: number) {
+        const candidates = yield* sql<{ token: string }>`
+          SELECT token FROM redactions WHERE first_seen < ${before}
+        `;
+
+        if (candidates.length === 0) {
+          return 0;
+        }
+
+        // Every token still held, from events a page at a time and warnings.
+        const held = new Set<string>();
+
+        const hold = (text: string) => {
+          for (const token of text.match(storedTokens) ?? []) {
+            held.add(token);
+          }
+        };
+
+        let last = 0;
+
+        while (true) {
+          const rows = yield* sql<{ rowid: number; data: string }>`
+            SELECT rowid, data FROM events WHERE rowid > ${last}
+            ORDER BY rowid LIMIT 5000
+          `;
+
+          if (rows.length === 0) {
+            break;
+          }
+
+          for (const row of rows) {
+            hold(row.data);
+          }
+
+          last = rows.at(-1)?.rowid ?? last;
+        }
+
+        const warnings = yield* sql<{
+          example: string;
+          identifier: string;
+          unit: string;
+        }>`SELECT example, identifier, unit FROM warnings`;
+
+        for (const warning of warnings) {
+          hold(`${warning.example} ${warning.identifier} ${warning.unit}`);
+        }
+
+        const unheld = candidates
+          .map(({ token }) => token)
+          .filter((token) => !held.has(token));
+
+        for (let start = 0; start < unheld.length; start += 500) {
+          const chunk = unheld.slice(start, start + 500);
+
+          yield* sql`DELETE FROM redaction_uploads WHERE ${sql.in("token", chunk)}`;
+          yield* sql`DELETE FROM redactions WHERE ${sql.in("token", chunk)}`;
+        }
+
+        return unheld.length;
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    // Daily, starting a while after the store opens, so a short command such
+    // as listing issues never waits on it.
+    yield* Clock.currentTimeMillis.pipe(
+      Effect.flatMap((now) => pruneRedactions(now - pruneGrace)),
+      Effect.tap((pruned) =>
+        pruned === 0
+          ? Effect.void
+          : Effect.logDebug(
+              `Forgot the values behind ${pruned} redaction tokens nothing holds any more`,
+            ),
+      ),
+      Effect.catch((error) =>
+        Effect.logWarning(
+          `Couldn't forget unused redaction values: ${error.message}`,
+        ),
+      ),
+      Effect.delay(firstPrune),
+      Effect.repeat(Schedule.spaced(pruneEvery)),
+      Effect.forkScoped,
     );
 
     const insert = Effect.fnUntraced(function* (event: Event.Event) {
@@ -2661,6 +2768,7 @@ export class Store extends Context.Service<
       resolve,
       pendingRedactions,
       redactionsUploaded,
+      pruneRedactions,
       record,
       add,
       addWarnings,

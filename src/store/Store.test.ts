@@ -67,6 +67,66 @@ describe("Store", () => {
     expect(result.elsewhere).toHaveLength(2);
   });
 
+  test("forgets values whose tokens nothing stored holds any more", async () => {
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+
+      yield* store.remember([
+        { token: "<ip:aaaaaaaaaaaa>", kind: "ip", value: "192.168.1.20" },
+        {
+          token: "<mac:bbbbbbbbbbbb>",
+          kind: "mac",
+          value: "00:11:22:33:44:55",
+        },
+        { token: "<ip:cccccccccccc>", kind: "ip", value: "192.168.1.21" },
+      ]);
+
+      yield* store.record(
+        "journal",
+        [
+          Event.Event.cases.LogError.make({
+            id: "event",
+            host: "omarchy",
+            source: "journal",
+            timestamp: Date.now(),
+            severity: "err",
+            identifier: "example",
+            message: "Lost <ip:aaaaaaaaaaaa>",
+          }),
+        ],
+        "c1",
+        [
+          {
+            host: "omarchy",
+            bootId: "boot",
+            identifier: "example",
+            template: "Slow <mac>",
+            example: "Slow <mac:bbbbbbbbbbbb>",
+            count: 1,
+            firstSeen: Date.now(),
+            lastSeen: Date.now(),
+          },
+        ],
+      );
+
+      // Too new to forget yet.
+      const early = yield* store.pruneRedactions(0);
+      const pruned = yield* store.pruneRedactions(Date.now() + 1000);
+
+      const kept = yield* store.resolve([
+        "<ip:aaaaaaaaaaaa>",
+        "<mac:bbbbbbbbbbbb>",
+        "<ip:cccccccccccc>",
+      ]);
+
+      return { early, pruned, kept: kept.map(({ token }) => token).sort() };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.early).toBe(0);
+    expect(result.pruned).toBe(1);
+    expect(result.kept).toEqual(["<ip:aaaaaaaaaaaa>", "<mac:bbbbbbbbbbbb>"]);
+  });
+
   test("stores events once and groups them into issues", async () => {
     const result = await Effect.gen(function* () {
       const store = yield* Store;
