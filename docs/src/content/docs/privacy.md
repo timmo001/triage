@@ -51,7 +51,7 @@ Redaction is pattern based, so it can miss something unusual. Run `triage collec
 | Server | Nowhere, unless you turn on decide or suggest | |
 | Workers | The triage server they're enrolled with | Decisions and suggestions |
 | Decision models, with `TRIAGE_DECIDE` | The decision model API you choose | A redacted description of the issue |
-| Language models, with `TRIAGE_SUGGEST` or `triage suggest` | The language model API you choose | The same description, plus the unit, its logged lines and the program's 5 most frequent warnings |
+| Language models, with `TRIAGE_SUGGEST` or `triage suggest` | The language model API you choose | The same description, plus the unit or Home Assistant integration, its logged lines and the program's 5 most frequent warnings |
 | Agents, through the [MCP server](/agents) | The agent you connect | An issue's redacted events and warnings, the names hosts were enrolled with, decisions and suggestions |
 
 The description an issue sends is its kind, title and event count, up to 3 distinct messages and, for crashes, the top 5 stack frames. Messages and logged lines are cut at 300 characters. It never includes host names, event IDs or timestamps.

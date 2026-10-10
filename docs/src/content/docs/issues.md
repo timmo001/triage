@@ -103,4 +103,4 @@ triage agreement
 triage suggest <issue>...
 ```
 
-asks a language model how to fix issues, and stores its answers. It sends the same trimmed, redacted description decision models get, plus the unit, the lines it logged before it failed and the 5 warnings its program logged most often, and caps each response at 4,096 tokens, thinking included. Each suggestion records the events it was based on.
+asks a language model how to fix issues, and stores its answers. It sends the same trimmed, redacted description decision models get, plus the unit or, for Home Assistant Core's errors, the integration, the lines logged before it failed and the 5 warnings its program logged most often, and caps each response at 4,096 tokens, thinking included. Each suggestion records the events it was based on.

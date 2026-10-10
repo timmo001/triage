@@ -35,11 +35,13 @@ export type LlmProvider = typeof LlmProvider.Type;
  */
 const maxOutput = 4096;
 
-const instructions = `You help someone fix a crash or error on their own Linux machine, often Arch Linux with the Omarchy Hyprland desktop. You're given an issue grouped from the system journal, with sample messages, for crashes the top stack frames, and when known the systemd unit, whether it's a system or user unit, the lines it logged just before, and the warnings the same program logged most often, with how many times. Personal details were redacted before you saw them: <user>, <host>, <ip>, <mac>, <uuid>, <id>, <email>, <redacted>, and ~ for the home directory.
+const instructions = `You help someone fix a crash or error on their own Linux machine, often Arch Linux with the Omarchy Hyprland desktop, or in their Home Assistant. You're given an issue grouped from the system journal, with sample messages, for crashes the top stack frames, and when known the systemd unit, whether it's a system or user unit, the lines it logged just before, and the warnings the same program logged most often, with how many times. Personal details were redacted before you saw them: <user>, <host>, <ip>, <mac>, <uuid>, <id>, <email>, <redacted>, and ~ for the home directory.
 
 Reply in Markdown, in under 250 words:
 1. The most likely cause, in one or two sentences.
 2. Numbered steps to confirm and fix it, with the exact commands to run. For user units, use \`systemctl --user\` and \`journalctl --user-unit\`.
+
+Some issues are Home Assistant Core's own errors, which come with the integration that logged them. For those, the steps happen in Home Assistant rather than with \`systemctl\` or \`journalctl\`: the integration's settings, the device or service it connects to, and its documentation. When the message doesn't say what went wrong, such as an update coordinator's "Unable to retrieve data after 5 consecutive update failures", the cause was only logged at debug level. Say so, and tell them to turn on debug logging for the integration from its page under Settings > Devices & services, or with the \`logger.set_level\` action for \`homeassistant.components.<domain>\`, then wait for it to happen again.
 
 Say when the details aren't enough to be sure, and what to check next. Don't invent package names, options or file paths.`;
 
@@ -235,20 +237,27 @@ const maxBreadcrumb = 300;
 const maxWarnings = 5;
 
 /**
- * The decision models' description of an issue, plus its unit, the lines the
- * unit logged before the latest event that has them, and the warnings its
- * program logged most often.
+ * The decision models' description of an issue, plus its unit or Home
+ * Assistant integration, the lines logged before the latest event that has
+ * them, and the warnings its program logged most often.
  */
 const describe = ({ issue, events, warnings }: Api.IssueDetail) => {
   const state = toState(issue, events);
   const latest = events.find((event) => event.breadcrumbs !== undefined);
   const unit = latest ?? events[0];
 
+  const integration = events.find(
+    (event) => event.integration !== undefined,
+  )?.integration;
+
   return {
     issue: {
       ...state.issue,
       ...(unit?.unit !== undefined && { unit: unit.unit }),
       ...(unit?.scope !== undefined && { scope: unit.scope }),
+      ...(integration !== undefined && {
+        homeAssistantIntegration: integration,
+      }),
       ...(latest?.breadcrumbs !== undefined && {
         breadcrumbs: latest.breadcrumbs.map((line) =>
           line.slice(0, maxBreadcrumb),
