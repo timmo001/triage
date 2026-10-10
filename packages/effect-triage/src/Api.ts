@@ -168,6 +168,19 @@ export const IngestResult = Schema.Struct({
 
 export interface IngestResult extends Schema.Schema.Type<typeof IngestResult> {}
 
+/** A redaction token, such as `<ip:71d0a3c2e94b>`, and the value behind it. */
+export const Redaction = Schema.Struct({
+  token: Schema.String,
+  /** What it is, such as `ip`, `device` or `user`. */
+  kind: Schema.String,
+  value: Schema.String,
+});
+
+export interface Redaction extends Schema.Schema.Type<typeof Redaction> {}
+
+/** The most tokens looked up at once. */
+export const maxTokens = 500;
+
 /** A warning the program behind an issue logged on one host, across boots. */
 export const IssueWarning = Schema.Struct({
   /** The host's enrolled name. */
@@ -568,6 +581,19 @@ export class IngestGroup extends HttpApiGroup.make("ingest")
       }),
       success: IngestResult,
     }),
+    /**
+     * The values behind a host's redaction tokens, which hosts only send to
+     * a server on their own network when told to. The first value for each
+     * token is kept, and `added` is how many were new.
+     */
+    HttpApiEndpoint.post("redactions", "/redactions", {
+      payload: Schema.Struct({
+        redactions: Schema.Array(Redaction).pipe(
+          Schema.check(Schema.isMaxLength(maxBatch)),
+        ),
+      }),
+      success: IngestResult,
+    }),
   )
   .middleware(HostAuthorization)
   .prefix("/api")
@@ -798,19 +824,6 @@ export class DecisionsGroup extends HttpApiGroup.make("decisions")
         "How each decision model compares with the hand labels: how often it's sure enough to act on, and how often it's right when it is",
     }),
   ) {}
-
-/** A redaction token, such as `<ip:71d0a3c2>`, and the value behind it. */
-export const Redaction = Schema.Struct({
-  token: Schema.String,
-  /** What it is, such as `ip`, `device` or `user`. */
-  kind: Schema.String,
-  value: Schema.String,
-});
-
-export interface Redaction extends Schema.Schema.Type<typeof Redaction> {}
-
-/** The most tokens looked up at once. */
-export const maxTokens = 500;
 
 export class RedactionsGroup extends HttpApiGroup.make("redactions")
   .add(

@@ -28,18 +28,43 @@ describe("Store", () => {
       const first = yield* store.redactionKey;
       const second = yield* store.redactionKey;
 
-      yield* store.remember([
-        { token: "<ip:0123abcd>", kind: "ip", value: "192.168.1.20" },
-      ]);
-      yield* store.remember([
-        { token: "<ip:0123abcd>", kind: "ip", value: "192.168.1.20" },
+      const added = yield* store.remember([
+        { token: "<ip:0123abcd4567>", kind: "ip", value: "192.168.1.20" },
+        { token: "<host:89abcdef0123>", kind: "host", value: "laptop" },
       ]);
 
-      return { first, second };
+      const again = yield* store.remember([
+        { token: "<ip:0123abcd4567>", kind: "ip", value: "192.168.1.21" },
+      ]);
+
+      const pending = yield* store.pendingRedactions("http://server", 10);
+
+      yield* store.redactionsUploaded("http://server", ["<ip:0123abcd4567>"]);
+
+      return {
+        first,
+        second,
+        added,
+        again,
+        pending,
+        after: yield* store.pendingRedactions("http://server", 10),
+        elsewhere: yield* store.pendingRedactions("http://other", 10),
+        resolved: yield* store.resolve(["<ip:0123abcd4567>"]),
+      };
     }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
 
     expect(result.first).toHaveLength(32);
     expect(result.second).toEqual(result.first);
+    expect(result.added).toBe(2);
+    expect(result.again).toBe(0);
+    expect(result.resolved).toEqual([
+      { token: "<ip:0123abcd4567>", kind: "ip", value: "192.168.1.20" },
+    ]);
+    expect(result.pending).toHaveLength(2);
+    expect(result.after.map(({ token }) => token)).toEqual([
+      "<host:89abcdef0123>",
+    ]);
+    expect(result.elsewhere).toHaveLength(2);
   });
 
   test("stores events once and groups them into issues", async () => {

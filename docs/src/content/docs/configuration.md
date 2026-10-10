@@ -21,6 +21,7 @@ Environment variables win over the file. The Home Assistant app uses this for it
 | --- | --- | --- |
 | `TRIAGE_SERVER` | none | The server's URL |
 | `TRIAGE_TOKEN` | none | The host's token, from `triage hosts add` |
+| `TRIAGE_SERVER_INTERNAL` | `false` | Send the server the values behind this host's [redaction tokens](/privacy#whats-redacted), so its web UI and models can show them, when `TRIAGE_SERVER` is on this machine or its own network. Never to a server anywhere else |
 | `TRIAGE_REDACT_NAMES` | none | Other names to redact, comma-separated, such as a GitHub account |
 | `TRIAGE_DB` | `$XDG_STATE_HOME/triage/triage.db` | The host's own store, which also holds events until they're sent |
 

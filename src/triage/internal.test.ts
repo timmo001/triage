@@ -50,7 +50,7 @@ describe("revealed", () => {
       timestamp: 0,
       severity: "err",
       identifier: "example",
-      message: "Lost <device:0123abcd> at <ip:89abcdef>",
+      message: "Lost <device:0123abcd4567> at <ip:89abcdef0123>",
     }),
   );
 
@@ -61,9 +61,9 @@ describe("revealed", () => {
     timestamp: 0,
     severity: "err",
     identifier: "example",
-    unit: "example@<user:aaaabbbb>.service",
-    message: "Lost <device:0123abcd> at <ip:89abcdef>",
-    breadcrumbs: ["Connecting to <device:0123abcd>"],
+    unit: "example@<user:aaaabbbbcccc>.service",
+    message: "Lost <device:0123abcd4567> at <ip:89abcdef0123>",
+    breadcrumbs: ["Connecting to <device:0123abcd4567>"],
   });
 
   const work = (
@@ -81,14 +81,16 @@ describe("revealed", () => {
 
   test("shows the values this machine keeps, and leaves the rest as tokens", async () => {
     const shown = await Effect.runPromise(
-      revealed(work({ "<device:0123abcd>": "Desk lamp" }), issue, [event]),
+      revealed(work({ "<device:0123abcd4567>": "Desk lamp" }), issue, [event]),
     );
 
     // An issue's title is its template, which never holds a token.
     expect(shown.issue.title).toBe("example: Lost <device> at <ip>");
-    expect(shown.events[0]?.message).toBe("Lost Desk lamp at <ip:89abcdef>");
+    expect(shown.events[0]?.message).toBe(
+      "Lost Desk lamp at <ip:89abcdef0123>",
+    );
     expect(shown.events[0]?.breadcrumbs).toEqual(["Connecting to Desk lamp"]);
-    expect(shown.events[0]?.unit).toBe("example@<user:aaaabbbb>.service");
+    expect(shown.events[0]?.unit).toBe("example@<user:aaaabbbbcccc>.service");
     expect(shown.issue.id).toBe(issue.id);
   });
 

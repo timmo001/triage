@@ -10,6 +10,7 @@ import {
 import { HttpApiBuilder } from "effect/http-api";
 import { McpServer } from "effect/ai";
 import { CollectionStatus } from "../homeassistant/Status.js";
+import { isKind } from "../redact.js";
 import { IssueTools, IssueToolsLayer, mcpOptions } from "../mcp/IssueTools.js";
 import { Store } from "../store/Store.js";
 import { agreement } from "../triage/Triager.js";
@@ -142,6 +143,20 @@ const IngestHandlers = HttpApiBuilder.group(
 
           return { added };
         }),
+      )
+      .handle("redactions", ({ payload }) =>
+        store
+          .remember(
+            payload.redactions.flatMap((redaction) =>
+              isKind(redaction.kind)
+                ? [{ ...redaction, kind: redaction.kind }]
+                : [],
+            ),
+          )
+          .pipe(
+            Effect.map((added) => ({ added })),
+            Effect.orDie,
+          ),
       );
   }),
 );

@@ -37,7 +37,7 @@ Redaction happens on the host, when an event or warning is captured, before it's
 - serial numbers
 - Wi-Fi network names
 
-Personal details, such as an address, a MAC address, a user or host name or a Wi-Fi network, become a token with a short code, as in `<ip:71d0a3c2>`. The code comes from a key that's made on the machine that captured the event and never leaves it, so the same value always gets the same code there, but nothing elsewhere can work out the value from it. That machine also keeps the value behind each code, in its own database, and never sends it anywhere, so it can show you the real value later. Credentials, UUIDs, long IDs and home directories never become tokens: nothing keeps their values at all. Codes don't affect grouping, so `<ip:71d0a3c2>` groups like `<ip>`.
+Personal details, such as an address, a MAC address, a user or host name or a Wi-Fi network, become a token with a short code, as in `<ip:71d0a3c2e94b>`. The code comes from a key that's made on the machine that captured the event and never leaves it, so the same value always gets the same code there, but nothing elsewhere can work out the value from it. That machine also keeps the value behind each code, in its own database, so it can show you the real value later. It never sends it anywhere, unless you turn on `TRIAGE_SERVER_INTERNAL` for a server on this machine or your own network, by the same rules as models below. Credentials, UUIDs, long IDs and home directories never become tokens: nothing keeps their values at all. Codes don't affect grouping, so `<ip:71d0a3c2e94b>` groups like `<ip>`.
 
 The [Home Assistant app](/setup/server#home-assistant)'s web UI shows the real value in place of each token it knows, underlined, with the token in its tooltip, since it's on the same machine and you're signed in to Home Assistant. It only does this through Home Assistant: the server's own port never answers with values, even to an admin token, so agents and anything else reading issues only see tokens.
 
@@ -53,7 +53,7 @@ Redaction is pattern based, so it can miss something unusual. Run `triage collec
 
 | What | Where | What it sends |
 | --- | --- | --- |
-| Hosts | The triage server you set in `TRIAGE_SERVER` | Redacted events, and warning counts for programs with an issue |
+| Hosts | The triage server you set in `TRIAGE_SERVER` | Redacted events, warning counts for programs with an issue, and, only with `TRIAGE_SERVER_INTERNAL` and a server on your own network, the values behind the host's redaction tokens |
 | Server | Nowhere, unless you turn on decide or suggest | |
 | Workers | The triage server they're enrolled with | Decisions and suggestions |
 | Decision models, with `TRIAGE_DECIDE` | The decision model API you choose | A redacted description of the issue |
@@ -66,4 +66,4 @@ Nothing is sent to a model unless you turn decide or suggest on, or run `triage 
 
 ## What the server stores
 
-The server stores the redacted events, the issues they're grouped into, the warning counts hosts send, and any decisions and suggestions. It only holds the values behind tokens for events it captured itself, as the Home Assistant app does; hosts never send theirs. Tokens are stored as hashes, so the database doesn't hold a usable token. `TRIAGE_SERVER_ADMIN_TOKEN` isn't stored at all.
+The server stores the redacted events, the issues they're grouped into, the warning counts hosts send, and any decisions and suggestions. It only holds the values behind tokens for events it captured itself, as the Home Assistant app does, and for hosts that send theirs with `TRIAGE_SERVER_INTERNAL`. Tokens are stored as hashes, so the database doesn't hold a usable token. `TRIAGE_SERVER_ADMIN_TOKEN` isn't stored at all.

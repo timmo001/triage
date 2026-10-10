@@ -901,7 +901,7 @@ const migrations = SqliteMigrator.fromRecord({
       `;
     }
   }),
-  // Redacted values become tokens, such as <ip:71d0a3c2>, from a key that
+  // Redacted values become tokens, such as <ip:71d0a3c2e94b>, from a key that
   // never leaves this store, and the values behind them are kept here so this
   // machine can show them. Neither is ever uploaded.
   "0018_redactions": Effect.gen(function* () {
@@ -920,6 +920,19 @@ const migrations = SqliteMigrator.fromRecord({
         kind TEXT NOT NULL,
         value TEXT NOT NULL,
         first_seen INTEGER NOT NULL
+      )
+    `;
+  }),
+  // Which values behind tokens a host has sent to each server, which it only
+  // does for a server on its own network when told to.
+  "0019_redaction_uploads": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`
+      CREATE TABLE redaction_uploads (
+        target TEXT NOT NULL,
+        token TEXT NOT NULL REFERENCES redactions (token) ON DELETE CASCADE,
+        PRIMARY KEY (target, token)
       )
     `;
   }),
@@ -1041,15 +1054,26 @@ export class Store extends Context.Service<
     readonly redactionKey: Effect.Effect<Uint8Array, StoreError>;
     /**
      * Keep the values behind redaction tokens, the first one seen for each,
-     * so this machine can show them. Never uploaded.
+     * so this machine can show them. Returns how many were new. A host only
+     * sends its own to a server on its own network when told to.
      */
     remember(
       redactions: ReadonlyArray<Redaction>,
-    ): Effect.Effect<void, StoreError>;
+    ): Effect.Effect<number, StoreError>;
     /** The values behind these redaction tokens, leaving out any not kept here. */
     resolve(
       tokens: ReadonlyArray<string>,
     ): Effect.Effect<ReadonlyArray<Redaction>, StoreError>;
+    /** Up to `limit` values behind tokens not yet sent to `target`. */
+    pendingRedactions(
+      target: string,
+      limit: number,
+    ): Effect.Effect<ReadonlyArray<Redaction>, StoreError>;
+    /** Mark values behind these tokens as sent to `target`. */
+    redactionsUploaded(
+      target: string,
+      tokens: ReadonlyArray<string>,
+    ): Effect.Effect<void, StoreError>;
     /**
      * Store events, warnings and the cursor after them together, so a source
      * never skips or double counts them. Warnings add to the counts so far,
@@ -1286,12 +1310,12 @@ export class Store extends Context.Service<
     const remember = Effect.fn("Store.remember")(
       function* (redactions: ReadonlyArray<Redaction>) {
         if (redactions.length === 0) {
-          return;
+          return 0;
         }
 
         const now = yield* Clock.currentTimeMillis;
 
-        yield* sql`
+        const added = yield* sql<{ token: string }>`
           INSERT OR IGNORE INTO redactions ${sql.insert(
             redactions.map(({ token, kind, value }) => ({
               token,
@@ -1300,7 +1324,10 @@ export class Store extends Context.Service<
               first_seen: now,
             })),
           )}
+          RETURNING token
         `;
+
+        return added.length;
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -1319,6 +1346,41 @@ export class Store extends Context.Service<
         return rows.flatMap((row) =>
           isKind(row.kind) ? [{ ...row, kind: row.kind }] : [],
         );
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const pendingRedactions = Effect.fn("Store.pendingRedactions")(
+      function* (target: string, limit: number) {
+        const rows = yield* sql<{ token: string; kind: string; value: string }>`
+          SELECT redactions.token, redactions.kind, redactions.value
+          FROM redactions
+          LEFT JOIN redaction_uploads
+            ON redaction_uploads.token = redactions.token
+            AND redaction_uploads.target = ${target}
+          WHERE redaction_uploads.token IS NULL
+          ORDER BY redactions.first_seen, redactions.token
+          LIMIT ${limit}
+        `;
+
+        return rows.flatMap((row) =>
+          isKind(row.kind) ? [{ ...row, kind: row.kind }] : [],
+        );
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const redactionsUploaded = Effect.fn("Store.redactionsUploaded")(
+      function* (target: string, tokens: ReadonlyArray<string>) {
+        if (tokens.length === 0) {
+          return;
+        }
+
+        yield* sql`
+          INSERT OR IGNORE INTO redaction_uploads ${sql.insert(
+            tokens.map((token) => ({ target, token })),
+          )}
+        `;
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -2597,6 +2659,8 @@ export class Store extends Context.Service<
       redactionKey,
       remember,
       resolve,
+      pendingRedactions,
+      redactionsUploaded,
       record,
       add,
       addWarnings,
@@ -2638,7 +2702,8 @@ export class Store extends Context.Service<
 
       return RedactionVault.of({
         key: store.redactionKey,
-        remember: (redactions) => store.remember(redactions),
+        remember: (redactions) =>
+          store.remember(redactions).pipe(Effect.asVoid),
       });
     }),
   );

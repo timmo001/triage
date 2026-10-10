@@ -33,7 +33,7 @@ export interface Redaction {
 }
 
 /**
- * What replaces a redacted value: a token such as `<ip:71d0a3c2>` when this
+ * What replaces a redacted value: a token such as `<ip:71d0a3c2e94b>` when this
  * machine keeps the values behind its tokens, or a plain placeholder such as
  * `<ip>` otherwise.
  */
@@ -42,8 +42,11 @@ export type Mark = (kind: Kind, value: string) => string;
 /** A plain placeholder, such as `<ip>`, which keeps nothing. */
 export const placeholder: Mark = (kind) => `<${kind}>`;
 
-/** How long a token's hash is, in hex digits. */
-const tokenLength = 8;
+/**
+ * How long a token's hash is, in hex digits: 48 bits, so a server holding many
+ * hosts' values won't see two different values share a token.
+ */
+const tokenLength = 12;
 
 /**
  * Mark values with tokens made from `key`, so the same value always gets the

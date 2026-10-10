@@ -30,10 +30,10 @@ const replacements: ReadonlyArray<readonly [RegExp, string]> = [
 ];
 
 /**
- * Redaction tokens, such as `<ip:71d0a3c2>`, which a host can show the value
+ * Redaction tokens, such as `<ip:71d0a3c2e94b>`, which a host can show the value
  * behind. They group as their kind, `<ip>`, like a plain placeholder.
  */
-const tokens = /<([a-z]+):[0-9a-f]{8}>/g;
+const tokens = /<([a-z]+):[0-9a-f]{12}>/g;
 
 /** Text with its redaction tokens turned back into plain placeholders. */
 export const untokened = (text: string): string => text.replace(tokens, "<$1>");

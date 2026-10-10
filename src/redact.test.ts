@@ -92,7 +92,7 @@ describe("tokenize", () => {
   test("gives the same value the same token, and keeps what it stands for", () => {
     const { kept, redact } = tokened();
     const first = redact("from 192.168.1.20 and 192.168.1.21, user Alex");
-    const tokens = first.match(/<[a-z]+:[0-9a-f]{8}>/g) ?? [];
+    const tokens = first.match(/<[a-z]+:[0-9a-f]{12}>/g) ?? [];
 
     expect(tokens).toHaveLength(3);
     expect(new Set(tokens).size).toBe(3);

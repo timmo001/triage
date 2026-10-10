@@ -267,7 +267,7 @@ export const addNote = TriageApi.mutation("issues", "addNote");
 export const setLabel = TriageApi.mutation("issues", "setLabel");
 
 /**
- * The values behind redaction tokens, such as `<ip:71d0a3c2>`, that the
+ * The values behind redaction tokens, such as `<ip:71d0a3c2e94b>`, that the
  * server has shown so far, by token. Only filled through Home Assistant,
  * where the server captured them on the same machine.
  */

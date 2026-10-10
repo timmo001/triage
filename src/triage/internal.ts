@@ -51,8 +51,8 @@ export const isInternalUrl = (url: string): boolean => {
   );
 };
 
-/** A redaction token, such as `<ip:71d0a3c2>`. */
-const tokenPattern = /<[a-z]+:[0-9a-f]{8}>/g;
+/** A redaction token, such as `<ip:71d0a3c2e94b>`. */
+const tokenPattern = /<[a-z]+:[0-9a-f]{12}>/g;
 
 /**
  * An issue and its events with each redaction token whose value this machine

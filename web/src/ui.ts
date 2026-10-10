@@ -195,8 +195,8 @@ export const renderDefect = () =>
 export const renderLoading = () =>
   html`<p class="message" aria-busy="true">${t("loading")}</p>`;
 
-/** A redaction token, such as `<ip:71d0a3c2>`, kept by the split below. */
-const tokenPattern = /(<[a-z]+:[0-9a-f]{8}>)/;
+/** A redaction token, such as `<ip:71d0a3c2e94b>`, kept by the split below. */
+const tokenPattern = /(<[a-z]+:[0-9a-f]{12}>)/;
 
 /** The redaction tokens in some texts, for asking the server for their values. */
 export const tokensIn = (
