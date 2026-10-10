@@ -1,28 +1,27 @@
-## Merging
+## Home Assistant
 
-- Issues that are the same problem can be merged into one: the same crash with different top frames, or the same error worded a little differently. See [Merging](https://triage.timmo.dev/issues/#merging).
-- The issue seen first is kept, then the one with more events, then the lower ID. It takes the kind and title of the cause, so a crash wins over the unit failure it caused, and it's muted if any of the issues was, open if any was and resolved otherwise.
-- The merged issues' IDs and links lead to the one kept, and new events for any of them join it.
-- Unmerging moves a fingerprint's events back out into an issue of their own, which models decide on afresh. Both issues get a note saying what happened.
-- An upgrade fills in each event's fingerprint. Crashes whose frames had a module of `n/a` no longer start a duplicate issue when they happen again.
+- The app collects Home Assistant Core's own errors and warnings, as the host `home-assistant`. It's on by default, and **collect_core** turns it off. See [Home Assistant](https://triage.timmo.dev/setup/server#home-assistant).
+- Each error comes with its traceback and is grouped by the logger that logged it, such as `homeassistant.components.hue` or `custom_components.thing`. Warnings are counted under the same logger.
+- The app reads them from the host journal, which Home Assistant now mounts into it read only, and redacts them like every other host's events. The host's own name is redacted too, apart from the default `homeassistant`.
+- This is a first version, not yet tried widely on Home Assistant OS. Entity and device names in Core's messages aren't redacted or grouped yet.
 
-## Web UI
+## Warnings
 
-- Tick two or more issues in the list to **Merge** them.
-- A merged issue's page lists its fingerprints, each with an **Unmerge** button, and an old issue link switches to the issue it was merged into.
+- Hosts count warnings, apart from the kernel's, by program and message with the parts that change replaced, and keep each count for a week. They only send the counts for programs with an issue that isn't muted, and warnings never become issues of their own. See [Privacy](https://triage.timmo.dev/privacy).
+- An issue's page shows the warnings its program logged most often on the hosts it happened on.
+- Suggestions get the program's 5 most frequent warnings, and `get_issue` returns its warnings.
+
+## Issues
+
+- A log error's title is its first line, so a traceback after it stays out of the title.
 
 ## CLI
 
-- `triage merge <issue> <issue>...` merges issues.
-- `triage unmerge <issue>` lists an issue's fingerprints, and `triage unmerge <issue> <fingerprint>` moves one back out.
-
-## Agents
-
-- The new `merge_issues` tool merges issues. Agents are told to ask you first, and it's marked destructive, so clients that check for that ask you to approve it as well.
-- `get_issue` returns the issue's fingerprints.
+- `triage serve --collect-core` (`TRIAGE_COLLECT_CORE`) collects Core's errors when the server runs in the Home Assistant app.
 
 ## Libraries
 
-- `@timmo001/effect-triage` adds the `IssueFingerprint` and `Merged` schemas, the `NothingToMerge`, `FingerprintNotFound` and `NothingToUnmerge` errors, and `POST /api/issues/merge` and `POST /api/issues/:id/unmerge` endpoints, `merge` and `unmerge`, to the `issues` group.
-- `IssueReview` has `fingerprints`, which default to empty for older servers.
+- `@timmo001/effect-triage` adds the `Warning` schema, `Fingerprint.program`, the `IssueWarning` schema and `maxIssueWarnings`, and `POST /api/warnings` to the `ingest` group.
+- `IssueDetail` has `warnings`, which default to empty for older servers.
+- `Issue.title` only uses a log error's first line.
 
