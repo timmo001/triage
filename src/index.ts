@@ -31,6 +31,7 @@ import { TokenAdmin } from "./server/TokenAdmin.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
 import { languages } from "./server/Translations.js";
 import { Store, type TokenScope } from "./store/Store.js";
+import { isInternalUrl } from "./triage/internal.js";
 import { layerAutomatic, LlmProvider, Suggester } from "./triage/Suggester.js";
 import { layerShadow, Provider, Triager } from "./triage/Triager.js";
 import { Work } from "./triage/Work.js";
@@ -263,6 +264,39 @@ const decisionFlags = {
     Flag.withFallbackConfig(Config.String("TRIAGE_DECISION_MODEL")),
     Flag.optional,
   ),
+  decisionInternal: Flag.Boolean("decision-internal").pipe(
+    Flag.withDescription(
+      "Show the decision model the values behind redaction tokens this machine keeps, such as device names, when --url is on this machine or its own network. Never for Cloudflare or any other address. Off unless set",
+    ),
+    Flag.withFallbackConfig(Config.Boolean("TRIAGE_DECISION_INTERNAL")),
+    Flag.withDefault(false),
+  ),
+};
+
+/**
+ * Whether a model may see the values behind redaction tokens: only when asked
+ * to, and only when its API is at `url` on this machine or its own network,
+ * never a hosted provider's. Says which, so a setting that's ignored isn't
+ * silent.
+ */
+const mayReveal = (
+  what: string,
+  asked: boolean,
+  url: Option.Option<string>,
+) => {
+  if (!asked) {
+    return Effect.succeed(false);
+  }
+
+  if (Option.isSome(url) && isInternalUrl(url.value)) {
+    return Effect.logInfo(
+      `The ${what} sees the values behind redaction tokens kept on this machine`,
+    ).pipe(Effect.as(true));
+  }
+
+  return Effect.logWarning(
+    `Only showing the ${what} redaction tokens: its API isn't on this machine or its own network`,
+  ).pipe(Effect.as(false));
 };
 
 /** The decision model, or the provider's default when none is set. */
@@ -278,12 +312,24 @@ const triagerLayer = (input: {
   readonly provider: Provider;
   readonly url: string;
   readonly model: Option.Option<string>;
+  readonly decisionInternal: boolean;
 }) =>
-  Triager.layer({
-    provider: input.provider,
-    url: input.url,
-    model: decisionModel(input),
-  });
+  Layer.unwrap(
+    mayReveal(
+      "decision model",
+      input.decisionInternal,
+      input.provider === "typesafe" ? Option.some(input.url) : Option.none(),
+    ).pipe(
+      Effect.map((reveal) =>
+        Triager.layer({
+          provider: input.provider,
+          url: input.url,
+          model: decisionModel(input),
+          reveal,
+        }),
+      ),
+    ),
+  );
 
 const decide = Command.make(
   "decide",
@@ -347,6 +393,39 @@ const llmUrlFlag = (name: string) =>
     Flag.optional,
   );
 
+const llmInternalFlag = (name: string) =>
+  Flag.Boolean(name).pipe(
+    Flag.withDescription(
+      "Show the language model the values behind redaction tokens this machine keeps, such as device names, when its API is on this machine or its own network. Never for Cloudflare, or OpenAI's or Anthropic's own. Off unless set",
+    ),
+    Flag.withFallbackConfig(Config.Boolean("TRIAGE_LLM_INTERNAL")),
+    Flag.withDefault(false),
+  );
+
+/** A suggester for `input`, showing values only where `mayReveal` allows. */
+const suggesterLayer = (input: {
+  readonly provider: LlmProvider;
+  readonly url: Option.Option<string>;
+  readonly model: string;
+  readonly internal: boolean;
+}) =>
+  Layer.unwrap(
+    mayReveal(
+      "language model",
+      input.internal,
+      input.provider === "cloudflare" ? Option.none() : input.url,
+    ).pipe(
+      Effect.map((reveal) =>
+        Suggester.layer({
+          provider: input.provider,
+          url: input.url,
+          model: input.model,
+          reveal,
+        }),
+      ),
+    ),
+  );
+
 const llmModelFlag = (name: string) =>
   Flag.String(name).pipe(
     Flag.withDescription(
@@ -365,6 +444,7 @@ const suggest = Command.make(
     provider: llmProviderFlag("provider", "url"),
     url: llmUrlFlag("url"),
     model: llmModelFlag("model").pipe(Flag.withAlias("m")),
+    internal: llmInternalFlag("llm-internal"),
     json,
     server: serverFlag(
       "Suggest fixes for the server at this URL, or $TRIAGE_SERVER, as the worker in $TRIAGE_WORKER_TOKEN, instead of the server database on this machine",
@@ -379,7 +459,7 @@ const suggest = Command.make(
         return yield* Effect.forEach(input.issues, (issue) =>
           suggester.suggest(issue),
         );
-      }).pipe(Effect.provide(Suggester.layer(input))),
+      }).pipe(Effect.provide(suggesterLayer(input))),
     );
 
     if (input.json) {
@@ -694,6 +774,7 @@ const processFlags = {
   llmProvider: llmProviderFlag("llm-provider", "llm-url"),
   llmUrl: llmUrlFlag("llm-url"),
   llmModel: llmModelFlag("llm-model").pipe(Flag.optional),
+  llmInternal: llmInternalFlag("llm-internal"),
 };
 
 /** The decide and suggest loops `input` turns on, for whichever `Work`. */
@@ -702,10 +783,12 @@ const processLoops = Effect.fnUntraced(function* (input: {
   readonly provider: Provider;
   readonly url: string;
   readonly model: Option.Option<string>;
+  readonly decisionInternal: boolean;
   readonly suggest: boolean;
   readonly llmProvider: LlmProvider;
   readonly llmUrl: Option.Option<string>;
   readonly llmModel: Option.Option<string>;
+  readonly llmInternal: boolean;
 }) {
   const decider = input.decide
     ? layerShadow({ interval: "5 minutes", limit: 20 }).pipe(
@@ -720,7 +803,7 @@ const processLoops = Effect.fnUntraced(function* (input: {
         decisionModel: `${input.provider}/${decisionModel(input)}`,
       }).pipe(
         Layer.provide(
-          Suggester.layer({
+          suggesterLayer({
             provider: input.llmProvider,
             url: input.llmUrl,
             model: yield* Effect.fromOption(input.llmModel).pipe(
@@ -728,6 +811,7 @@ const processLoops = Effect.fnUntraced(function* (input: {
                 () => new CliError.MissingOption({ option: "llm-model" }),
               ),
             ),
+            internal: input.llmInternal,
           }),
         ),
       )

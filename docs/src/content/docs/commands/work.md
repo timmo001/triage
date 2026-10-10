@@ -23,8 +23,10 @@ FLAGS
   --provider choice        Decide through any TypeSafe System One API, such as Ollaya or Ollama locally, or with Clef on Cloudflare using $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN (choices: typesafe, cloudflare)
   --url string             The System One API: Ollaya by default, Ollama at http://127.0.0.1:11434/v1, or a hosted one with $TRIAGE_DECISION_API_KEY
   --model, -m string       The decision model: laya by default through System One, clef-flash with Cloudflare
+  --decision-internal      Show the decision model the values behind redaction tokens this machine keeps, such as device names, when --url is on this machine or its own network. Never for Cloudflare or any other address. Off unless set
   --suggest                Ask a language model every 15 minutes how to fix issues the decision model clearly rates worth fixing, keeping its suggestions. Off unless set
   --llm-provider choice    Any OpenAI-compatible or Anthropic-compatible API at --llm-url, or Workers AI with $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN (choices: openai, anthropic, cloudflare)
   --llm-url string         The API, such as https://openrouter.ai/api/v1 or https://opencode.ai/zen/v1, with $TRIAGE_LLM_API_KEY when it needs one. Defaults to OpenAI's or Anthropic's own
   --llm-model string       The language model, such as @cf/zai-org/glm-4.7-flash on Workers AI
+  --llm-internal           Show the language model the values behind redaction tokens this machine keeps, such as device names, when its API is on this machine or its own network. Never for Cloudflare, or OpenAI's or Anthropic's own. Off unless set
 ```

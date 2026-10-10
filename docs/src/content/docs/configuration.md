@@ -66,11 +66,13 @@ These apply wherever the models run: `triage work`, `triage serve`, and the one-
 | `TRIAGE_DECISION_URL` | `http://127.0.0.1:11435/v1` (Ollaya) | The System One API, such as `http://127.0.0.1:11434/v1` for Ollama |
 | `TRIAGE_DECISION_API_KEY` | none | Key for a hosted System One API, such as TypeSafe or OpenCode Zen |
 | `TRIAGE_DECISION_MODEL` | `laya` through System One, `clef-flash` with Cloudflare | Decision model, such as `laya` or `winnow` on [Ollaya](https://ollaya.dev/library), or `nimble` on [Ollama](https://ollama.com/search?c=decision) |
+| `TRIAGE_DECISION_INTERNAL` | `false` | Show the decision model the values behind [redaction tokens](/privacy#whats-redacted) this machine keeps, such as device names, when `TRIAGE_DECISION_URL` is on this machine or its own network. Never with Cloudflare |
 | `TRIAGE_SUGGEST` | `false` | Suggest fixes every 15 minutes for issues the decision model rates worth fixing with at least 0.8 probability. Needs `TRIAGE_LLM_MODEL` |
 | `TRIAGE_LLM_PROVIDER` | `openai` | `openai` for any OpenAI-compatible API, `anthropic` for any Anthropic-compatible one, or `cloudflare` for Workers AI |
 | `TRIAGE_LLM_URL` | OpenAI's or Anthropic's own | The API, such as `https://openrouter.ai/api/v1`, `https://opencode.ai/zen/v1` or `http://127.0.0.1:11434/v1` for Ollama |
 | `TRIAGE_LLM_API_KEY` | none | Key for the API, when it needs one |
 | `TRIAGE_LLM_MODEL` | none | Language model for fix suggestions, such as `@cf/google/gemma-4-26b-a4b-it` on Workers AI |
+| `TRIAGE_LLM_INTERNAL` | `false` | Show the language model the values behind [redaction tokens](/privacy#whats-redacted) this machine keeps, when `TRIAGE_LLM_URL` is on this machine or its own network. Never with Cloudflare, or OpenAI's or Anthropic's own |
 | `CLOUDFLARE_ACCOUNT_ID` | none | Your Cloudflare account, for either provider set to `cloudflare` |
 | `CLOUDFLARE_API_TOKEN` | none | A token with Workers AI access, for either provider set to `cloudflare` |
 

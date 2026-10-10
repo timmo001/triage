@@ -17,6 +17,7 @@ import {
 import { Decision, DecisionModel } from "effect/ai";
 import { FetchHttpClient } from "effect/http";
 import type { LabelledDecision } from "../store/Store.js";
+import { revealed } from "./internal.js";
 import { Work } from "./Work.js";
 
 /** How sure a model must be before its answer counts as a clear yes or no. */
@@ -166,6 +167,11 @@ export class Triager extends Context.Service<
     readonly provider: Provider;
     readonly url: string;
     readonly model: string;
+    /**
+     * Show the model the values behind redaction tokens this machine keeps,
+     * only for a model on this machine or its own network.
+     */
+    readonly reveal: boolean;
   }) =>
     Layer.effect(
       Triager,
@@ -175,7 +181,8 @@ export class Triager extends Context.Service<
         const name = `${options.provider}/${options.model}`;
 
         return Triager.of({
-          decide: (limit) => decideAll(work, decisions, name, limit),
+          decide: (limit) =>
+            decideAll(work, decisions, name, limit, options.reveal),
         });
       }),
     ).pipe(
@@ -248,13 +255,18 @@ const decideAll = Effect.fnUntraced(function* (
   decisions: DecisionModel.DecisionModel,
   name: string,
   limit: number,
+  reveal: boolean,
 ) {
   const issues = yield* work.toDecide(name, limit);
   const decided: Array<Decided> = [];
 
   for (const { issue, events } of issues) {
+    const shown = reveal
+      ? yield* revealed(work, issue, events)
+      : { issue, events };
+
     const { answers } = yield* decisions.decide(Questions, {
-      input: toState(issue, events),
+      input: toState(shown.issue, shown.events),
     });
 
     yield* work.saveDecision({

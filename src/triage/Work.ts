@@ -67,6 +67,14 @@ export class Work extends Context.Service<
     issue(id: string): Effect.Effect<Option.Option<Api.IssueDetail>, WorkError>;
     /** Store a suggestion, replacing any earlier one by the same model. */
     saveSuggestion(suggestion: Api.Suggestion): Effect.Effect<void, WorkError>;
+    /**
+     * The values this machine keeps behind redaction tokens, for a model on
+     * this machine or its own network. Always none when working for another
+     * server, which never sends them.
+     */
+    values(
+      tokens: ReadonlyArray<string>,
+    ): Effect.Effect<ReadonlyArray<Api.Redaction>, WorkError>;
   }
 >()("triage/triage/Work") {
   /**
@@ -144,6 +152,8 @@ export class Work extends Context.Service<
             store
               .saveSuggestion(suggestion, options.by)
               .pipe(Effect.mapError(toWorkError)),
+          values: (tokens) =>
+            store.resolve(tokens).pipe(Effect.mapError(toWorkError)),
         });
       }),
     );
@@ -194,6 +204,7 @@ export class Work extends Context.Service<
                 client.work
                   .saveSuggestion({ payload: suggestion })
                   .pipe(Effect.mapError(toWorkError)),
+              values: () => Effect.succeed([]),
             });
           }),
         ).pipe(

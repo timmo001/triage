@@ -15,6 +15,7 @@ import { LanguageModel, Prompt } from "effect/ai";
 import { FetchHttpClient } from "effect/http";
 import { IssueNotFound } from "../store/Store.js";
 import { clear, toState } from "./Triager.js";
+import { revealed } from "./internal.js";
 import { Work } from "./Work.js";
 
 /**
@@ -99,6 +100,11 @@ export class Suggester extends Context.Service<
     readonly provider: LlmProvider;
     readonly url: Option.Option<string>;
     readonly model: string;
+    /**
+     * Show the model the values behind redaction tokens this machine keeps,
+     * only for a model on this machine or its own network.
+     */
+    readonly reveal: boolean;
   }) =>
     Layer.effect(
       Suggester,
@@ -115,14 +121,20 @@ export class Suggester extends Context.Service<
               return yield* new IssueNotFound({ issueId });
             }
 
-            return yield* suggestFor(work, model, name, found.value);
+            return yield* suggestFor(
+              work,
+              model,
+              name,
+              found.value,
+              options.reveal,
+            );
           }),
           suggestWorth: Effect.fn("Suggester.suggestWorth")(
             function* (request) {
               const issues = yield* work.toSuggest({ ...request, model: name });
 
               return yield* Effect.forEach(issues, (detail) =>
-                suggestFor(work, model, name, detail),
+                suggestFor(work, model, name, detail, options.reveal),
               );
             },
           ),
@@ -241,7 +253,11 @@ const maxWarnings = 5;
  * Assistant integration, the lines logged before the latest event that has
  * them, and the warnings its program logged most often.
  */
-const describe = ({ issue, events, warnings }: Api.IssueDetail) => {
+const describe = ({
+  issue,
+  events,
+  warnings,
+}: Pick<Api.IssueDetail, "issue" | "events" | "warnings">) => {
   const state = toState(issue, events);
   const latest = events.find((event) => event.breadcrumbs !== undefined);
   const unit = latest ?? events[0];
@@ -278,11 +294,16 @@ const suggestFor = Effect.fnUntraced(function* (
   model: LanguageModel.LanguageModel,
   name: string,
   detail: Api.IssueDetail,
+  reveal: boolean,
 ) {
-  const { issue, events } = detail;
+  const { issue, events, warnings } = detail;
+
+  const shown = reveal
+    ? { ...(yield* revealed(work, issue, events)), warnings }
+    : detail;
 
   const response = yield* model.generateText({
-    prompt: Prompt.make(JSON.stringify(describe(detail), null, 2)).pipe(
+    prompt: Prompt.make(JSON.stringify(describe(shown), null, 2)).pipe(
       Prompt.setSystem(instructions),
     ),
   });

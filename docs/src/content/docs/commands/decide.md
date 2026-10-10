@@ -22,6 +22,7 @@ FLAGS
   --provider choice      Decide through any TypeSafe System One API, such as Ollaya or Ollama locally, or with Clef on Cloudflare using $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN (choices: typesafe, cloudflare)
   --url string           The System One API: Ollaya by default, Ollama at http://127.0.0.1:11434/v1, or a hosted one with $TRIAGE_DECISION_API_KEY
   --model, -m string     The decision model: laya by default through System One, clef-flash with Cloudflare
+  --decision-internal    Show the decision model the values behind redaction tokens this machine keeps, such as device names, when --url is on this machine or its own network. Never for Cloudflare or any other address. Off unless set
   --limit, -n integer    The most issues to decide on
   --json                 Print JSON
   --server string        Decide for the server at this URL, or $TRIAGE_SERVER, as the worker in $TRIAGE_WORKER_TOKEN, instead of the server database on this machine
