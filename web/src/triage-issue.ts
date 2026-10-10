@@ -57,6 +57,7 @@ import {
   issueHref,
   setLabel,
   setStatus,
+  tokenValues,
   unmergeIssue,
 } from "./triage.js";
 import {
@@ -68,8 +69,12 @@ import {
   icon,
   renderDefect,
   renderError,
+  requestValues,
   severityLabel,
+  shown,
+  shownPlain,
   stateBadge,
+  type TokenValues,
 } from "./ui.js";
 
 const resolve = [
@@ -566,6 +571,9 @@ export class TriageIssue extends LitElement {
 
   readonly #events = new AtomController(this, () => issueEvents(this.issueId));
 
+  // Redraws once the values behind redaction tokens arrive.
+  readonly #tokenValues = new AtomController(this, () => tokenValues);
+
   readonly #virtualizer = new WindowVirtualizerController<HTMLLIElement>(this, {
     count: 0,
     estimateSize: () => 160,
@@ -585,7 +593,7 @@ export class TriageIssue extends LitElement {
         onError: renderError,
         onDefect: renderDefect,
         onSuccess: ({ value }) => html`
-          <h1>${value.issue.title}</h1>
+          <h1>${shown(value.issue.title, this.#tokenValues.value)}</h1>
           <dl>
             <dt>${t("issue.state")}</dt>
             <dd>${stateBadge(value.issue.state)}</dd>
@@ -680,8 +688,16 @@ export class TriageIssue extends LitElement {
           </div>
           <h2>${t("issue.suggestions")}</h2>
           ${renderSuggestions(value.suggestions)}
-          ${value.warnings.length > 0 ? renderWarnings(value.warnings) : nothing}
-          ${value.nearby.length > 0 ? renderNearby(value.nearby) : nothing}
+          ${
+            value.warnings.length > 0
+              ? renderWarnings(value.warnings, this.#tokenValues.value)
+              : nothing
+          }
+          ${
+            value.nearby.length > 0
+              ? renderNearby(value.nearby, this.#tokenValues.value)
+              : nothing
+          }
           <h2>${t("issue.eventList")}</h2>
           ${this.#renderEvents()}
         `,
@@ -791,7 +807,7 @@ export class TriageIssue extends LitElement {
                       }
                     })}
                   >
-                    ${renderEvent(event)}
+                    ${renderEvent(event, this.#tokenValues.value)}
                   </li>
                 `;
           },
@@ -803,6 +819,20 @@ export class TriageIssue extends LitElement {
 
   override updated() {
     const detail = this.#detail.value;
+    const loaded = AsyncResult.getOrElse(this.#events.value, () => undefined);
+    const current = AsyncResult.getOrElse(detail, () => undefined);
+
+    requestValues([
+      current?.issue.title,
+      ...(current?.nearby.map((other) => other.title) ?? []),
+      ...(current?.warnings.map((warning) => warning.example) ?? []),
+      ...(loaded?.items.flatMap((event) => [
+        event.message,
+        event.identifier,
+        event.unit,
+        ...(event.breadcrumbs ?? []),
+      ]) ?? []),
+    ]);
 
     // A merged issue's old link shows the issue it joined, under its own ID.
     if (
@@ -1109,7 +1139,10 @@ const renderSuggestions = (suggestions: ReadonlyArray<Api.IssueSuggestion>) =>
         </ol>
       `;
 
-const renderNearby = (nearby: ReadonlyArray<Api.NearbyIssue>) => html`
+const renderNearby = (
+  nearby: ReadonlyArray<Api.NearbyIssue>,
+  values: TokenValues,
+) => html`
   <h2>${t("issue.nearby")}</h2>
   <p class="muted-text">${t("nearby.hint")}</p>
   <ul class="nearby">
@@ -1117,7 +1150,7 @@ const renderNearby = (nearby: ReadonlyArray<Api.NearbyIssue>) => html`
       (other) => html`
         <li>
           ${stateBadge(other.state)}
-          <a href=${issueHref(other.id)}>${other.title}</a>
+          <a href=${issueHref(other.id)}>${shown(other.title, values)}</a>
           <span class="muted-text"
             >${t("nearby.near", { count: other.near })}</span
           >
@@ -1127,14 +1160,19 @@ const renderNearby = (nearby: ReadonlyArray<Api.NearbyIssue>) => html`
   </ul>
 `;
 
-const renderWarnings = (warnings: ReadonlyArray<Api.IssueWarning>) => html`
+const renderWarnings = (
+  warnings: ReadonlyArray<Api.IssueWarning>,
+  values: TokenValues,
+) => html`
   <h2>${t("issue.warnings")}</h2>
   <p class="muted-text">${t("warnings.hint")}</p>
   <ul class="warnings">
     ${warnings.map(
       (warning) => html`
         <li>
-          <code title=${warning.example}>${warning.template}</code>
+          <code title=${shownPlain(warning.example, values)}
+            >${warning.template}</code
+          >
           <span class="muted-text">
             ${parts("warnings.seen", {
               count: warning.count,
@@ -1224,11 +1262,17 @@ const renderIntegration = (integration: Event.Integration) => {
 
 // Everything stored about where an event came from, in the order people look
 // for it.
-const eventFields = (event: Event.Event) => {
+const eventFields = (event: Event.Event, values: TokenValues) => {
   const fields: ReadonlyArray<Field> = [
     [t("field.host"), mdiServer, event.host],
     [t("field.source"), mdiNotebookOutline, event.source],
-    [t("field.program"), mdiApplicationOutline, event.identifier],
+    [
+      t("field.program"),
+      mdiApplicationOutline,
+      event.identifier === undefined
+        ? undefined
+        : shown(event.identifier, values),
+    ],
     [
       t("field.integration"),
       mdiPuzzleOutline,
@@ -1239,9 +1283,14 @@ const eventFields = (event: Event.Event) => {
     [
       t("field.unit"),
       mdiCogOutline,
-      event.unit === undefined || event.scope === undefined
-        ? event.unit
-        : `${event.unit} (${event.scope})`,
+      event.unit === undefined
+        ? undefined
+        : shown(
+            event.scope === undefined
+              ? event.unit
+              : `${event.unit} (${event.scope})`,
+            values,
+          ),
     ],
     ...Event.Event.match<ReadonlyArray<Field>>(event, {
       Crash: (crash) => [
@@ -1361,16 +1410,16 @@ const renderIssueSkeleton = () => html`
   ${renderEventSkeletons(3)}
 `;
 
-const renderEvent = (event: Event.Event) => html`
+const renderEvent = (event: Event.Event, values: TokenValues) => html`
   <div class="event-severity severity ${event.severity}">
     ${icon(severityIcons[event.severity])} ${t(`level.${event.severity}`)}
   </div>
-  <pre class="event-message">${event.message}</pre>
+  <pre class="event-message">${shown(event.message, values)}</pre>
   <time class="event-time" title=${formatTime(event.timestamp)}
     >${icon(mdiClockOutline)} ${ago(event.timestamp)}</time
   >
   <div class="event-fields" @pointerdown=${dragScroll}>
-    ${eventFields(event).map(([label, path, value]) =>
+    ${eventFields(event, values).map(([label, path, value]) =>
       badge({ path, label, content: value, kind: "dense" }),
     )}
   </div>
@@ -1397,9 +1446,11 @@ const renderEvent = (event: Event.Event) => html`
             aria-label=${t("issue.breadcrumbs")}
           >
             ${icon(mdiChevronRight)} ${icon(mdiHistory)}
-            <code class="preview">${event.breadcrumbs.at(-1)}</code>
+            <code class="preview"
+              >${shown(event.breadcrumbs.at(-1) ?? "", values)}</code
+            >
           </summary>
-          <pre><code>${event.breadcrumbs.join("\n")}</code></pre>
+          <pre><code>${shown(event.breadcrumbs.join("\n"), values)}</code></pre>
         </details>`
   }
 `;

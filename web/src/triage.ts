@@ -266,6 +266,38 @@ export const addNote = TriageApi.mutation("issues", "addNote");
 
 export const setLabel = TriageApi.mutation("issues", "setLabel");
 
+/**
+ * The values behind redaction tokens, such as `<ip:71d0a3c2>`, that the
+ * server has shown so far, by token. Only filled through Home Assistant,
+ * where the server captured them on the same machine.
+ */
+export const tokenValues = Atom.make<ReadonlyMap<string, Api.Redaction>>(
+  new Map(),
+).pipe(Atom.keepAlive);
+
+/** Ask the server for the values behind tokens, adding them to `tokenValues`. */
+export const resolveTokens = TriageApi.runtime
+  .fn(
+    Effect.fnUntraced(function* (tokens: ReadonlyArray<string>, get) {
+      const found = yield* TriageApi.use((client) =>
+        client.redactions.resolve({ payload: { tokens } }),
+      ).pipe(asDefects);
+
+      if (found.length === 0) {
+        return;
+      }
+
+      const next = new Map(get(tokenValues));
+
+      for (const redaction of found) {
+        next.set(redaction.token, redaction);
+      }
+
+      get.set(tokenValues, next);
+    }),
+  )
+  .pipe(Atom.keepAlive);
+
 export const mergeIssues = TriageApi.mutation("issues", "merge");
 
 export const unmergeIssue = TriageApi.mutation("issues", "unmerge");

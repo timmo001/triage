@@ -1,4 +1,4 @@
-import type { Issue } from "@timmo001/effect-triage";
+import { Api, type Issue } from "@timmo001/effect-triage";
 import {
   mdiAlertDecagramOutline,
   mdiBellOffOutline,
@@ -13,7 +13,7 @@ import { html, nothing, svg } from "lit";
 import { registry } from "./AtomController.js";
 import { language, t } from "./i18n.js";
 import "./triage-sign-in.js";
-import { token } from "./triage.js";
+import { resolveTokens, token } from "./triage.js";
 
 /** A Material Design icon, from one of `@mdi/js`'s paths. */
 export const icon = (path: string) =>
@@ -194,3 +194,65 @@ export const renderDefect = () =>
 
 export const renderLoading = () =>
   html`<p class="message" aria-busy="true">${t("loading")}</p>`;
+
+/** A redaction token, such as `<ip:71d0a3c2>`, kept by the split below. */
+const tokenPattern = /(<[a-z]+:[0-9a-f]{8}>)/;
+
+/** The redaction tokens in some texts, for asking the server for their values. */
+export const tokensIn = (
+  texts: ReadonlyArray<string | undefined>,
+): ReadonlyArray<string> =>
+  texts.flatMap((text) =>
+    text === undefined
+      ? []
+      : text.split(tokenPattern).filter((_, index) => index % 2 === 1),
+  );
+
+/** Tokens already asked about, so each one is only asked for once. */
+const askedTokens = new Set<string>();
+
+/**
+ * Ask the server for the values behind the tokens in some texts, once each.
+ * Safe to call on every render, since it only asks about new ones.
+ */
+export const requestValues = (texts: ReadonlyArray<string | undefined>) => {
+  const wanted = [...new Set(tokensIn(texts))]
+    .filter((found) => !askedTokens.has(found))
+    .slice(0, Api.maxTokens);
+
+  if (wanted.length === 0) {
+    return;
+  }
+
+  for (const found of wanted) {
+    askedTokens.add(found);
+  }
+
+  registry.set(resolveTokens, wanted);
+};
+
+/**
+ * Text with each redaction token the server has shown the value of replaced
+ * by it, marked so it reads as a value only this machine knows, with the
+ * token in its tooltip. Tokens without a known value stay as they are.
+ */
+export const shown = (text: string, values: TokenValues) =>
+  html`${text.split(tokenPattern).map((part, index) => {
+    const value = index % 2 === 1 ? values.get(part) : undefined;
+
+    return value === undefined
+      ? part
+      : html`<span class="resolved" title=${part}>${value.value}</span>`;
+  })}`;
+
+/** Like `shown`, as plain text for attributes such as tooltips. */
+export const shownPlain = (text: string, values: TokenValues) =>
+  text
+    .split(tokenPattern)
+    .map((part, index) =>
+      index % 2 === 1 ? (values.get(part)?.value ?? part) : part,
+    )
+    .join("");
+
+/** The values behind redaction tokens the server has shown, by token. */
+export type TokenValues = ReadonlyMap<string, Api.Redaction>;

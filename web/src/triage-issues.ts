@@ -67,6 +67,7 @@ import {
   mergeIssues,
   type RowHeights,
   rowHeights,
+  tokenValues,
 } from "./triage.js";
 import "./triage-filter.js";
 import "./triage-skeleton.js";
@@ -77,7 +78,10 @@ import {
   icon,
   renderDefect,
   renderError,
+  requestValues,
+  shown,
   stateBadge,
+  type TokenValues,
 } from "./ui.js";
 
 const features = tableFeatures({
@@ -132,69 +136,74 @@ const dash = html`<span class="muted-text">-</span>`;
 
 const column = createColumnHelper<typeof features, Api.IssueSummary>();
 
-const columns = column.columns([
-  column.display({ id: "select", enableSorting: false }),
-  column.accessor("state", {
-    header: t("column.state"),
-    enableSorting: false,
-    cell: ({ getValue }) => stateBadge(getValue()),
-  }),
-  column.accessor("title", {
-    header: t("column.issue"),
-    cell: ({ row: { original: issue } }) => html`
-      <a href=${issueHref(issue.id)}>${issue.title}</a>
-      <div class="secondary small muted-text">
-        ${join(
-          [
-            stateBadge(issue.state),
-            t("events", { count: issue.count }),
-            ago(issue.lastSeen),
-            ...(issue.worth === undefined
-              ? []
-              : [t("issues.worth", { percent: formatPercent(issue.worth) })]),
-            ...(issue.label === undefined ? [] : [labelTitles[issue.label]]),
-            issue.hosts.join(", "),
-          ],
-          " · ",
-        )}
-      </div>
-    `,
-  }),
-  column.accessor("kind", { header: t("column.kind"), enableSorting: false }),
-  column.accessor((issue) => issue.label ?? "none", {
-    id: "label",
-    header: t("column.label"),
-    enableSorting: false,
-    cell: ({ getValue }) =>
-      getValue() === "none" ? dash : labelTitles[getValue()],
-  }),
-  column.accessor((issue) => issue.worth, {
-    id: "worth",
-    header: t("column.worth"),
-    sortDescFirst: true,
-    cell: ({ getValue }) => {
-      const worth = getValue();
+/** The issue list's columns, showing the values behind tokens in `values`. */
+const columnsFor = (values: TokenValues) =>
+  column.columns([
+    column.display({ id: "select", enableSorting: false }),
+    column.accessor("state", {
+      header: t("column.state"),
+      enableSorting: false,
+      cell: ({ getValue }) => stateBadge(getValue()),
+    }),
+    column.accessor("title", {
+      header: t("column.issue"),
+      cell: ({ row: { original: issue } }) => html`
+        <a href=${issueHref(issue.id)}>${shown(issue.title, values)}</a>
+        <div class="secondary small muted-text">
+          ${join(
+            [
+              stateBadge(issue.state),
+              t("events", { count: issue.count }),
+              ago(issue.lastSeen),
+              ...(issue.worth === undefined
+                ? []
+                : [t("issues.worth", { percent: formatPercent(issue.worth) })]),
+              ...(issue.label === undefined ? [] : [labelTitles[issue.label]]),
+              issue.hosts.join(", "),
+            ],
+            " · ",
+          )}
+        </div>
+      `,
+    }),
+    column.accessor("kind", { header: t("column.kind"), enableSorting: false }),
+    column.accessor((issue) => issue.label ?? "none", {
+      id: "label",
+      header: t("column.label"),
+      enableSorting: false,
+      cell: ({ getValue }) =>
+        getValue() === "none" ? dash : labelTitles[getValue()],
+    }),
+    column.accessor((issue) => issue.worth, {
+      id: "worth",
+      header: t("column.worth"),
+      sortDescFirst: true,
+      cell: ({ getValue }) => {
+        const worth = getValue();
 
-      return worth === undefined ? dash : formatPercent(worth);
-    },
-  }),
-  column.accessor("count", { header: t("column.events"), sortDescFirst: true }),
-  column.accessor((issue) => issue.hosts.join(", "), {
-    id: "hosts",
-    header: t("column.hosts"),
-    enableSorting: false,
-  }),
-  column.accessor("lastSeen", {
-    header: t("column.lastSeen"),
-    sortDescFirst: true,
-    cell: ({ getValue }) =>
-      html`<span title=${formatTime(getValue())}>${ago(getValue())}</span>`,
-  }),
-  column.accessor("firstSeen", {
-    header: t("column.firstSeen"),
-    sortDescFirst: true,
-  }),
-]);
+        return worth === undefined ? dash : formatPercent(worth);
+      },
+    }),
+    column.accessor("count", {
+      header: t("column.events"),
+      sortDescFirst: true,
+    }),
+    column.accessor((issue) => issue.hosts.join(", "), {
+      id: "hosts",
+      header: t("column.hosts"),
+      enableSorting: false,
+    }),
+    column.accessor("lastSeen", {
+      header: t("column.lastSeen"),
+      sortDescFirst: true,
+      cell: ({ getValue }) =>
+        html`<span title=${formatTime(getValue())}>${ago(getValue())}</span>`,
+    }),
+    column.accessor("firstSeen", {
+      header: t("column.firstSeen"),
+      sortDescFirst: true,
+    }),
+  ]);
 
 /** Columns kept for sorting and grouping, but not shown. */
 const columnVisibility = { kind: false, firstSeen: false };
@@ -242,7 +251,7 @@ const filterNames: ReadonlyArray<FilterName> = [
 const sheetQuery = window.matchMedia("(max-width: 39.99rem)");
 
 /** The columns a row shows, in order, after the selection checkbox. */
-const shownColumns = columns.flatMap((definition) => {
+const shownColumns = columnsFor(new Map()).flatMap((definition) => {
   const id =
     definition.id ??
     ("accessorKey" in definition ? definition.accessorKey : undefined);
@@ -892,6 +901,16 @@ export class TriageIssues extends LitElement {
 
   readonly #collection = new AtomController(this, () => collection);
 
+  readonly #tokenValues = new AtomController(this, () => tokenValues);
+
+  /** The columns, and the values behind tokens they were built with. */
+  #columns:
+    | {
+        readonly values: TokenValues;
+        readonly columns: ReturnType<typeof columnsFor>;
+      }
+    | undefined;
+
   readonly #bulk = new AtomController(this, () => bulkAction);
 
   readonly #merge = new AtomController(this, () => mergeIssues);
@@ -1388,9 +1407,16 @@ export class TriageIssues extends LitElement {
     const settings = this.#settings.value;
     const collapsed = this.#collapsed.value;
 
+    const values = this.#tokenValues.value;
+
+    // Rebuilt only when new values behind tokens arrive.
+    if (this.#columns?.values !== values) {
+      this.#columns = { values, columns: columnsFor(values) };
+    }
+
     const table = this.#table.table({
       features,
-      columns,
+      columns: this.#columns.columns,
       data: issues,
       getRowId: (issue) => issue.id,
       manualSorting: true,
@@ -1582,6 +1608,8 @@ export class TriageIssues extends LitElement {
     if (!AsyncResult.isSuccess(result) || result.waiting) {
       return;
     }
+
+    requestValues(result.value.items.map((issue) => issue.title));
 
     // Fetch the next page as the last loaded rows scroll into view.
     if (

@@ -164,4 +164,11 @@ export const shared = css`
     padding: var(--triage-space-8) 0;
     color: var(--triage-muted);
   }
+
+  /* A redacted value shown from this machine, with its token in the tooltip. */
+  .resolved {
+    text-decoration: underline dotted var(--triage-muted);
+    text-underline-offset: 0.2em;
+    cursor: help;
+  }
 `;
