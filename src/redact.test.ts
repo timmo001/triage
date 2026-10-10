@@ -31,6 +31,19 @@ describe("redact", () => {
     ["machine 0123456789abcdef0123456789abcdef", "machine <id>"],
     ["dev 80:C3:BA:7B:93:4E and 80_C3_BA_7B_93_4E", "dev <mac> and <mac>"],
     ["from 192.168.1.20:8080", "from <ip>:8080"],
+    [
+      "host='203-0-113-7.0123456789abcdef.plex.direct', port=8443",
+      "host='<ip>.0123456789abcdef.plex.direct', port=8443",
+    ],
+    ["via ip-10-0-0-5.ec2.internal", "via ip-<ip>.ec2.internal"],
+    [
+      "on 2026-10-10 at 300-1-2-3.example.com, usb 1-6:1.0",
+      "on 2026-10-10 at 300-1-2-3.example.com, usb 1-6:1.0",
+    ],
+    [
+      "card 0-1-2-3.service and getty@1-2-3-4.service failed in 1-2-3-4.5",
+      "card 0-1-2-3.service and getty@1-2-3-4.service failed in 1-2-3-4.5",
+    ],
     ["via fe80::1c2b:3d4e:5f60:7a8b%wlan0 up", "via <ip> up"],
     ["to 2001:db8:85a3:0:0:8a2e:370:7334 ok", "to <ip> ok"],
     [

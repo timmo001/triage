@@ -23,6 +23,7 @@ import {
   isKind,
   type Redaction,
   RedactionVault,
+  redactDashedIps,
   redactGeneric,
 } from "../redact.js";
 
@@ -953,6 +954,73 @@ const migrations = SqliteMigrator.fromRecord({
           UPDATE redactions SET value = ${value.slice(value.indexOf(".") + 1)}
           WHERE token = ${token}
         `;
+      }
+    }
+  }),
+  // IPv4 addresses written with dashes in a host name, as in Plex's
+  // a-b-c-d.<id>.plex.direct, weren't redacted. Stored ones become a plain
+  // <ip>, since there's no token to give them now, and each event's new
+  // fingerprint goes to the issue that already has it, so its next events,
+  // redacted when they're captured, still join it.
+  "0021_dashed_ips": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const decodeEvent = Schema.decodeUnknownEffect(EventJson);
+    let last = 0;
+
+    while (true) {
+      const rows = yield* sql<{
+        rowid: number;
+        issue_id: string;
+        data: string;
+      }>`
+        SELECT rowid, issue_id, data FROM events
+        WHERE rowid > ${last} AND data GLOB '*[0-9]-[0-9]*-[0-9]*-[0-9]*.*'
+        ORDER BY rowid LIMIT 1000
+      `;
+
+      if (rows.length === 0) {
+        break;
+      }
+
+      for (const row of rows) {
+        const data = redactDashedIps(row.data);
+
+        if (data === row.data) {
+          continue;
+        }
+
+        const event = yield* Effect.option(decodeEvent(data));
+
+        if (Option.isNone(event)) {
+          continue;
+        }
+
+        const fingerprint = Fingerprint.fingerprint(event.value);
+
+        yield* sql`
+          UPDATE events SET data = ${data}, fingerprint = ${fingerprint}
+          WHERE rowid = ${row.rowid}
+        `;
+
+        yield* sql`
+          INSERT OR IGNORE INTO issue_fingerprints (fingerprint, issue_id)
+          VALUES (${fingerprint}, ${row.issue_id})
+        `;
+      }
+
+      last = rows.at(-1)?.rowid ?? last;
+    }
+
+    const warnings = yield* sql<{ id: number; example: string }>`
+      SELECT id, example FROM warnings
+      WHERE example GLOB '*[0-9]-[0-9]*-[0-9]*-[0-9]*.*'
+    `;
+
+    for (const warning of warnings) {
+      const example = redactDashedIps(warning.example);
+
+      if (example !== warning.example) {
+        yield* sql`UPDATE warnings SET example = ${example} WHERE id = ${warning.id}`;
       }
     }
   }),

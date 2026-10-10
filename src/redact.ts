@@ -78,6 +78,20 @@ export const tokenize =
 
 type Rule = (text: string, mark: Mark) => string;
 
+/**
+ * Mark IPv4 addresses written with dashes in a host name, as Plex's
+ * a-b-c-d.<id>.plex.direct or a cloud host's ip-a-b-c-d.internal, but not a
+ * unit's instance or anything else followed by a unit type.
+ */
+export const redactDashedIps = (text: string, mark: Mark = placeholder) =>
+  text.replace(
+    /(?<![\w.@-])(ip-)?(\d{1,3}(?:-\d{1,3}){3})(?!\.(?:service|socket|timer|target|mount|automount|scope|slice|path|swap|device)\b)(?=\.[a-z0-9-]*[a-z])/gi,
+    (match, prefix: string | undefined, address: string) =>
+      address.split("-").every((octet) => Number(octet) <= 255)
+        ? `${prefix ?? ""}${mark("ip", address)}`
+        : match,
+  );
+
 const fixed =
   (pattern: RegExp, replacement: string): Rule =>
   (text) =>
@@ -120,6 +134,7 @@ const rules: ReadonlyArray<Rule> = [
   ),
   marked(/\b[0-9a-f]{2}([:_-])[0-9a-f]{2}(?:\1[0-9a-f]{2}){4}\b/gi, "mac"),
   marked(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, "ip"),
+  (text, mark) => redactDashedIps(text, mark),
   // An IPv6 address may be followed by a colon, as in "from <address>: ...",
   // just not by another group.
   marked(
