@@ -76,6 +76,15 @@ jobs:
       - name: Check the app image serves the web UI
         run: curl -sf http://127.0.0.1:7172/ | grep -q '<triage-app>'
 
+      # The Supervisor mounts both journal directories read only, with no machine ID.
+      - name: Check the app image reads the host journal
+        run: |
+          docker run --rm --entrypoint journalctl \
+            -v /var/log/journal:/var/log/journal:ro \
+            -v /run/log/journal:/run/log/journal:ro \
+            triage-app:ci --merge --no-pager --quiet --lines=5 | tee journal.log
+          test -s journal.log
+
       - name: App logs
         if: always()
         run: docker logs app || true

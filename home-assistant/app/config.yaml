@@ -21,6 +21,9 @@ panel_icon: mdi:clipboard-pulse-outline
 # Announces the MCP server on the ingress port, so Assist can read and change issues.
 discovery:
   - mcp
+# Mounts the host journal read only, which holds Core's, the Supervisor's,
+# every app's and the host's logs, for collecting Home Assistant's errors.
+journald: true
 environment:
   TRIAGE_OPTIONS: /data/options.json
   TRIAGE_INGRESS_PORT: "8099"
