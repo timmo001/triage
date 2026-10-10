@@ -130,24 +130,31 @@ export const toEvent = (
     return value === undefined ? undefined : redact(value);
   };
 
-  const identifier = redacted("SYSLOG_IDENTIFIER");
-  const bootId = text(entry, "_BOOT_ID");
+  // Only redacted once it's an event, so a redaction token's value is only
+  // kept for what's stored.
+  const commonOf = (shown: string) => {
+    const identifier = redacted("SYSLOG_IDENTIFIER");
+    const bootId = text(entry, "_BOOT_ID");
 
-  const common = {
-    id: Fingerprint.issueId(entry.__CURSOR),
-    host: from.host ?? redacted("_HOSTNAME") ?? "<host>",
-    source: from.source ?? "journal",
-    ...(bootId !== undefined && { bootId: Fingerprint.issueId(bootId) }),
-    timestamp: Math.floor(entry.__REALTIME_TIMESTAMP / 1000),
-    severity: Severity.fromPriority(priority) ?? "err",
-    ...(identifier !== undefined && { identifier }),
-    message: redact(message),
+    return {
+      id: Fingerprint.issueId(entry.__CURSOR),
+      host: from.host ?? redacted("_HOSTNAME") ?? "<host>",
+      source: from.source ?? "journal",
+      ...(bootId !== undefined && { bootId: Fingerprint.issueId(bootId) }),
+      timestamp: Math.floor(entry.__REALTIME_TIMESTAMP / 1000),
+      severity: Severity.fromPriority(priority) ?? "err",
+      ...(identifier !== undefined && { identifier }),
+      message: redact(shown),
+    };
   };
 
-  const found = rawUnit(entry);
+  const unitOf = () => {
+    const found = rawUnit(entry);
 
-  const unit =
-    found === undefined ? {} : { unit: redact(found.unit), scope: found.scope };
+    return found === undefined
+      ? {}
+      : { unit: redact(found.unit), scope: found.scope };
+  };
 
   switch (messageId) {
     case MessageId.coredump: {
@@ -155,10 +162,9 @@ export const toEvent = (
 
       return Option.some(
         Event.Event.cases.Crash.make({
-          ...common,
+          ...commonOf(message.split("\n")[0] ?? ""),
           ...(comm !== undefined && { identifier: comm }),
-          ...unit,
-          message: redact(message.split("\n")[0] ?? ""),
+          ...unitOf(),
           executable: redacted("COREDUMP_EXE") ?? comm ?? "unknown",
           signal: redacted("COREDUMP_SIGNAL_NAME") ?? "unknown",
           frames: parseFrames(message, redact),
@@ -174,8 +180,8 @@ export const toEvent = (
 
       return Option.some(
         Event.Event.cases.UnitFailure.make({
-          ...common,
-          ...unit,
+          ...commonOf(message),
+          ...unitOf(),
           ...(result !== undefined && { result }),
         }),
       );
@@ -187,8 +193,8 @@ export const toEvent = (
 
       return Option.some(
         Event.Event.cases.OutOfMemory.make({
-          ...common,
-          ...unit,
+          ...commonOf(message),
+          ...unitOf(),
           ...(process !== undefined && { process: redact(process) }),
         }),
       );
@@ -199,8 +205,8 @@ export const toEvent = (
       return priority <= errorPriority && message.trim() !== ""
         ? Option.some(
             Event.Event.cases.LogError.make({
-              ...common,
-              ...unit,
+              ...commonOf(message),
+              ...unitOf(),
             }),
           )
         : Option.none();
@@ -231,12 +237,17 @@ export const toWarning = (
     return Option.none();
   }
 
-  const example = redact(message);
-  const template = Fingerprint.template(example);
   const identifier = text(entry, "SYSLOG_IDENTIFIER");
   const unit = rawUnit(entry);
 
-  if (template === "" || (identifier === undefined && unit === undefined)) {
+  if (identifier === undefined && unit === undefined) {
+    return Option.none();
+  }
+
+  const example = redact(message);
+  const template = Fingerprint.template(example);
+
+  if (template === "") {
     return Option.none();
   }
 

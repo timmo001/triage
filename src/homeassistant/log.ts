@@ -450,10 +450,16 @@ export const warningOf = (
   redact: Redact,
   redactNames: Redact = unchanged,
 ): Warning.Warning | undefined => {
+  // Only redacted once it's a warning, so a redaction token's value is only
+  // kept for what's stored.
+  if (record.severity !== "warning") {
+    return undefined;
+  }
+
   const example = redact(redactNames(record.lines[0] ?? ""));
   const template = Fingerprint.template(example);
 
-  if (record.severity !== "warning" || template === "") {
+  if (template === "") {
     return undefined;
   }
 
