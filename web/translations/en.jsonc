@@ -187,6 +187,16 @@
     "one": "{count} time on {host}, last {last}",
     "other": "{count} times on {host}, last {last}"
   },
+  // Other issues with events on the same host within a minute of this issue's
+  // latest events, which may share a cause.
+  "issue.nearby": "Around the same time",
+  "nearby.hint": "Other issues that happened on the same host within a minute of its latest events. Several failing together often share a cause, such as a network or device going down.",
+  // Next to an issue around the same time, for how many of this issue's latest
+  // events it happened near.
+  "nearby.near": {
+    "one": "near {count} of its latest events",
+    "other": "near {count} of its latest events"
+  },
   "issue.loadingEvents": "Loading events",
   "issue.noEvents": "No events.",
   "issue.loadMoreFailed": "Couldn't load more events.",

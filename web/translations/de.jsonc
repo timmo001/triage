@@ -182,6 +182,12 @@
     "one": "{count}-mal auf {host}, zuletzt {last}",
     "other": "{count}-mal auf {host}, zuletzt {last}"
   },
+  "issue.nearby": "Zur gleichen Zeit",
+  "nearby.hint": "Andere Probleme auf demselben Host innerhalb einer Minute um seine neuesten Ereignisse. Wenn mehrere zusammen fehlschlagen, haben sie oft dieselbe Ursache, etwa ein ausgefallenes Netzwerk oder Gerät.",
+  "nearby.near": {
+    "one": "bei {count} seiner neuesten Ereignisse",
+    "other": "bei {count} seiner neuesten Ereignisse"
+  },
   "issue.loadingEvents": "Ereignisse werden geladen",
   "issue.noEvents": "Keine Ereignisse.",
   "issue.loadMoreFailed": "Weitere Ereignisse konnten nicht geladen werden.",

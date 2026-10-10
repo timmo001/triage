@@ -383,6 +383,49 @@ describe("Store", () => {
     expect(result.missing).toEqual(Option.none());
   });
 
+  test("finds other issues on the same host around the same time", async () => {
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+      const now = Date.now();
+
+      const event = (host: string, identifier: string, ago: number) =>
+        Event.Event.cases.LogError.make({
+          id: `${host}-${identifier}-${ago}`,
+          host,
+          source: "journal",
+          timestamp: now - ago,
+          severity: "err",
+          identifier,
+          message: "failed",
+        });
+
+      yield* store.add([
+        event("nas", "qbittorrent", 600_000),
+        event("nas", "qbittorrent", 0),
+        // Within a minute of both qbittorrent errors.
+        event("nas", "radarr", 590_000),
+        event("nas", "radarr", 30_000),
+        // Within a minute of one.
+        event("nas", "plex", 20_000),
+        // Too far away, or on another host.
+        event("nas", "sonarr", 300_000),
+        event("desktop", "bluetoothd", 0),
+      ]);
+
+      const issues = yield* store.issues({ limit: 10 });
+
+      const id =
+        issues.find((issue) => issue.title === "qbittorrent: failed")?.id ?? "";
+
+      return Option.getOrThrow(yield* store.review(id, 20)).nearby;
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.map((issue) => [issue.title, issue.near])).toEqual([
+      ["radarr: failed", 2],
+      ["plex: failed", 1],
+    ]);
+  });
+
   test("merges issues into the one seen first, and redirects the others", async () => {
     const result = await Effect.gen(function* () {
       const store = yield* Store;

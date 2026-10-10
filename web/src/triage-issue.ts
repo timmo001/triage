@@ -180,7 +180,8 @@ export class TriageIssue extends LitElement {
       }
 
       .fingerprints,
-      .warnings {
+      .warnings,
+      .nearby {
         list-style: none;
         margin: 0 0 var(--triage-space-8);
         padding: 0;
@@ -189,7 +190,8 @@ export class TriageIssue extends LitElement {
       }
 
       .fingerprints li,
-      .warnings li {
+      .warnings li,
+      .nearby li {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
@@ -679,6 +681,7 @@ export class TriageIssue extends LitElement {
           <h2>${t("issue.suggestions")}</h2>
           ${renderSuggestions(value.suggestions)}
           ${value.warnings.length > 0 ? renderWarnings(value.warnings) : nothing}
+          ${value.nearby.length > 0 ? renderNearby(value.nearby) : nothing}
           <h2>${t("issue.eventList")}</h2>
           ${this.#renderEvents()}
         `,
@@ -1105,6 +1108,24 @@ const renderSuggestions = (suggestions: ReadonlyArray<Api.IssueSuggestion>) =>
           )}
         </ol>
       `;
+
+const renderNearby = (nearby: ReadonlyArray<Api.NearbyIssue>) => html`
+  <h2>${t("issue.nearby")}</h2>
+  <p class="muted-text">${t("nearby.hint")}</p>
+  <ul class="nearby">
+    ${nearby.map(
+      (other) => html`
+        <li>
+          ${stateBadge(other.state)}
+          <a href=${issueHref(other.id)}>${other.title}</a>
+          <span class="muted-text"
+            >${t("nearby.near", { count: other.near })}</span
+          >
+        </li>
+      `,
+    )}
+  </ul>
+`;
 
 const renderWarnings = (warnings: ReadonlyArray<Api.IssueWarning>) => html`
   <h2>${t("issue.warnings")}</h2>

@@ -420,6 +420,29 @@ export const Merged = Schema.Struct({
 
 export interface Merged extends Schema.Schema.Type<typeof Merged> {}
 
+/**
+ * How close another issue's event must be, before or after one of an issue's
+ * latest events on the same host, to count as around the same time, in
+ * milliseconds.
+ */
+export const nearbyMillis = 60_000;
+
+/** The most issues that come with an issue as happening around the same time. */
+export const maxNearby = 10;
+
+/**
+ * Another issue that happened on the same host around the same time as an
+ * issue's latest events, which may share a cause, such as a network or device
+ * going down.
+ */
+export const NearbyIssue = Schema.Struct({
+  ...IssueSummary.fields,
+  /** How many of the issue's latest events it happened around. */
+  near: Schema.Int,
+});
+
+export interface NearbyIssue extends Schema.Schema.Type<typeof NearbyIssue> {}
+
 /** An issue with its latest events and what the models made of it. */
 export const IssueReview = Schema.Struct({
   ...IssueDetail.fields,
@@ -443,6 +466,14 @@ export const IssueReview = Schema.Struct({
    * are merged into it. Older servers don't send this.
    */
   fingerprints: Schema.Array(IssueFingerprint).pipe(
+    Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
+  ),
+  /**
+   * Other issues that happened on the same hosts within {@link nearbyMillis}
+   * of its latest events, those near the most first. Older servers don't send
+   * this.
+   */
+  nearby: Schema.Array(NearbyIssue).pipe(
     Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
   ),
 });

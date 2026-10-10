@@ -192,6 +192,13 @@
     "many": "{count} di volte su {host}, l'ultima {last}",
     "other": "{count} volte su {host}, l'ultima {last}"
   },
+  "issue.nearby": "Nello stesso momento",
+  "nearby.hint": "Altri problemi sullo stesso host entro un minuto dai suoi eventi più recenti. Quando più cose falliscono insieme, spesso hanno la stessa causa, come una rete o un dispositivo non raggiungibile.",
+  "nearby.near": {
+    "one": "vicino a {count} dei suoi eventi più recenti",
+    "many": "vicino a {count} dei suoi eventi più recenti",
+    "other": "vicino a {count} dei suoi eventi più recenti"
+  },
   "issue.loadingEvents": "Caricamento degli eventi",
   "issue.noEvents": "Nessun evento.",
   "issue.loadMoreFailed": "Impossibile caricare altri eventi.",

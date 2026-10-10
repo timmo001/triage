@@ -185,6 +185,12 @@
     "one": "{count} keer op {host}, laatst {last}",
     "other": "{count} keer op {host}, laatst {last}"
   },
+  "issue.nearby": "Rond dezelfde tijd",
+  "nearby.hint": "Andere problemen op dezelfde host binnen een minuut van de nieuwste gebeurtenissen. Als er meerdere tegelijk misgaan, hebben ze vaak dezelfde oorzaak, zoals een netwerk of apparaat dat uitvalt.",
+  "nearby.near": {
+    "one": "bij {count} van de nieuwste gebeurtenissen",
+    "other": "bij {count} van de nieuwste gebeurtenissen"
+  },
   "issue.loadingEvents": "Gebeurtenissen laden",
   "issue.noEvents": "Geen gebeurtenissen.",
   "issue.loadMoreFailed": "Kon niet meer gebeurtenissen laden.",

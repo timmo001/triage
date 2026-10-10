@@ -196,6 +196,14 @@
     "many": "{count} razy na {host}, ostatnio {last}",
     "other": "{count} razy na {host}, ostatnio {last}"
   },
+  "issue.nearby": "W tym samym czasie",
+  "nearby.hint": "Inne problemy na tym samym hoście w ciągu minuty od jego najnowszych zdarzeń. Gdy kilka rzeczy zawodzi naraz, często mają wspólną przyczynę, na przykład awarię sieci lub urządzenia.",
+  "nearby.near": {
+    "one": "przy {count} z jego najnowszych zdarzeń",
+    "few": "przy {count} z jego najnowszych zdarzeń",
+    "many": "przy {count} z jego najnowszych zdarzeń",
+    "other": "przy {count} z jego najnowszych zdarzeń"
+  },
   "issue.loadingEvents": "Wczytywanie zdarzeń",
   "issue.noEvents": "Brak zdarzeń.",
   "issue.loadMoreFailed": "Nie udało się wczytać kolejnych zdarzeń.",

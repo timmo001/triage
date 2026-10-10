@@ -803,6 +803,12 @@ const migrations = SqliteMigrator.fromRecord({
       )
     `;
   }),
+  // For the issues that happened on a host around the same time as another.
+  "0016_events_by_host_time": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`CREATE INDEX events_host_time ON events (host, timestamp)`;
+  }),
 });
 
 /** How long a host keeps warning counts, sent or not. */
@@ -1631,6 +1637,51 @@ export class Store extends Context.Service<
       `,
     });
 
+    /**
+     * Other issues with events on the same host within `Api.nearbyMillis` of
+     * one of this issue's latest events, those near the most first.
+     */
+    const nearbyIssues = Effect.fnUntraced(function* (id: string) {
+      const near = yield* sql<{ id: string; near: number }>`
+        SELECT other.issue_id AS id, COUNT(DISTINCT mine.id) AS near
+        FROM (
+          SELECT host, id, timestamp FROM events
+          WHERE issue_id = ${id}
+          ORDER BY timestamp DESC
+          LIMIT ${Api.latestEvents}
+        ) AS mine
+        JOIN events AS other ON other.host = mine.host
+          AND other.timestamp BETWEEN mine.timestamp - ${Api.nearbyMillis}
+            AND mine.timestamp + ${Api.nearbyMillis}
+          AND other.issue_id != ${id}
+        GROUP BY other.issue_id
+        ORDER BY near DESC, MAX(other.timestamp) DESC
+        LIMIT ${Api.maxNearby}
+      `;
+
+      if (near.length === 0) {
+        return [];
+      }
+
+      const counts = new Map(near.map((row) => [row.id, row.near]));
+      const now = yield* Clock.currentTimeMillis;
+
+      const rows = yield* decodeSummaries(
+        yield* sql`
+          SELECT * FROM (${summaries({}, now)})
+          WHERE id IN ${sql.in([...counts.keys()])}
+        `,
+      );
+
+      return rows
+        .map((row): Api.NearbyIssue =>
+          Object.assign(toSummary(row, now, windows), {
+            near: counts.get(row.id) ?? 0,
+          }),
+        )
+        .toSorted((a, b) => b.near - a.near || b.lastSeen - a.lastSeen);
+    });
+
     const review = Effect.fn("Store.review")(
       function* (requested: string, limit: number) {
         const detail = yield* issue(requested, limit);
@@ -1647,6 +1698,7 @@ export class Store extends Context.Service<
         const label = yield* issueLabel(id);
         const hostCounts = yield* issueHosts(id);
         const fingerprints = yield* issueFingerprints(id);
+        const nearby = yield* nearbyIssues(id);
 
         return Option.some<Api.IssueReview>({
           ...detail.value,
@@ -1674,6 +1726,7 @@ export class Store extends Context.Service<
           suggestions: suggestions.map(toSuggestion),
           notes: notes.map(toNote),
           fingerprints,
+          nearby,
         });
       },
       Effect.mapError((cause) => new StoreError({ cause })),
