@@ -105,6 +105,26 @@ export const coreRecords = (
   );
 };
 
+const integrationLogger =
+  /^(?<prefix>homeassistant\.components|custom_components)\.(?<domain>[a-z0-9_]+)/;
+
+/**
+ * The integration a logger belongs to: `homeassistant.components.hue.light`
+ * is the built-in `hue`, and `custom_components.thing` the custom `thing`.
+ */
+export const integrationOf = (
+  logger: string,
+): Event.Integration | undefined => {
+  const match = integrationLogger.exec(logger)?.groups;
+
+  return match?.domain === undefined
+    ? undefined
+    : {
+        domain: match.domain,
+        custom: match.prefix === "custom_components",
+      };
+};
+
 const common = (record: CoreRecord, host: string) => {
   const bootId = text(record.entry, "_BOOT_ID");
 
@@ -130,6 +150,8 @@ export const coreEvent = (
   }
 
   const { bootId, ...rest } = common(record, host);
+  const identifier = redact(record.logger);
+  const integration = integrationOf(identifier);
 
   return Event.Event.cases.LogError.make({
     ...rest,
@@ -137,8 +159,9 @@ export const coreEvent = (
     source: coreSource,
     ...(bootId !== "" && { bootId }),
     severity: record.severity,
-    identifier: redact(record.logger),
+    identifier,
     message: redact(record.lines.join("\n").trimEnd()),
+    ...(integration !== undefined && { integration }),
   });
 };
 

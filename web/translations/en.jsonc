@@ -234,6 +234,14 @@
   "field.host": "Host",
   "field.source": "Source",
   "field.program": "Program",
+  // The Home Assistant integration that logged an event, such as "hue".
+  "field.integration": "Integration",
+  // After a custom integration's name, in brackets.
+  "integration.custom": "custom",
+  // Links after a built-in integration's name, in brackets: its documentation
+  // and its issues on GitHub.
+  "integration.docs": "docs",
+  "integration.issues": "issues",
   "field.unit": "Unit",
   "field.executable": "Executable",
   "field.signal": "Signal",

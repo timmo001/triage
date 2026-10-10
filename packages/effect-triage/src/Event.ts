@@ -29,6 +29,16 @@ export const System = Schema.Struct({
 
 export interface System extends Schema.Schema.Type<typeof System> {}
 
+/** The Home Assistant integration that logged an event. */
+export const Integration = Schema.Struct({
+  /** Its domain, such as `hue`. */
+  domain: Schema.NonEmptyString,
+  /** Whether it's a custom integration rather than one built into Core. */
+  custom: Schema.Boolean,
+});
+
+export interface Integration extends Schema.Schema.Type<typeof Integration> {}
+
 const common = {
   /** Unique per source, such as a hash of a journal cursor, so an event is stored once. */
   id: Schema.NonEmptyString,
@@ -67,6 +77,8 @@ const common = {
   package: Schema.optionalKey(Package),
   /** What the host was running, for events from the boot they were collected in. */
   system: Schema.optionalKey(System),
+  /** The Home Assistant integration that logged it, for Home Assistant's own errors. */
+  integration: Schema.optionalKey(Integration),
 };
 
 /**

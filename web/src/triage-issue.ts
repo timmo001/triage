@@ -27,6 +27,7 @@ import {
   mdiNoteTextOutline,
   mdiPackageVariantClosed,
   mdiPower,
+  mdiPuzzleOutline,
   mdiRefresh,
   mdiRestore,
   mdiServer,
@@ -1151,7 +1152,37 @@ const renderHosts = (hosts: ReadonlyArray<Api.HostCount>) => html`
   </ul>
 `;
 
-type Field = readonly [label: string, icon: string, value?: string];
+type Field = readonly [
+  label: string,
+  icon: string,
+  value?: string | TemplateResult,
+];
+
+/**
+ * A Home Assistant integration, with links to its docs and Core's issues for
+ * a built-in one.
+ */
+const renderIntegration = (integration: Event.Integration) => {
+  if (integration.custom) {
+    return html`${integration.domain} (${t("integration.custom")})`;
+  }
+
+  const domain = encodeURIComponent(integration.domain);
+
+  const issues = `https://github.com/home-assistant/core/issues?q=${encodeURIComponent(
+    `is:issue label:"integration: ${integration.domain}"`,
+  )}`;
+
+  return html`${integration.domain} (<a
+      href="https://www.home-assistant.io/integrations/${domain}/"
+      target="_blank"
+      rel="noreferrer"
+      >${t("integration.docs")}</a
+    >,
+    <a href=${issues} target="_blank" rel="noreferrer"
+      >${t("integration.issues")}</a
+    >)`;
+};
 
 // Everything stored about where an event came from, in the order people look
 // for it.
@@ -1160,6 +1191,13 @@ const eventFields = (event: Event.Event) => {
     [t("field.host"), mdiServer, event.host],
     [t("field.source"), mdiNotebookOutline, event.source],
     [t("field.program"), mdiApplicationOutline, event.identifier],
+    [
+      t("field.integration"),
+      mdiPuzzleOutline,
+      event.integration === undefined
+        ? undefined
+        : renderIntegration(event.integration),
+    ],
     [
       t("field.unit"),
       mdiCogOutline,

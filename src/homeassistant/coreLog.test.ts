@@ -6,6 +6,7 @@ import {
   coreEvent,
   coreRecords,
   coreWarning,
+  integrationOf,
   lastRecordStart,
 } from "./coreLog.js";
 
@@ -79,6 +80,7 @@ describe("coreEvent", () => {
     expect(event?.host).toBe("home-assistant");
     expect(event?.source).toBe("homeassistant-core");
     expect(event?.identifier).toBe("homeassistant.components.hue");
+    expect(event?.integration).toEqual({ domain: "hue", custom: false });
     expect(event?.bootId).toBe(Fingerprint.issueId("boot"));
     expect(event?.message).toContain("Bridge at <ip>");
     expect(event?.message).toEndWith("TimeoutError");
@@ -88,6 +90,20 @@ describe("coreEvent", () => {
         "homeassistant.components.hue: Error setting up entry Bridge at <ip>",
       );
     }
+  });
+});
+
+describe("integrationOf", () => {
+  test("reads built-in and custom integrations from the logger", () => {
+    expect(integrationOf("homeassistant.components.iss.coordinator")).toEqual({
+      domain: "iss",
+      custom: false,
+    });
+    expect(integrationOf("custom_components.thing")).toEqual({
+      domain: "thing",
+      custom: true,
+    });
+    expect(integrationOf("homeassistant.core")).toBeUndefined();
   });
 });
 
