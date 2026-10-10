@@ -16,13 +16,15 @@ Hosts read the systemd journal and keep only:
 
 For failures and crashes, hosts also keep the last 10 lines the unit logged before it, to give suggestions something to go on.
 
+Hosts also count warnings, apart from the kernel's, by program and message with the parts that change, such as numbers and paths, replaced. They keep each count with the latest message for a week, and only send the counts for programs that have an issue that isn't muted. Warnings never become issues of their own.
+
 Each event keeps its message, the program and unit that logged it, its severity and when it happened. Everything else in the journal entry is dropped.
 
 For events from the current boot, hosts also add the OS name and version from `/etc/os-release`, the kernel release, and, where pacman knows it, the name and version of the package that owns the program, unit file or kernel. Older events don't get these, since the host could have been running something else then.
 
 ## What's redacted
 
-Redaction happens on the host, when an event is captured, before it's stored or sent anywhere. Every text field, including stack frames and the logged lines, goes through it. It replaces:
+Redaction happens on the host, when an event or warning is captured, before it's stored or sent anywhere. Every text field, including stack frames, the logged lines and warnings, goes through it. It replaces:
 
 - passwords, tokens, API keys and `Bearer` credentials
 - email addresses
@@ -43,12 +45,12 @@ Redaction is pattern based, so it can miss something unusual. Run `triage collec
 
 | What | Where | What it sends |
 | --- | --- | --- |
-| Hosts | The triage server you set in `TRIAGE_SERVER` | Redacted events |
+| Hosts | The triage server you set in `TRIAGE_SERVER` | Redacted events, and warning counts for programs with an issue |
 | Server | Nowhere, unless you turn on decide or suggest | |
 | Workers | The triage server they're enrolled with | Decisions and suggestions |
 | Decision models, with `TRIAGE_DECIDE` | The decision model API you choose | A redacted description of the issue |
-| Language models, with `TRIAGE_SUGGEST` or `triage suggest` | The language model API you choose | The same description, plus the unit and its logged lines |
-| Agents, through the [MCP server](/agents) | The agent you connect | An issue's redacted events, the names hosts were enrolled with, decisions and suggestions |
+| Language models, with `TRIAGE_SUGGEST` or `triage suggest` | The language model API you choose | The same description, plus the unit, its logged lines and the program's 5 most frequent warnings |
+| Agents, through the [MCP server](/agents) | The agent you connect | An issue's redacted events and warnings, the names hosts were enrolled with, decisions and suggestions |
 
 The description an issue sends is its kind, title and event count, up to 3 distinct messages and, for crashes, the top 5 stack frames. Messages and logged lines are cut at 300 characters. It never includes host names, event IDs or timestamps.
 
@@ -56,4 +58,4 @@ Nothing is sent to a model unless you turn decide or suggest on, or run `triage 
 
 ## What the server stores
 
-The server stores the redacted events, the issues they're grouped into, and any decisions and suggestions. Tokens are stored as hashes, so the database doesn't hold a usable token. `TRIAGE_SERVER_ADMIN_TOKEN` isn't stored at all.
+The server stores the redacted events, the issues they're grouped into, the warning counts hosts send, and any decisions and suggestions. Tokens are stored as hashes, so the database doesn't hold a usable token. `TRIAGE_SERVER_ADMIN_TOKEN` isn't stored at all.

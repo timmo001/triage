@@ -71,7 +71,7 @@ The server has a web page at its own URL, such as `http://localhost:7171/`. It l
 
 **Filters** opens a panel with lists of states, hosts, kinds and labels, with how many issues each has. States start with regressed, new and ongoing ticked, so quiet, resolved and muted issues stay out of the way; everything else starts ticked. Untick what you don't want to see, and each list's clear button goes back to how it started. The page remembers these choices in the browser.
 
-Tick issues, or a whole group, to resolve, mute, reopen or label them together, or tick two or more to [merge](#merging) them. To go through issues that have stopped happening, tick only **Quiet** in Filters and resolve or mute the ones you're done with. Each issue's page shows how often it happened on each host, its 20 latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, its notes, and buttons to resolve, mute, reopen or unmute it with an optional note, or to add a note on its own. A merged issue's page lists its fingerprints, each with an **Unmerge** button.
+Tick issues, or a whole group, to resolve, mute, reopen or label them together, or tick two or more to [merge](#merging) them. To go through issues that have stopped happening, tick only **Quiet** in Filters and resolve or mute the ones you're done with. Each issue's page shows how often it happened on each host, its 20 latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, the warnings its program logged most often on those hosts, its notes, and buttons to resolve, mute, reopen or unmute it with an optional note, or to add a note on its own. A merged issue's page lists its fingerprints, each with an **Unmerge** button.
 
 Sign in with an [admin token](/setup/server#tokens). It's kept in that browser until you sign out. In the [Home Assistant app](/setup/server#home-assistant), open **Triage** in Home Assistant's sidebar instead, with no token needed.
 
@@ -103,4 +103,4 @@ triage agreement
 triage suggest <issue>...
 ```
 
-asks a language model how to fix issues, and stores its answers. It sends the same trimmed, redacted description decision models get, plus the unit and the lines it logged before it failed, and caps each response at 4,096 tokens, thinking included. Each suggestion records the events it was based on.
+asks a language model how to fix issues, and stores its answers. It sends the same trimmed, redacted description decision models get, plus the unit, the lines it logged before it failed and the 5 warnings its program logged most often, and caps each response at 4,096 tokens, thinking included. Each suggestion records the events it was based on.
