@@ -60,7 +60,7 @@ export class HomeAssistantConfig extends Context.Service<
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const { redact } = yield* Redactor;
+      const { redact, mark } = yield* Redactor;
 
       const mounted = yield* fs
         .exists(configDirectory)
@@ -126,7 +126,7 @@ export class HomeAssistantConfig extends Context.Service<
         );
 
         stamps = current;
-        redactNames = namesRedactor(parseRegistries(registries));
+        redactNames = namesRedactor(parseRegistries(registries), mark);
 
         return redactNames;
       });

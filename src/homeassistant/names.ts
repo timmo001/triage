@@ -1,8 +1,8 @@
 import { Option, Schema } from "effect";
-import type { Redact } from "../redact.js";
+import { type Kind, type Mark, placeholder, type Redact } from "../redact.js";
 
-/** A name someone gave something in Home Assistant, and what replaces it. */
-export type Name = readonly [name: string, placeholder: string];
+/** A name someone gave something in Home Assistant, and what kind it is. */
+export type Name = readonly [name: string, kind: Kind];
 
 /** What Home Assistant's registries name, for redacting from its logs. */
 export interface Names {
@@ -72,12 +72,10 @@ export type Registries = {
 
 const named = (
   items: ReadonlyArray<string | null | undefined>,
-  placeholder: string,
+  kind: Kind,
 ): ReadonlyArray<Name> =>
   items.flatMap((name) =>
-    name === null || name === undefined
-      ? []
-      : [[name.trim(), placeholder] as const],
+    name === null || name === undefined ? [] : [[name.trim(), kind] as const],
   );
 
 /**
@@ -108,33 +106,33 @@ export const parseRegistries = (registries: Registries): Names => {
           device.name_by_user,
           device.entry_type === "service" ? undefined : device.name,
         ]),
-        "<device>",
+        "device",
       ),
       ...named(
         entities.map((entity) => entity.name),
-        "<entity>",
+        "entity",
       ),
       ...named(
         (read(registries.areas, Areas)?.data.areas ?? []).map(
           (area) => area.name,
         ),
-        "<area>",
+        "area",
       ),
       ...named(
         (read(registries.floors, Floors)?.data.floors ?? []).map(
           (floor) => floor.name,
         ),
-        "<floor>",
+        "floor",
       ),
       ...named(
         (read(registries.people, People)?.data.items ?? []).map(
           (person) => person.name,
         ),
-        "<user>",
+        "user",
       ),
       ...named(
         [read(registries.config, CoreSettings)?.data.location_name],
-        "<home>",
+        "home",
       ),
     ],
   };
@@ -146,18 +144,21 @@ const shortest = 3;
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * Replace Home Assistant's names in its logs: each entity ID's object ID,
- * keeping its domain, as in `light.<entity>`, then the longest names first,
- * so `Kitchen lamp` goes before `Kitchen`. Names match their case, since
- * people write them capitalised and code doesn't, which keeps an area named
- * `Hue` from replacing the `hue` in loggers and paths.
+ * Replace Home Assistant's names in its logs, marked with `mark`: each entity
+ * ID's object ID, keeping its domain, as in `light.<entity>`, then the longest
+ * names first, so `Kitchen lamp` goes before `Kitchen`. Names match their
+ * case, since people write them capitalised and code doesn't, which keeps an
+ * area named `Hue` from replacing the `hue` in loggers and paths.
  */
-export const namesRedactor = (registry: Names): Redact => {
-  const placeholders = new Map(
+export const namesRedactor = (
+  registry: Names,
+  mark: Mark = placeholder,
+): Redact => {
+  const kinds = new Map(
     registry.names.filter(([name]) => name.length >= shortest),
   );
 
-  const names = [...placeholders.keys()].sort((a, b) => b.length - a.length);
+  const names = [...kinds.keys()].sort((a, b) => b.length - a.length);
 
   const entityIds =
     registry.entityIds.length === 0
@@ -179,11 +180,15 @@ export const namesRedactor = (registry: Names): Redact => {
         : text.replace(
             entityIds,
             (entityId) =>
-              `${entityId.slice(0, entityId.indexOf("."))}.<entity>`,
+              `${entityId.slice(0, entityId.indexOf("."))}.${mark("entity", entityId)}`,
           );
 
     return byName === undefined
       ? withoutIds
-      : withoutIds.replace(byName, (name) => placeholders.get(name) ?? name);
+      : withoutIds.replace(byName, (name) => {
+          const kind = kinds.get(name);
+
+          return kind === undefined ? name : mark(kind, name);
+        });
   };
 };

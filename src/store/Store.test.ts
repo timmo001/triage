@@ -22,6 +22,26 @@ const log = (id: string, timestamp: number) =>
   });
 
 describe("Store", () => {
+  test("keeps one redaction key, and the first value behind each token", async () => {
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+      const first = yield* store.redactionKey;
+      const second = yield* store.redactionKey;
+
+      yield* store.remember([
+        { token: "<ip:0123abcd>", kind: "ip", value: "192.168.1.20" },
+      ]);
+      yield* store.remember([
+        { token: "<ip:0123abcd>", kind: "ip", value: "192.168.1.20" },
+      ]);
+
+      return { first, second };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.first).toHaveLength(32);
+    expect(result.second).toEqual(result.first);
+  });
+
   test("stores events once and groups them into issues", async () => {
     const result = await Effect.gen(function* () {
       const store = yield* Store;

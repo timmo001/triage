@@ -39,7 +39,7 @@ import { Uploader } from "./upload/Uploader.js";
 const collectorLayer = Collector.layer.pipe(
   Layer.provide(
     Layer.mergeAll(Journal.layer, Attribution.layer).pipe(
-      Layer.provideMerge(Redactor.layer),
+      Layer.provideMerge(Redactor.layer.pipe(Layer.provide(Store.layerVault))),
     ),
   ),
   Layer.provideMerge(Store.layer),
@@ -856,7 +856,12 @@ const serve = Command.make(
             hostJournal: input.collectHost,
           }).pipe(
             Layer.provide(HomeAssistantConfig.layer),
-            Layer.provide(Layer.merge(Journal.layer, Redactor.layer)),
+            Layer.provide(
+              Layer.merge(
+                Journal.layer,
+                Redactor.layer.pipe(Layer.provide(Store.layerVault)),
+              ),
+            ),
           )
         : Layer.empty;
 

@@ -196,7 +196,7 @@ export class IssueAdmin extends Context.Service<
             ),
         });
       }),
-    ).pipe(Layer.provide(Redactor.layer));
+    ).pipe(Layer.provide(Redactor.layerPlain));
 
   /** The issues of the server at `url`, as the admin in `$TRIAGE_ADMIN_TOKEN`. */
   static readonly layerRemote = (url: string) =>
@@ -286,7 +286,7 @@ export class IssueAdmin extends Context.Service<
         ).pipe(
           Layer.provide(TriageClient.layer({ url, token })),
           Layer.provide(FetchHttpClient.layer),
-          Layer.provide(Redactor.layer),
+          Layer.provide(Redactor.layerPlain),
         );
       }),
     );

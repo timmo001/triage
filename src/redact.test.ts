@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { makeRedact } from "./redact.js";
+import { Fingerprint } from "@timmo001/effect-triage";
+import { makeRedact, type Redaction, tokenize } from "./redact.js";
 
 const redact = makeRedact({ users: ["alex"], hosts: ["laptop"] });
 
@@ -72,5 +73,65 @@ describe("redact", () => {
       "HTTPSConnectionPool raised ReadFailedAPIError for OLED55G45LW at /usr/lib/python3.14/site-packages";
 
     expect(redact(text)).toBe(text);
+  });
+});
+
+describe("tokenize", () => {
+  const key = new Uint8Array(32).fill(7);
+
+  const tokened = () => {
+    const kept: Array<Redaction> = [];
+    const mark = tokenize(key, (redaction) => kept.push(redaction));
+
+    return {
+      kept,
+      redact: makeRedact({ users: ["alex"], hosts: ["laptop"] }, mark),
+    };
+  };
+
+  test("gives the same value the same token, and keeps what it stands for", () => {
+    const { kept, redact } = tokened();
+    const first = redact("from 192.168.1.20 and 192.168.1.21, user Alex");
+    const tokens = first.match(/<[a-z]+:[0-9a-f]{8}>/g) ?? [];
+
+    expect(tokens).toHaveLength(3);
+    expect(new Set(tokens).size).toBe(3);
+    expect(redact("again from 192.168.1.20 as alex")).toBe(
+      `again from ${tokens[0]} as ${tokens[2]}`,
+    );
+    expect(kept.map(({ kind, value }) => [kind, value])).toContainEqual([
+      "ip",
+      "192.168.1.20",
+    ]);
+  });
+
+  test("makes tokens only from this key", () => {
+    const other = makeRedact(
+      {},
+      tokenize(new Uint8Array(32).fill(8), () => {}),
+    );
+
+    expect(tokened().redact("from 192.168.1.20")).not.toBe(
+      other("from 192.168.1.20"),
+    );
+  });
+
+  test("never keeps secrets, IDs or home directories", () => {
+    const { kept, redact } = tokened();
+
+    expect(
+      redact(
+        "password=hunter2 for 1f0e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b in /home/sam",
+      ),
+    ).toBe("password=<redacted> for <uuid> in ~");
+    expect(kept).toEqual([]);
+  });
+
+  test("groups like plain placeholders", () => {
+    const message = "Connect to 192.168.1.20 for laptop failed after 30s";
+
+    expect(Fingerprint.template(tokened().redact(message))).toBe(
+      Fingerprint.template(makeRedact({ hosts: ["laptop"] })(message)),
+    );
   });
 });

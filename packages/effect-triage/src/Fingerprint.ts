@@ -30,15 +30,24 @@ const replacements: ReadonlyArray<readonly [RegExp, string]> = [
 ];
 
 /**
+ * Redaction tokens, such as `<ip:71d0a3c2>`, which a host can show the value
+ * behind. They group as their kind, `<ip>`, like a plain placeholder.
+ */
+const tokens = /<([a-z]+):[0-9a-f]{8}>/g;
+
+/** Text with its redaction tokens turned back into plain placeholders. */
+export const untokened = (text: string): string => text.replace(tokens, "<$1>");
+
+/**
  * Reduce a log message to its template by replacing the parts that change
- * between occurrences: URLs, UUIDs, MAC and IP addresses, hex values, paths
- * and numbers, with or without a unit.
+ * between occurrences: redaction tokens, URLs, UUIDs, MAC and IP addresses,
+ * hex values, paths and numbers, with or without a unit.
  */
 export const template = (message: string): string =>
   replacements
     .reduce(
       (text, [pattern, replacement]) => text.replace(pattern, replacement),
-      message,
+      untokened(message),
     )
     .replace(/\s+/g, " ")
     .trim();
@@ -52,7 +61,7 @@ const basename = (path: string) => path.slice(path.lastIndexOf("/") + 1);
  * generated names and login session numbers.
  */
 export const unitTemplate = (unit: string) =>
-  unit
+  untokened(unit)
     .replace(/@[\d_-]+(?=\.[a-z]+$)/, "@<n>")
     .replace(/^(app-.+)-(?:[0-9a-f]{8}|\d+)(?=\.scope$)/, "$1-<id>")
     .replace(
@@ -63,9 +72,13 @@ export const unitTemplate = (unit: string) =>
 
 /**
  * The grouping key for an event. Events with the same fingerprint belong to
- * the same issue, on any host.
+ * the same issue, on any host. Redaction tokens count as their kind, so a
+ * host keeping the values behind them groups the same as one that doesn't.
  */
 export const fingerprint = (event: Event): string =>
+  untokened(fingerprintOf(event));
+
+const fingerprintOf = (event: Event): string =>
   Event.match(event, {
     Crash: (crash) =>
       [

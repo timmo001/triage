@@ -18,7 +18,7 @@ import {
   Schema,
 } from "effect";
 import { SqlClient, type SqlError, SqlSchema } from "effect/sql";
-import { redactGeneric } from "../redact.js";
+import { type Redaction, RedactionVault, redactGeneric } from "../redact.js";
 
 export class StoreError extends Schema.TaggedError<StoreError>()("StoreError", {
   cause: Schema.Defect(),
@@ -896,6 +896,28 @@ const migrations = SqliteMigrator.fromRecord({
       `;
     }
   }),
+  // Redacted values become tokens, such as <ip:71d0a3c2>, from a key that
+  // never leaves this store, and the values behind them are kept here so this
+  // machine can show them. Neither is ever uploaded.
+  "0018_redactions": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`
+      CREATE TABLE redaction_key (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        key BLOB NOT NULL
+      )
+    `;
+
+    yield* sql`
+      CREATE TABLE redactions (
+        token TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        value TEXT NOT NULL,
+        first_seen INTEGER NOT NULL
+      )
+    `;
+  }),
 });
 
 /** How long a host keeps warning counts, sent or not. */
@@ -1007,6 +1029,18 @@ export class Store extends Context.Service<
   {
     /** Where reading a source should resume, if it has been read before. */
     cursor(source: string): Effect.Effect<Option.Option<string>, StoreError>;
+    /**
+     * The key redaction tokens are made with, made the first time it's asked
+     * for. It never leaves this store.
+     */
+    readonly redactionKey: Effect.Effect<Uint8Array, StoreError>;
+    /**
+     * Keep the values behind redaction tokens, the first one seen for each,
+     * so this machine can show them. Never uploaded.
+     */
+    remember(
+      redactions: ReadonlyArray<Redaction>,
+    ): Effect.Effect<void, StoreError>;
     /**
      * Store events, warnings and the cursor after them together, so a source
      * never skips or double counts them. Warnings add to the counts so far,
@@ -1210,6 +1244,54 @@ export class Store extends Context.Service<
         }>`SELECT cursor FROM cursors WHERE source = ${source}`;
 
         return Option.fromNullishOr(rows[0]?.cursor);
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
+    const redactionKey = Effect.gen(function* () {
+      const rows = yield* sql<{
+        key: Uint8Array;
+      }>`SELECT key FROM redaction_key WHERE id = 1`;
+
+      const existing = rows[0]?.key;
+
+      if (existing !== undefined) {
+        return existing;
+      }
+
+      const key = crypto.getRandomValues(new Uint8Array(32));
+
+      yield* sql`INSERT OR IGNORE INTO redaction_key (id, key) VALUES (1, ${key})`;
+
+      // Another process may have made one first, so read back whichever won.
+      const [kept] = yield* sql<{
+        key: Uint8Array;
+      }>`SELECT key FROM redaction_key WHERE id = 1`;
+
+      return kept?.key ?? key;
+    }).pipe(
+      Effect.mapError((cause) => new StoreError({ cause })),
+      Effect.withSpan("Store.redactionKey"),
+    );
+
+    const remember = Effect.fn("Store.remember")(
+      function* (redactions: ReadonlyArray<Redaction>) {
+        if (redactions.length === 0) {
+          return;
+        }
+
+        const now = yield* Clock.currentTimeMillis;
+
+        yield* sql`
+          INSERT OR IGNORE INTO redactions ${sql.insert(
+            redactions.map(({ token, kind, value }) => ({
+              token,
+              kind,
+              value,
+              first_seen: now,
+            })),
+          )}
+        `;
       },
       Effect.mapError((cause) => new StoreError({ cause })),
     );
@@ -2485,6 +2567,8 @@ export class Store extends Context.Service<
 
     return Store.of({
       cursor,
+      redactionKey,
+      remember,
       record,
       add,
       addWarnings,
@@ -2517,6 +2601,19 @@ export class Store extends Context.Service<
       saveSuggestion,
     });
   });
+
+  /** This store as the vault for redaction tokens' key and values. */
+  static readonly layerVault = Layer.effect(
+    RedactionVault,
+    Effect.gen(function* () {
+      const store = yield* Store;
+
+      return RedactionVault.of({
+        key: store.redactionKey,
+        remember: (redactions) => store.remember(redactions),
+      });
+    }),
+  );
 
   /** A store in the given SQLite database file, migrated before use. */
   static readonly layerFile = (filename: string) =>

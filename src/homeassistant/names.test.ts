@@ -35,14 +35,14 @@ describe("parseRegistries", () => {
       "sensor.example_power",
     ]);
     expect(core.names).toEqual([
-      ["Reading light", "<device>"],
-      ["Desk lamp", "<device>"],
-      ["Bench power", "<entity>"],
-      ["Study", "<area>"],
-      ["Hue", "<area>"],
-      ["Upstairs", "<floor>"],
-      ["Alex Example", "<user>"],
-      ["Example House", "<home>"],
+      ["Reading light", "device"],
+      ["Desk lamp", "device"],
+      ["Bench power", "entity"],
+      ["Study", "area"],
+      ["Hue", "area"],
+      ["Upstairs", "floor"],
+      ["Alex Example", "user"],
+      ["Example House", "home"],
     ]);
   });
 
