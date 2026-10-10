@@ -54,6 +54,12 @@ configuration:
     description: >-
       Home Assistant Supervisor のエラーと警告を、トレースバックと一緒にホストのジャーナルから、ホスト
       home-assistant として収集します。
+  # The machine Home Assistant runs on, such as a Green or a Raspberry Pi.
+  collect_host:
+    name: ホストのエラーを収集
+    description: >-
+      ホスト自身のジャーナルから、クラッシュ、失敗したサービス、メモリ不足による強制終了、エラーをホスト
+      home-assistant として収集します。Home Assistant とアプリのログは別に収集するため、ここでは除外します。
   # The Supervisor's own containers for DNS, audio and so on. Keep "Supervisor".
   collect_plugins:
     name: Supervisor プラグインのエラーを収集

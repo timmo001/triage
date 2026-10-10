@@ -33,6 +33,22 @@ export const supervisorSource = "homeassistant-supervisor";
 export const appsSource = "homeassistant-apps";
 
 /**
+ * Where events from the Home Assistant host's own journal come from, such as
+ * its kernel, systemd and NetworkManager, and the store's cursor key for
+ * reading it.
+ */
+export const hostSource = "homeassistant-host";
+
+/**
+ * Whether a journal entry is the host's own rather than a container's. Docker
+ * puts every container's stderr in the journal at error, but Core's, the
+ * Supervisor's, its plugins' and apps' are read as their own logs, so reading
+ * them as the host's too would collect them twice.
+ */
+export const isHostEntry = (entry: Entry) =>
+  text(entry, "CONTAINER_NAME") === undefined;
+
+/**
  * Where the Supervisor's plugins' events come from, such as DNS and audio, and
  * the store's cursor key for reading them. Every plugin's log is read
  * together.

@@ -53,6 +53,12 @@ configuration:
     description: >-
       从主机日志中收集 Home Assistant Supervisor 的错误和警告及其回溯信息，主机名为
       home-assistant。
+  # The machine Home Assistant runs on, such as a Green or a Raspberry Pi.
+  collect_host:
+    name: 收集主机的错误
+    description: >-
+      从主机自身的日志中收集崩溃、失败的服务、因内存不足被终止的进程和错误，主机名为
+      home-assistant。Home Assistant 和应用的日志会单独收集，因此这里不包含。
   # The Supervisor's own containers for DNS, audio and so on. Keep "Supervisor".
   collect_plugins:
     name: 收集 Supervisor 插件的错误

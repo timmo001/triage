@@ -9,6 +9,7 @@ import {
   integrationOf,
   isApp,
   isAppOn,
+  isHostEntry,
   isPlugin,
   lastRecordStart,
   supervisorSource,
@@ -261,6 +262,27 @@ describe("apps' records", () => {
     ).records;
 
     expect(error?.breadcrumbs).toEqual([]);
+  });
+});
+
+describe("isHostEntry", () => {
+  test("leaves out containers' output, which is read as their own logs", () => {
+    expect(
+      isHostEntry(
+        line("Failed to start example.service", undefined, "systemd"),
+      ),
+    ).toBe(true);
+    expect(
+      isHostEntry({
+        __CURSOR: "s=1;i=container",
+        __REALTIME_TIMESTAMP: 1_700_000_000_123_456,
+        SYSLOG_IDENTIFIER: "homeassistant",
+        CONTAINER_NAME: "homeassistant",
+        PRIORITY: "3",
+        MESSAGE:
+          "2026-10-10 12:00:00.000 INFO (MainThread) [homeassistant.core] Started",
+      }),
+    ).toBe(false);
   });
 });
 

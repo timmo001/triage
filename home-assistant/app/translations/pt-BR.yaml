@@ -63,6 +63,14 @@ configuration:
     description: >-
       Coletar os erros e avisos do Supervisor do Home Assistant, com seus
       tracebacks, do journal do host, como o host home-assistant.
+  # The machine Home Assistant runs on, such as a Green or a Raspberry Pi.
+  collect_host:
+    name: Coletar os erros do host
+    description: >-
+      Coletar falhas, serviços que falharam, processos encerrados por falta de
+      memória e erros do próprio journal do host, como o host home-assistant.
+      Os logs do Home Assistant e dos apps ficam de fora aqui, porque são
+      coletados separadamente.
   # The Supervisor's own containers for DNS, audio and so on. Keep "Supervisor".
   collect_plugins:
     name: Coletar os erros dos plugins do Supervisor

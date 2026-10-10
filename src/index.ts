@@ -817,6 +817,13 @@ const serve = Command.make(
       Flag.withFallbackConfig(Config.Boolean("TRIAGE_COLLECT_SUPERVISOR")),
       Flag.withDefault(false),
     ),
+    collectHost: Flag.Boolean("collect-host").pipe(
+      Flag.withDescription(
+        "Collect the Home Assistant host's own crashes, failed units, out-of-memory kills and errors from its journal, as the host home-assistant, in a Home Assistant app with journald. Containers' output is left out. Off unless set",
+      ),
+      Flag.withFallbackConfig(Config.Boolean("TRIAGE_COLLECT_HOST")),
+      Flag.withDefault(false),
+    ),
     collectPlugins: Flag.Boolean("collect-plugins").pipe(
       Flag.withDescription(
         "Collect the Home Assistant Supervisor plugins' errors and warnings, such as DNS and audio, from the host journal, as the host home-assistant, in a Home Assistant app with journald. Only lines with a level are read. Off unless set",
@@ -842,8 +849,12 @@ const serve = Command.make(
     ];
 
     const homeAssistantCollection =
-      logs.length > 0
-        ? HomeAssistantCollector.layer({ host: "home-assistant", logs }).pipe(
+      logs.length > 0 || input.collectHost
+        ? HomeAssistantCollector.layer({
+            host: "home-assistant",
+            logs,
+            hostJournal: input.collectHost,
+          }).pipe(
             Layer.provide(HomeAssistantConfig.layer),
             Layer.provide(Layer.merge(Journal.layer, Redactor.layer)),
           )

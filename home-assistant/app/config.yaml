@@ -45,6 +45,7 @@ options:
   language: en
   collect_core: true
   collect_supervisor: true
+  collect_host: true
   collect_plugins: false
   collect_apps: true
 schema:
@@ -57,5 +58,6 @@ schema:
   language: list(en|de|es|fr|it|ja|nl|pl|pt-BR|zh-Hans)
   collect_core: bool
   collect_supervisor: bool
+  collect_host: bool
   collect_plugins: bool
   collect_apps: bool

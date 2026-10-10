@@ -66,6 +66,14 @@ configuration:
       Collecter les erreurs et avertissements du Supervisor de Home
       Assistant, avec leurs tracebacks, depuis le journal de l’hôte, comme
       l’hôte home-assistant.
+  # The machine Home Assistant runs on, such as a Green or a Raspberry Pi.
+  collect_host:
+    name: Collecter les erreurs de l’hôte
+    description: >-
+      Collecter les plantages, services en échec, processus tués faute de
+      mémoire et erreurs du propre journal de l’hôte, comme l’hôte
+      home-assistant. Les journaux de Home Assistant et des apps sont laissés
+      de côté ici, car ils sont collectés à part.
   # The Supervisor's own containers for DNS, audio and so on. Keep "Supervisor".
   collect_plugins:
     name: Collecter les erreurs des plugins du Supervisor

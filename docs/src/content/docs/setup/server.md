@@ -58,6 +58,8 @@ The Supervisor's errors and warnings, such as an app that failed to start or an 
 
 Your other apps' errors and warnings are collected as well, unless you turn off **collect_apps**. Apps log in all sorts of formats, so the app reads lines that give a level near their start, such as `[12:00:00] ERROR: …`, `2026-10-10 12:00:00 WRN …`, `[W] …` or `[error] …`, and groups them by app. Apps that log in Core's format keep their tracebacks. Lines with no level can't be told apart from an app's normal output, so they're left out, and so is triage's own log. New apps are picked up within the hour.
 
+The host's own journal, its kernel, systemd and services, is collected too, unless you turn off **collect_host**: crashes, failed units, out-of-memory kills and errors, as the agent collects them on a Linux host. Docker puts every container's output in the same journal, so that's left out here, as it's collected as Core's, the Supervisor's, its plugins' and apps' logs instead.
+
 The Supervisor plugins, its own containers for DNS, audio and so on, are read the same way if you turn on **collect_plugins**. It's off by default, since DNS logs a lot that's rarely worth fixing, such as lookups that time out.
 
 **Triage** in Home Assistant's sidebar opens the [issues page](/issues#in-a-browser) for Home Assistant's admins, with no admin token needed: Home Assistant has already signed them in. It's served on a separate port that only answers Home Assistant, so port 7171 still needs a token.

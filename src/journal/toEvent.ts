@@ -113,6 +113,11 @@ export const rawUnit = (
 export const toEvent = (
   entry: Entry,
   redact: Redact,
+  /**
+   * The host and source to give it, rather than the entry's redacted
+   * hostname and `journal`, as for a journal read from inside an app.
+   */
+  from: { readonly host?: string; readonly source?: string } = {},
 ): Option.Option<Event.Event> => {
   const messageId = text(entry, "MESSAGE_ID");
   const priority = Number(text(entry, "PRIORITY") ?? errorPriority);
@@ -129,8 +134,8 @@ export const toEvent = (
 
   const common = {
     id: Fingerprint.issueId(entry.__CURSOR),
-    host: redacted("_HOSTNAME") ?? "<host>",
-    source: "journal",
+    host: from.host ?? redacted("_HOSTNAME") ?? "<host>",
+    source: from.source ?? "journal",
     ...(bootId !== undefined && { bootId: Fingerprint.issueId(bootId) }),
     timestamp: Math.floor(entry.__REALTIME_TIMESTAMP / 1000),
     severity: Severity.fromPriority(priority) ?? "err",
@@ -210,6 +215,8 @@ export const toEvent = (
 export const toWarning = (
   entry: Entry,
   redact: Redact,
+  /** The host to give it, rather than the entry's redacted hostname. */
+  from: { readonly host?: string } = {},
 ): Option.Option<Warning.Warning> => {
   const messageId = text(entry, "MESSAGE_ID") ?? "";
   const message = text(entry, "MESSAGE") ?? "";
@@ -237,7 +244,7 @@ export const toWarning = (
   const timestamp = Math.floor(entry.__REALTIME_TIMESTAMP / 1000);
 
   return Option.some({
-    host: hostname === undefined ? "<host>" : redact(hostname),
+    host: from.host ?? (hostname === undefined ? "<host>" : redact(hostname)),
     bootId: bootId === undefined ? "" : Fingerprint.issueId(bootId),
     ...(identifier !== undefined && { identifier: redact(identifier) }),
     ...(unit !== undefined && {

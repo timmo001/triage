@@ -1,6 +1,7 @@
 import { Effect, FileSystem, Layer, Option, Stream } from "effect";
 import { type Entry, text } from "../journal/Entry.js";
 import { Journal } from "../journal/Journal.js";
+import { toEvent, toWarning } from "../journal/toEvent.js";
 import { type Redact, Redactor } from "../redact.js";
 import { Store } from "../store/Store.js";
 import { HomeAssistantConfig } from "./Config.js";
@@ -10,8 +11,10 @@ import {
   coreSource,
   eventOf,
   type Formats,
+  hostSource,
   isApp,
   isAppOn,
+  isHostEntry,
   isPlugin,
   lastRecordStart,
   type LogRecord,
@@ -96,10 +99,15 @@ export const apps: Log = {
 export const layer = (options: {
   readonly host: string;
   readonly logs: ReadonlyArray<Log>;
+  /**
+   * Also collect the host's own journal, its kernel, systemd and services,
+   * the way the agent does on Linux hosts.
+   */
+  readonly hostJournal: boolean;
 }) =>
   Layer.effectDiscard(
     Effect.gen(function* () {
-      if (options.logs.length === 0) {
+      if (options.logs.length === 0 && !options.hostJournal) {
         return;
       }
 
@@ -299,27 +307,104 @@ export const layer = (options: {
         }
       });
 
+      const collectHost = Effect.gen(function* () {
+        for (const follow of [false, true]) {
+          const after = yield* store.cursor(hostSource);
+          let collected = 0;
+
+          yield* journal
+            .read({ after: Option.getOrUndefined(after), follow, merge: true })
+            .pipe(
+              Stream.groupedWithin(batchSize, "1 second"),
+              Stream.runForEach(
+                Effect.fnUntraced(function* (batch) {
+                  const last = batch.at(-1);
+
+                  if (last === undefined) {
+                    return;
+                  }
+
+                  const entries = batch.filter(isHostEntry);
+
+                  const redactNames = yield* config.redactNames;
+
+                  const redactOf = (entry: Entry) => {
+                    const redact = redactFor(text(entry, "_HOSTNAME"));
+
+                    return (value: string) => redact(redactNames(value));
+                  };
+
+                  const added = yield* store.record(
+                    hostSource,
+                    entries.flatMap((entry) =>
+                      Option.toArray(
+                        toEvent(entry, redactOf(entry), {
+                          host: options.host,
+                          source: hostSource,
+                        }),
+                      ),
+                    ),
+                    last.__CURSOR,
+                    entries.flatMap((entry) =>
+                      Option.toArray(
+                        toWarning(entry, redactOf(entry), {
+                          host: options.host,
+                        }),
+                      ),
+                    ),
+                  );
+
+                  collected += added;
+
+                  if (follow && added > 0) {
+                    yield* Effect.logInfo(
+                      `Collected ${added} new errors from the host`,
+                    );
+                  }
+                }),
+              ),
+            );
+
+          if (!follow && collected > 0) {
+            yield* Effect.logInfo(
+              `Caught up on ${collected} new errors from the host`,
+            );
+          }
+        }
+      });
+
       // Following only stops when journalctl does, or to list the apps again,
       // so start again after a pause, from the saved cursor, whether it failed
       // or not. With no apps yet, that's checking for one each minute.
-      yield* Effect.forEach(
-        options.logs,
-        (log) =>
-          Effect.logInfo(`Collecting errors from ${log.name}`).pipe(
-            Effect.andThen(
-              collect(log).pipe(
-                Effect.catch((error) =>
-                  Effect.logWarning(
-                    `Couldn't collect errors from ${log.name}, retrying in a minute: ${error.message}`,
-                  ),
+      const keep = <E extends { readonly message: string }>(
+        name: string,
+        collecting: Effect.Effect<void, E>,
+      ) =>
+        Effect.logInfo(`Collecting errors from ${name}`).pipe(
+          Effect.andThen(
+            collecting.pipe(
+              Effect.catch((error) =>
+                Effect.logWarning(
+                  `Couldn't collect errors from ${name}, retrying in a minute: ${error.message}`,
                 ),
-                Effect.andThen(Effect.sleep("1 minute")),
-                Effect.forever,
-                Effect.forkScoped,
               ),
+              Effect.andThen(Effect.sleep("1 minute")),
+              Effect.forever,
+              Effect.forkScoped,
             ),
           ),
-        { discard: true },
+        );
+
+      yield* Effect.forEach(
+        options.logs,
+        (log) => keep(log.name, collect(log)),
+        {
+          discard: true,
+        },
       );
+
+      if (options.hostJournal) {
+        yield* keep("the host", collectHost);
+      }
     }),
   );

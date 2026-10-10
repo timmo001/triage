@@ -19,6 +19,8 @@ export const Entry = Schema.Struct({
   _HOSTNAME: Field,
   _SYSTEMD_UNIT: Field,
   _SYSTEMD_USER_UNIT: Field,
+  /** Set by Docker on a container's output, such as a Home Assistant app's. */
+  CONTAINER_NAME: Field,
   COREDUMP_COMM: Field,
   COREDUMP_EXE: Field,
   COREDUMP_SIGNAL_NAME: Field,

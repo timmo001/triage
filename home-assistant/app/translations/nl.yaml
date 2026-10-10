@@ -62,6 +62,14 @@ configuration:
       Fouten en waarschuwingen van de Home Assistant Supervisor, met hun
       tracebacks, uit het journal van de host verzamelen, als de host
       home-assistant.
+  # The machine Home Assistant runs on, such as a Green or a Raspberry Pi.
+  collect_host:
+    name: Fouten van de host verzamelen
+    description: >-
+      Crashes, mislukte services, processen gestopt door geheugentekort en
+      fouten uit het eigen journal van de host verzamelen, als de host
+      home-assistant. De logs van Home Assistant en de apps worden hier
+      overgeslagen, omdat ze apart worden verzameld.
   # The Supervisor's own containers for DNS, audio and so on. Keep "Supervisor".
   collect_plugins:
     name: Fouten van de Supervisor-plugins verzamelen
