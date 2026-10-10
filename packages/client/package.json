@@ -1,6 +1,6 @@
 {
   "name": "@timmo001/effect-triage-client",
-  "version": "0.16.4",
+  "version": "0.17.0",
   "description": "Effect client for a triage server",
   "keywords": [
     "effect",
@@ -43,7 +43,7 @@
     "prepack": "bun run build"
   },
   "dependencies": {
-    "@timmo001/effect-triage": "0.16.4"
+    "@timmo001/effect-triage": "0.17.0"
   },
   "peerDependencies": {
     "effect": "4.0.2"
