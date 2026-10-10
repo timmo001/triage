@@ -1,6 +1,8 @@
 import { Config, Context, Effect, FileSystem, Layer } from "effect";
 
 const rules: ReadonlyArray<readonly [RegExp, string]> = [
+  // Credentials in a URL, as in a private Git repository's address.
+  [/\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@]+@/gi, "$1<redacted>@"],
   [/\bBearer\s+\S+/gi, "Bearer <redacted>"],
   [
     /\b(password|passwd|secret|token|api[_-]?key|auth(?:orization)?)(\s*[=:]\s*)\S+/gi,

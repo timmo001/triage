@@ -30,6 +30,18 @@ describe("redact", () => {
     ["joined SSID 'Home Network' ok", "joined SSID <ssid> ok"],
     ["user alex on laptop.local", "user <user> on <host>.local"],
     ["home-alex.mount failed", "home-<user>.mount failed"],
+    [
+      "from https://someone:abc123@example.com/someone/repo.git",
+      "from https://<redacted>@example.com/someone/repo.git",
+    ],
+    [
+      "mqtt://broker-user@broker:1883 down",
+      "mqtt://<redacted>@broker:1883 down",
+    ],
+    [
+      "see https://example.com/@someone and ws://supervisor/core",
+      "see https://example.com/@someone and ws://supervisor/core",
+    ],
   ])("%s", (input, output) => {
     expect(redact(input)).toBe(output);
   });

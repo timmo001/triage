@@ -26,7 +26,7 @@ For events from the current boot, hosts also add the OS name and version from `/
 
 Redaction happens on the host, when an event or warning is captured, before it's stored or sent anywhere. Every text field, including stack frames, the logged lines and warnings, goes through it. It replaces:
 
-- passwords, tokens, API keys and `Bearer` credentials
+- passwords, tokens, API keys, `Bearer` credentials and the user name and password in a URL, as in `https://<redacted>@example.com`
 - email addresses
 - home directories, as `~`
 - the machine's hostname and every regular user's name
