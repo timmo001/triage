@@ -9,6 +9,7 @@ import {
 } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { McpServer } from "effect/ai";
+import { CoreStatus } from "../homeassistant/CoreStatus.js";
 import { IssueTools, IssueToolsLayer, mcpOptions } from "../mcp/IssueTools.js";
 import { Store } from "../store/Store.js";
 import { agreement } from "../triage/Triager.js";
@@ -337,8 +338,20 @@ const HostsHandlers = HttpApiBuilder.group(
   "hosts",
   Effect.fn(function* (handlers) {
     const store = yield* Store;
+    const coreStatus = yield* CoreStatus;
 
-    return handlers.handle("list", () => store.hosts.pipe(Effect.orDie));
+    return handlers.handleAll({
+      list: () => store.hosts.pipe(Effect.orDie),
+      collection: () =>
+        coreStatus.get.pipe(
+          Effect.map(
+            Option.match({
+              onNone: () => ({}),
+              onSome: (homeAssistantCore) => ({ homeAssistantCore }),
+            }),
+          ),
+        ),
+    });
   }),
 );
 
@@ -397,8 +410,8 @@ const apiRoutes = (
   );
 
 /**
- * The triage API's routes, needing a `Store`, `Tokens`, `Translations` and the
- * local `Work`.
+ * The triage API's routes, needing a `Store`, `Tokens`, `Translations`,
+ * `CoreStatus` and the local `Work`.
  */
 export const routes = apiRoutes(AdminAuthorizationLayer);
 

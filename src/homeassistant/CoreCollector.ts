@@ -3,6 +3,8 @@ import { type Entry, text } from "../journal/Entry.js";
 import { Journal } from "../journal/Journal.js";
 import { type Redact, Redactor } from "../redact.js";
 import { Store } from "../store/Store.js";
+import { CoreConfig } from "./CoreConfig.js";
+import { CoreStatus } from "./CoreStatus.js";
 import {
   coreEvent,
   coreIdentifier,
@@ -33,16 +35,28 @@ export const layer = (options: { readonly host: string }) =>
       const journal = yield* Journal;
       const store = yield* Store;
       const { redact, withHost } = yield* Redactor;
+      const config = yield* CoreConfig;
+      const status = yield* CoreStatus;
 
       const mounted = yield* Effect.forEach(journalDirectories, (directory) =>
         fs.exists(directory).pipe(Effect.orElseSucceed(() => false)),
       );
 
       if (!mounted.includes(true)) {
+        yield* status.set("noJournal");
+
         return yield* Effect.logWarning(
           "Can't collect Home Assistant Core's errors: the host journal isn't mounted. Turn on journald for the app",
         );
       }
+
+      if (!config.mounted) {
+        yield* Effect.logWarning(
+          "Can't redact Home Assistant's device, entity and area names from Core's errors, or add versions: its config directory isn't mounted",
+        );
+      }
+
+      yield* status.set("collecting");
 
       // The journal names the host, which isn't this container, so redact
       // each entry's hostname as well as this machine's names. Home Assistant
@@ -119,21 +133,34 @@ export const layer = (options: { readonly host: string }) =>
                     redact: redactFor(text(pair.record.entry, "_HOSTNAME")),
                   }));
 
-                  const added = yield* store.record(
-                    coreSource,
+                  const redactNames = yield* config.redactNames;
+
+                  const events = yield* Effect.forEach(
                     records.flatMap(({ record, breadcrumbs, redact }) => {
                       const event = coreEvent(
                         record,
                         options.host,
                         redact,
                         breadcrumbs,
+                        redactNames,
                       );
 
                       return event === undefined ? [] : [event];
                     }),
+                    config.attribute,
+                  );
+
+                  const added = yield* store.record(
+                    coreSource,
+                    events,
                     last.__CURSOR,
                     records.flatMap(({ record, redact }) => {
-                      const warning = coreWarning(record, options.host, redact);
+                      const warning = coreWarning(
+                        record,
+                        options.host,
+                        redact,
+                        redactNames,
+                      );
 
                       return warning === undefined ? [] : [warning];
                     }),

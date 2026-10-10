@@ -63,6 +63,7 @@ export type Key =
   | "issues.loadingMore"
   | "issues.loadMoreFailed"
   | "issues.none"
+  | "issues.coreNotCollected"
   | "column.state"
   | "column.issue"
   | "column.kind"

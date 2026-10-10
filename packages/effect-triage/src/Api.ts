@@ -743,10 +743,31 @@ export class TokensGroup extends HttpApiGroup.make("tokens")
     }),
   ) {}
 
+/**
+ * How the server's own collection of Home Assistant Core's errors is going:
+ * `collecting`, or `noJournal` when the host journal isn't mounted.
+ */
+export const CoreCollection = Schema.Literals(["collecting", "noJournal"]);
+
+export type CoreCollection = typeof CoreCollection.Type;
+
+/** What the server collects itself, rather than from enrolled hosts. */
+export const Collection = Schema.Struct({
+  /** Home Assistant Core's errors, when the server collects them. */
+  homeAssistantCore: Schema.optionalKey(CoreCollection),
+});
+
+export interface Collection extends Schema.Schema.Type<typeof Collection> {}
+
 export class HostsGroup extends HttpApiGroup.make("hosts")
   .add(
     HttpApiEndpoint.get("list", "/", {
       success: Schema.Array(HostSummary),
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("collection", "/collection", {
+      success: Collection,
     }),
   )
   .middleware(AdminAuthorization)

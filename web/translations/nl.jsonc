@@ -98,6 +98,7 @@
   "issues.loadingMore": "Meer problemen laden",
   "issues.loadMoreFailed": "Kon niet meer problemen laden.",
   "issues.none": "Geen problemen hier.",
+  "issues.coreNotCollected": "De fouten van Home Assistant Core worden niet verzameld, omdat de app het journal van de host niet kan lezen.",
 
   // The issue list's column headings, kept short.
   "column.state": "Status",

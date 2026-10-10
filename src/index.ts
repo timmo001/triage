@@ -18,6 +18,8 @@ import packageJson from "../package.json" with { type: "json" };
 import { Attribution } from "./collect/Attribution.js";
 import { Collector } from "./collect/Collector.js";
 import * as CoreCollector from "./homeassistant/CoreCollector.js";
+import { CoreConfig } from "./homeassistant/CoreConfig.js";
+import { CoreStatus } from "./homeassistant/CoreStatus.js";
 import { Journal } from "./journal/Journal.js";
 import { formatLine } from "./logger.js";
 import { IssueTools, IssueToolsLayer, mcpOptions } from "./mcp/IssueTools.js";
@@ -813,6 +815,7 @@ const serve = Command.make(
   Effect.fnUntraced(function* (input) {
     const coreCollection = input.collectCore
       ? CoreCollector.layer({ host: "home-assistant" }).pipe(
+          Layer.provide(CoreConfig.layer),
           Layer.provide(Layer.merge(Journal.layer, Redactor.layer)),
         )
       : Layer.empty;
@@ -829,6 +832,7 @@ const serve = Command.make(
           suggestDaily: input.suggestDaily,
         }),
       ),
+      Layer.provide(CoreStatus.layer),
     );
 
     // Layers release in the reverse of the order they're built in, so the

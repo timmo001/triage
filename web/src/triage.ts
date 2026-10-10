@@ -216,6 +216,11 @@ export const hosts = TriageApi.query("hosts", "list", {
   reactivityKeys: issuesKey,
 });
 
+/** What the server collects itself, such as Home Assistant Core's errors. */
+export const collection = TriageApi.query("hosts", "collection", {
+  reactivityKeys: issuesKey,
+});
+
 export const issue = Atom.family((id: string) =>
   TriageApi.query("issues", "get", {
     params: { id },

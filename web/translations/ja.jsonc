@@ -95,6 +95,7 @@
   "issues.loadingMore": "さらに問題を読み込み中",
   "issues.loadMoreFailed": "さらに問題を読み込めませんでした。",
   "issues.none": "問題はありません。",
+  "issues.coreNotCollected": "アプリがホストのジャーナルを読み取れないため、Home Assistant Core のエラーを収集していません。",
 
   // The issue list's column headings, kept short.
   "column.state": "状態",

@@ -56,6 +56,7 @@ import {
   type BulkAction,
   bulkAction,
   collapsedGroups,
+  collection,
   defaultStates,
   hosts,
   issueCounts,
@@ -362,6 +363,21 @@ export class TriageIssues extends LitElement {
         align-items: center;
         gap: var(--triage-space-2);
         margin: var(--triage-space-3) 0;
+      }
+
+      .notice {
+        display: flex;
+        align-items: center;
+        gap: var(--triage-space-2);
+        margin: var(--triage-space-3) 0;
+        padding: var(--triage-space-2) var(--triage-space-3);
+        border: var(--triage-border-width) solid var(--triage-regressed);
+        border-radius: var(--triage-border-radius-sm);
+        background: var(--triage-surface);
+      }
+
+      .notice > .icon {
+        color: var(--triage-regressed);
       }
 
       .search {
@@ -874,6 +890,8 @@ export class TriageIssues extends LitElement {
 
   readonly #hosts = new AtomController(this, () => hosts);
 
+  readonly #collection = new AtomController(this, () => collection);
+
   readonly #bulk = new AtomController(this, () => bulkAction);
 
   readonly #merge = new AtomController(this, () => mergeIssues);
@@ -973,6 +991,21 @@ export class TriageIssues extends LitElement {
     registry.refresh(issueList);
     registry.refresh(issueCounts);
     registry.refresh(hosts);
+    registry.refresh(collection);
+  }
+
+  /** Say when the server can't collect what it's meant to. */
+  #renderNotice() {
+    const core = AsyncResult.getOrElse(
+      this.#collection.value,
+      () => undefined,
+    )?.homeAssistantCore;
+
+    return core === "noJournal"
+      ? html`<p class="notice" role="status">
+          ${icon(mdiAlertCircleOutline)} ${t("issues.coreNotCollected")}
+        </p>`
+      : nothing;
   }
 
   #renderBar(selected: ReadonlyArray<string>) {
@@ -1497,7 +1530,7 @@ export class TriageIssues extends LitElement {
 
     return html`
       <h1>${t("issues.title")}</h1>
-      ${this.#renderOptions()}
+      ${this.#renderNotice()} ${this.#renderOptions()}
       <div class="bar">${this.#renderBar(selected)}</div>
       ${
         result.waiting && settings !== this.#shownSettings

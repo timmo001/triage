@@ -99,6 +99,7 @@
   "issues.loadingMore": "Cargando más incidencias",
   "issues.loadMoreFailed": "No se pudieron cargar más incidencias.",
   "issues.none": "No hay incidencias aquí.",
+  "issues.coreNotCollected": "No se están recogiendo los errores de Home Assistant Core, porque la app no puede leer el journal del host.",
 
   // The issue list's column headings, kept short.
   "column.state": "Estado",

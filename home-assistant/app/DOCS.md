@@ -36,6 +36,6 @@ These match the server's [settings](https://triage.timmo.dev/configuration#serve
 - **new_hours**: how long an issue stays new after it's first seen.
 - **quiet_hours**: how long an issue goes without events before it's quiet, and how long it stays regressed.
 - **language**: the web UI's language, English unless you pick another. See [Languages](https://triage.timmo.dev/languages).
-- **collect_core**: collect Home Assistant Core's own errors and warnings, with their tracebacks, as the host `home-assistant`. On unless you turn it off. They're read from the host journal, which the app can read but not change, and redacted like every other host's events.
+- **collect_core**: collect Home Assistant Core's own errors and warnings, with their tracebacks, as the host `home-assistant`. On unless you turn it off. They're read from the host journal, which the app can read but not change, and redacted like every other host's events. The app also reads Home Assistant's config directory, read only, for the names of devices, entities, areas, floors, people and your home, which it redacts from Core's messages, and for the versions of Core and custom integrations. It only reads the registries in `.storage`, `.HA_VERSION` and custom integrations' manifests, never `secrets.yaml` or anything else.
 
 The database is kept in the app's data, and the app stops briefly during backups so it's copied consistently. Machines keep their events until the server is back.
