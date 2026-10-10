@@ -39,6 +39,8 @@ Redaction happens on the host, when an event or warning is captured, before it's
 
 The journal cursor and boot ID are replaced with hashes, so events don't carry machine identifiers either. When the server receives events, it sets their host to the name you enrolled the host with, never the machine's own hostname.
 
+The [Home Assistant app](/setup/server#home-assistant) redacts Home Assistant Core's errors and warnings the same way, as the host `home-assistant`, with the Home Assistant machine's hostname added. The default hostname, `homeassistant`, is kept: every install has it, and it's Core's own name, in every logger and path. Entity, device and area names in Core's messages aren't redacted yet.
+
 Redaction is pattern based, so it can miss something unusual. Run `triage collect`, then look through what it stored with `triage issues`, before turning on anything that sends data off the machine.
 
 ## Where data goes
