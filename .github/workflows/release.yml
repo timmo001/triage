@@ -82,7 +82,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: timmo001/workflows/.github/workflows/publish-npm-package.yml@dee521f49caa2626c8adeed2af4767887b2f202b # 20261009.1
+    uses: timmo001/workflows/.github/workflows/publish-npm-package.yml@271a88a8ebedd8166c86c1aec827ea864a284bcc # 20261010.0
     with:
       bun-version: ${{ needs.tools.outputs.bun }}
       node-version: ${{ needs.tools.outputs.node }}
@@ -95,7 +95,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: timmo001/workflows/.github/workflows/publish-jsr-package.yml@dee521f49caa2626c8adeed2af4767887b2f202b # 20261009.1
+    uses: timmo001/workflows/.github/workflows/publish-jsr-package.yml@271a88a8ebedd8166c86c1aec827ea864a284bcc # 20261010.0
     with:
       bun-version: ${{ needs.tools.outputs.bun }}
       package-path: packages/effect-triage
@@ -110,7 +110,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: timmo001/workflows/.github/workflows/publish-npm-package.yml@dee521f49caa2626c8adeed2af4767887b2f202b # 20261009.1
+    uses: timmo001/workflows/.github/workflows/publish-npm-package.yml@271a88a8ebedd8166c86c1aec827ea864a284bcc # 20261010.0
     with:
       bun-version: ${{ needs.tools.outputs.bun }}
       node-version: ${{ needs.tools.outputs.node }}
@@ -125,7 +125,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: timmo001/workflows/.github/workflows/publish-jsr-package.yml@dee521f49caa2626c8adeed2af4767887b2f202b # 20261009.1
+    uses: timmo001/workflows/.github/workflows/publish-jsr-package.yml@271a88a8ebedd8166c86c1aec827ea864a284bcc # 20261010.0
     with:
       bun-version: ${{ needs.tools.outputs.bun }}
       package-path: packages/client
@@ -139,7 +139,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: timmo001/workflows/.github/workflows/release-bun-cli-linux.yml@dee521f49caa2626c8adeed2af4767887b2f202b # 20261009.1
+    uses: timmo001/workflows/.github/workflows/release-bun-cli-linux.yml@271a88a8ebedd8166c86c1aec827ea864a284bcc # 20261010.0
     with:
       binary-name: triage
       entrypoint: src/index.ts
@@ -172,7 +172,7 @@ jobs:
           ref: ${{ env.RELEASE_VERSION }}
 
       - name: Render PKGBUILD
-        uses: timmo001/workflows/.github/actions/prepare-arch-bin@dee521f49caa2626c8adeed2af4767887b2f202b # 20261009.1
+        uses: timmo001/workflows/.github/actions/prepare-arch-bin@271a88a8ebedd8166c86c1aec827ea864a284bcc # 20261010.0
         with:
           releaseVersion: ${{ env.RELEASE_VERSION }}
           packageName: triage
@@ -200,7 +200,7 @@ jobs:
   arch-bin:
     name: Arch package (triage-bin)
     needs: prepare-arch-bin
-    uses: timmo001/workflows/.github/workflows/build-arch-package.yml@dee521f49caa2626c8adeed2af4767887b2f202b # 20261009.1
+    uses: timmo001/workflows/.github/workflows/build-arch-package.yml@271a88a8ebedd8166c86c1aec827ea864a284bcc # 20261010.0
     with:
       package-name: triage-bin
       package-files-artifact-name: arch-triage-bin-${{ github.run_id }}
@@ -215,7 +215,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: timmo001/workflows/.github/workflows/attach-release-arch-package.yml@dee521f49caa2626c8adeed2af4767887b2f202b # 20261009.1
+    uses: timmo001/workflows/.github/workflows/attach-release-arch-package.yml@271a88a8ebedd8166c86c1aec827ea864a284bcc # 20261010.0
     with:
       artifact-name: ${{ needs.arch-bin.outputs.artifact-name }}
       release-tag: ${{ github.event.release.tag_name }}
