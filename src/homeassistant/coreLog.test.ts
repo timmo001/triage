@@ -8,18 +8,19 @@ import {
   coreWarning,
   integrationOf,
   lastRecordStart,
+  withBreadcrumbs,
 } from "./coreLog.js";
 
 const redact = makeRedact({ hosts: ["kitchen-pi"] });
 
 let cursor = 0;
 
-const line = (message: string): Entry => {
+const line = (message: string, timestamp = 1_700_000_000_123_456): Entry => {
   cursor += 1;
 
   return {
     __CURSOR: `s=1;i=${cursor}`,
-    __REALTIME_TIMESTAMP: 1_700_000_000_123_456,
+    __REALTIME_TIMESTAMP: timestamp,
     _HOSTNAME: "homeassistant",
     _BOOT_ID: "boot",
     SYSLOG_IDENTIFIER: "homeassistant",
@@ -90,6 +91,51 @@ describe("coreEvent", () => {
         "homeassistant.components.hue: Error setting up entry Bridge at <ip>",
       );
     }
+  });
+});
+
+describe("withBreadcrumbs", () => {
+  const at = (seconds: number, message: string) =>
+    line(message, (1_700_000_000 + seconds) * 1_000_000);
+
+  test("keeps what Core logged in the 30 seconds before, across batches", () => {
+    const first = withBreadcrumbs(
+      [],
+      coreRecords([
+        at(
+          0,
+          "2026-10-10 12:00:00.000 WARNING (MainThread) [homeassistant.components.iss] Too old",
+        ),
+        at(
+          40,
+          "2026-10-10 12:00:40.000 WARNING (MainThread) [homeassistant.components.iss] Timed out",
+        ),
+      ]),
+    );
+
+    const second = withBreadcrumbs(
+      first.recent,
+      coreRecords([
+        at(
+          50,
+          "2026-10-10 12:00:50.000 ERROR (MainThread) [homeassistant.components.iss.coordinator] Error fetching iss data",
+        ),
+      ]),
+    );
+
+    const [error] = second.records;
+
+    expect(error?.breadcrumbs).toEqual([
+      "WARNING [homeassistant.components.iss] Timed out",
+    ]);
+
+    const event =
+      error &&
+      coreEvent(error.record, "home-assistant", redact, error.breadcrumbs);
+
+    expect(event?.breadcrumbs).toEqual([
+      "WARNING [homeassistant.components.iss] Timed out",
+    ]);
   });
 });
 

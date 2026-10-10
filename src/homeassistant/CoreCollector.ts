@@ -6,10 +6,12 @@ import { Store } from "../store/Store.js";
 import {
   coreEvent,
   coreIdentifier,
+  type CoreRecord,
   coreRecords,
   coreSource,
   coreWarning,
   lastRecordStart,
+  withBreadcrumbs,
 } from "./coreLog.js";
 
 /** The most journal entries stored together. */
@@ -76,6 +78,8 @@ export const layer = (options: { readonly host: string }) =>
           // record's traceback may go on in the next one. Hold it back until
           // then, and leave the cursor before it, so a restart reads it again.
           let carried: ReadonlyArray<Entry> = [];
+          // The latest records, for what Core logged before an error.
+          let recent: ReadonlyArray<CoreRecord> = [];
           let collected = 0;
 
           yield* journal
@@ -106,15 +110,24 @@ export const layer = (options: { readonly host: string }) =>
                     return;
                   }
 
-                  const records = coreRecords(entries).map((record) => ({
-                    record,
-                    redact: redactFor(text(record.entry, "_HOSTNAME")),
+                  const paired = withBreadcrumbs(recent, coreRecords(entries));
+
+                  recent = paired.recent;
+
+                  const records = paired.records.map((pair) => ({
+                    ...pair,
+                    redact: redactFor(text(pair.record.entry, "_HOSTNAME")),
                   }));
 
                   const added = yield* store.record(
                     coreSource,
-                    records.flatMap(({ record, redact }) => {
-                      const event = coreEvent(record, options.host, redact);
+                    records.flatMap(({ record, breadcrumbs, redact }) => {
+                      const event = coreEvent(
+                        record,
+                        options.host,
+                        redact,
+                        breadcrumbs,
+                      );
 
                       return event === undefined ? [] : [event];
                     }),

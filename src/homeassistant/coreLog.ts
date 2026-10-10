@@ -105,6 +105,57 @@ export const coreRecords = (
   );
 };
 
+/** How long before an error Core's other records are kept with it, in milliseconds. */
+const breadcrumbMillis = 30_000;
+
+/** The most of Core's earlier records kept with an error. */
+const breadcrumbRecords = 10;
+
+const levelNames: Record<Severity.Severity, string> = {
+  emerg: "CRITICAL",
+  alert: "CRITICAL",
+  crit: "CRITICAL",
+  err: "ERROR",
+  warning: "WARNING",
+  notice: "INFO",
+  info: "INFO",
+  debug: "DEBUG",
+};
+
+const millisOf = (record: CoreRecord) =>
+  Math.floor(record.entry.__REALTIME_TIMESTAMP / 1000);
+
+/** A record's first line, with its level and logger, as a breadcrumb. */
+const breadcrumbOf = (record: CoreRecord) =>
+  `${levelNames[record.severity]} [${record.logger}] ${record.lines[0] ?? ""}`;
+
+/**
+ * Pair each record with what Core logged in the {@link breadcrumbMillis}
+ * before it, from any logger, oldest first, carrying on from the records in
+ * `previous`. Returns the records to carry on from next time too, since
+ * batches don't line up with what happened.
+ */
+export const withBreadcrumbs = (
+  previous: ReadonlyArray<CoreRecord>,
+  records: ReadonlyArray<CoreRecord>,
+) => {
+  let recent = previous;
+
+  const paired = records.map((record) => {
+    const at = millisOf(record);
+
+    const breadcrumbs = recent
+      .filter((earlier) => at - millisOf(earlier) <= breadcrumbMillis)
+      .map(breadcrumbOf);
+
+    recent = [...recent, record].slice(-breadcrumbRecords);
+
+    return { record, breadcrumbs };
+  });
+
+  return { records: paired, recent };
+};
+
 const integrationLogger =
   /^(?<prefix>homeassistant\.components|custom_components)\.(?<domain>[a-z0-9_]+)/;
 
@@ -137,13 +188,15 @@ const common = (record: CoreRecord, host: string) => {
 
 /**
  * Turn a Core record at error or worse into a log error from its logger, with
- * any traceback after the message, or nothing for a warning. Redacted here,
- * before it's stored, like every other event.
+ * any traceback after the message and what Core logged just before, or
+ * nothing for a warning. Redacted here, before it's stored, like every other
+ * event.
  */
 export const coreEvent = (
   record: CoreRecord,
   host: string,
   redact: Redact,
+  breadcrumbs: ReadonlyArray<string> = [],
 ): Event.Event | undefined => {
   if (record.severity === "warning") {
     return undefined;
@@ -161,6 +214,7 @@ export const coreEvent = (
     severity: record.severity,
     identifier,
     message: redact(record.lines.join("\n").trimEnd()),
+    ...(breadcrumbs.length > 0 && { breadcrumbs: breadcrumbs.map(redact) }),
     ...(integration !== undefined && { integration }),
   });
 };
