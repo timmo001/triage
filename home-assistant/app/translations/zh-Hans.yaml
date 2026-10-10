@@ -53,3 +53,9 @@ configuration:
     description: >-
       从主机日志中收集 Home Assistant Supervisor 的错误和警告及其回溯信息，主机名为
       home-assistant。
+  # Apps are what Home Assistant used to call add-ons.
+  collect_apps:
+    name: 收集应用的错误
+    description: >-
+      从主机日志中收集你的其他应用的错误和警告，主机名为
+      home-assistant。只读取标明级别的行。

@@ -26,6 +26,29 @@ export const supervisorIdentifier = "hassio_supervisor";
  */
 export const supervisorSource = "homeassistant-supervisor";
 
+/**
+ * Where apps' events come from, and the store's cursor key for reading them.
+ * Every app's log is read together.
+ */
+export const appsSource = "homeassistant-apps";
+
+/**
+ * Whether a journal identifier is an app's container, `app_<slug>`, or
+ * `addon_<slug>` on older Supervisors.
+ */
+export const isApp = (identifier: string) =>
+  /^(?:app|addon)_./.test(identifier);
+
+/**
+ * Whether a journal identifier is the app running on `hostname`, such as
+ * triage's own. The Supervisor names an app's container `app_<slug>` and its
+ * host `<slug>` with `-` for `_`, but a slug can have `-` in it too.
+ */
+export const isAppOn = (identifier: string, hostname: string) =>
+  hostname !== "" &&
+  identifier.replace(/^(?:app|addon)_/, "").replace(/-/g, "_") ===
+    hostname.replace(/-/g, "_");
+
 /** Terminal colour codes, which these logs have even when they aren't a terminal. */
 const colours = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 
@@ -36,22 +59,108 @@ const colours = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 const recordStart =
   /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? (?<level>[A-Z]+) \(.*?\) \[(?<logger>[^\]]+)\] (?<message>.*)$/s;
 
-/** The severity of a log level that triage keeps, from warning up. */
-const severityOf = (level: string): Severity.Severity | undefined => {
-  switch (level) {
+/** A level below warning, which starts a record that triage leaves out. */
+const below = "below";
+
+/**
+ * The severity of a log level, or {@link below} for one below warning, or
+ * nothing when it isn't a level. Single letters, as in OpenThread's `[W]`,
+ * only count in brackets.
+ */
+const levelOf = (
+  level: string,
+  bracketed: boolean,
+): Severity.Severity | typeof below | undefined => {
+  const upper = level.toUpperCase();
+
+  if (upper.length === 1 && !bracketed) {
+    return undefined;
+  }
+
+  switch (upper) {
+    case "EMERG":
+    case "ALERT":
+    case "FATAL":
     case "CRITICAL":
+    case "CRIT":
+    case "C":
       return "crit";
     case "ERROR":
+    case "ERR":
+    case "E":
       return "err";
     case "WARNING":
+    case "WARN":
+    case "WRN":
+    case "W":
       return "warning";
+    case "NOTICE":
+    case "INFO":
+    case "INF":
+    case "N":
+    case "I":
+    case "DEBUG":
+    case "DBG":
+    case "D":
+    case "TRACE":
+    case "TRC":
+    case "T":
+      return below;
     default:
       return undefined;
   }
 };
 
+/**
+ * A line in another program's format with a level near its start, after up
+ * to two timestamp-like words: `[12:00:00] ERROR: Message` from `bashio`,
+ * `2026-10-10 12:00:00 WRN Message`, `3d.08:40:51.599 [W] Mle-: Message` or
+ * `[ERROR] plugin/errors: Message`. A word only counts as a level in
+ * brackets, in capitals or before a colon, so `Error connecting` doesn't.
+ */
+const levelLine =
+  /^(?:\S*\d\S*\s+){0,2}(?:\[(?<bracketed>[A-Za-z]+)\]|(?<word>[A-Za-z]+)(?<colon>:)?)(?:\s+|$)(?<message>.*)$/s;
+
+const otherFormat = (line: string) => {
+  const match = levelLine.exec(line)?.groups;
+
+  if (match === undefined) {
+    return undefined;
+  }
+
+  const word = match.word;
+
+  const level =
+    match.bracketed === undefined
+      ? word !== undefined &&
+        (word === word.toUpperCase() || match.colon !== undefined)
+        ? levelOf(word, false)
+        : undefined
+      : levelOf(match.bracketed, true);
+
+  return level === undefined
+    ? undefined
+    : { level, message: (match.message ?? "").trim() };
+};
+
 const lineOf = (entry: Entry) =>
   (text(entry, "MESSAGE") ?? "").replace(colours, "");
+
+const programOf = (entry: Entry) =>
+  text(entry, "SYSLOG_IDENTIFIER") ?? coreIdentifier;
+
+/** How to read a log's lines. */
+export interface Formats {
+  /**
+   * Also read lines in other programs' formats, as apps write them, each one
+   * on its own. Lines in Core's format still take the lines that follow them.
+   */
+  readonly other?: boolean;
+}
+
+const startsRecord = (line: string, formats: Formats) =>
+  recordStart.test(line) ||
+  (formats.other === true && otherFormat(line) !== undefined);
 
 /**
  * Where the last record starts in `entries`, or `undefined` when none does.
@@ -59,20 +168,27 @@ const lineOf = (entry: Entry) =>
  */
 export const lastRecordStart = (
   entries: ReadonlyArray<Entry>,
+  formats: Formats = {},
 ): number | undefined => {
   const index = entries.findLastIndex((entry) =>
-    recordStart.test(lineOf(entry)),
+    startsRecord(lineOf(entry), formats),
   );
 
   return index === -1 ? undefined : index;
 };
 
-/** One record in Core's format, with the lines that followed it, such as a traceback. */
+/** One record, with the lines that followed it, such as a traceback. */
 export interface LogRecord {
   /** The journal entry that started it. */
   readonly entry: Entry;
+  /** The program that wrote it, by its journal identifier, such as an app's. */
+  readonly program: string;
   readonly severity: Severity.Severity;
-  /** The logger that logged it, such as `homeassistant.components.hue`. */
+  /**
+   * The logger that logged it, such as `homeassistant.components.hue`, or
+   * the program when reading other formats, as for apps, whose own logger, if
+   * any, starts the message instead.
+   */
   readonly logger: string;
   /** Its message, then any lines that followed it. */
   readonly lines: ReadonlyArray<string>;
@@ -80,38 +196,71 @@ export interface LogRecord {
 
 /**
  * Group a log's journal entries into records. The journal holds one entry per
- * line written, so a traceback's lines follow the record that logged it.
- * Records below warning are left out, and so are lines before the first
- * record, such as the end of a traceback that started in an earlier batch.
+ * line written, so a traceback's lines follow the record that logged it, from
+ * the same program. Records below warning are left out, and so are lines
+ * before a program's first record, such as the end of a traceback that
+ * started in an earlier batch, and lines in no format triage knows.
  */
 export const recordsOf = (
   entries: ReadonlyArray<Entry>,
+  formats: Formats = {},
 ): ReadonlyArray<LogRecord> => {
   const records: Array<{
     entry: Entry;
-    severity: Severity.Severity | undefined;
+    program: string;
+    severity: Severity.Severity | typeof below;
     logger: string;
     lines: Array<string>;
   }> = [];
 
+  // The record each program's next lines carry on, while it can.
+  const open = new Map<string, { lines: Array<string> }>();
+
   for (const entry of entries) {
     const line = lineOf(entry);
+    const program = programOf(entry);
     const start = recordStart.exec(line)?.groups;
 
     if (start !== undefined) {
-      records.push({
+      const logger = start.logger ?? program;
+      const message = start.message ?? "";
+
+      // An app in Core's format is still named by the app, with its own
+      // logger kept in the message, so its loggers group apart.
+      const record = {
         entry,
-        severity: severityOf(start.level ?? ""),
-        logger: start.logger ?? coreIdentifier,
-        lines: [start.message ?? ""],
-      });
-    } else {
-      records.at(-1)?.lines.push(line);
+        program,
+        severity: levelOf(start.level ?? "", false) ?? below,
+        logger: formats.other === true ? program : logger,
+        lines: [formats.other === true ? `[${logger}] ${message}` : message],
+      };
+
+      records.push(record);
+      open.set(program, record);
+
+      continue;
     }
+
+    const other = formats.other === true ? otherFormat(line) : undefined;
+
+    if (other === undefined) {
+      open.get(program)?.lines.push(line);
+
+      continue;
+    }
+
+    records.push({
+      entry,
+      program,
+      severity: other.level,
+      logger: program,
+      lines: [other.message],
+    });
+    open.delete(program);
   }
 
   return records.flatMap(({ severity, ...record }) =>
-    severity === undefined ? [] : [{ ...record, severity }],
+    severity === below ? [] : [{ ...record, severity }],
   );
 };
 
@@ -120,6 +269,12 @@ const breadcrumbMillis = 30_000;
 
 /** The most of the log's earlier records kept with an error. */
 const breadcrumbRecords = 10;
+
+/**
+ * The most earlier records kept to find breadcrumbs in, from every program
+ * in the log, so a busy app doesn't push out a quieter one's.
+ */
+const recentRecords = 100;
 
 const levelNames: Record<Severity.Severity, string> = {
   emerg: "CRITICAL",
@@ -140,10 +295,10 @@ const breadcrumbOf = (record: LogRecord) =>
   `${levelNames[record.severity]} [${record.logger}] ${record.lines[0] ?? ""}`;
 
 /**
- * Pair each record with what the log had in the {@link breadcrumbMillis}
- * before it, from any logger, oldest first, carrying on from the records in
- * `previous`. Returns the records to carry on from next time too, since
- * batches don't line up with what happened.
+ * Pair each record with what the same program logged in the
+ * {@link breadcrumbMillis} before it, from any logger, oldest first, carrying
+ * on from the records in `previous`. Returns the records to carry on from next
+ * time too, since batches don't line up with what happened.
  */
 export const withBreadcrumbs = (
   previous: ReadonlyArray<LogRecord>,
@@ -155,10 +310,15 @@ export const withBreadcrumbs = (
     const at = millisOf(record);
 
     const breadcrumbs = recent
-      .filter((earlier) => at - millisOf(earlier) <= breadcrumbMillis)
+      .filter(
+        (earlier) =>
+          earlier.program === record.program &&
+          at - millisOf(earlier) <= breadcrumbMillis,
+      )
+      .slice(-breadcrumbRecords)
       .map(breadcrumbOf);
 
-    recent = [...recent, record].slice(-breadcrumbRecords);
+    recent = [...recent, record].slice(-recentRecords);
 
     return { record, breadcrumbs };
   });

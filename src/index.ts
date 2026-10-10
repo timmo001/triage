@@ -817,12 +817,20 @@ const serve = Command.make(
       Flag.withFallbackConfig(Config.Boolean("TRIAGE_COLLECT_SUPERVISOR")),
       Flag.withDefault(false),
     ),
+    collectApps: Flag.Boolean("collect-apps").pipe(
+      Flag.withDescription(
+        "Collect Home Assistant apps' errors and warnings from the host journal, as the host home-assistant, in a Home Assistant app with journald. Only lines with a level are read, and this app's own are left out. Off unless set",
+      ),
+      Flag.withFallbackConfig(Config.Boolean("TRIAGE_COLLECT_APPS")),
+      Flag.withDefault(false),
+    ),
     ...processFlags,
   },
   Effect.fnUntraced(function* (input) {
     const logs = [
       ...(input.collectCore ? [HomeAssistantCollector.core] : []),
       ...(input.collectSupervisor ? [HomeAssistantCollector.supervisor] : []),
+      ...(input.collectApps ? [HomeAssistantCollector.apps] : []),
     ];
 
     const homeAssistantCollection =

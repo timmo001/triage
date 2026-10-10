@@ -61,3 +61,10 @@ configuration:
     description: >-
       Fehler und Warnungen des Home Assistant Supervisors mit ihren Tracebacks
       aus dem Journal des Hosts sammeln, als Host home-assistant.
+  # Apps are what Home Assistant used to call add-ons.
+  collect_apps:
+    name: Fehler der Apps sammeln
+    description: >-
+      Fehler und Warnungen deiner anderen Apps aus dem Journal des Hosts
+      sammeln, als Host home-assistant. Nur Zeilen mit einer Stufe werden
+      gelesen.

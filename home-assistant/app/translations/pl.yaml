@@ -60,3 +60,9 @@ configuration:
     description: >-
       Zbieraj błędy i ostrzeżenia Home Assistant Supervisora, z ich
       tracebackami, z dziennika hosta, jako host home-assistant.
+  # Apps are what Home Assistant used to call add-ons.
+  collect_apps:
+    name: Zbieraj błędy aplikacji
+    description: >-
+      Zbieraj błędy i ostrzeżenia twoich pozostałych aplikacji z dziennika
+      hosta, jako host home-assistant. Czytane są tylko wiersze z poziomem.

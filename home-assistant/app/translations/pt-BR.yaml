@@ -63,3 +63,9 @@ configuration:
     description: >-
       Coletar os erros e avisos do Supervisor do Home Assistant, com seus
       tracebacks, do journal do host, como o host home-assistant.
+  # Apps are what Home Assistant used to call add-ons.
+  collect_apps:
+    name: Coletar os erros dos apps
+    description: >-
+      Coletar os erros e avisos dos seus outros apps do journal do host, como
+      o host home-assistant. Só as linhas que indicam um nível são lidas.

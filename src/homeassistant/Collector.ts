@@ -5,9 +5,13 @@ import { type Redact, Redactor } from "../redact.js";
 import { Store } from "../store/Store.js";
 import { HomeAssistantConfig } from "./Config.js";
 import {
+  appsSource,
   coreIdentifier,
   coreSource,
   eventOf,
+  type Formats,
+  isApp,
+  isAppOn,
   lastRecordStart,
   type LogRecord,
   recordsOf,
@@ -24,34 +28,51 @@ const batchSize = 1000;
 /** Where the Supervisor mounts the host journal with `journald: true`. */
 const journalDirectories = ["/var/log/journal", "/run/log/journal"];
 
-/** A Home Assistant log in the host journal, in Core's format. */
+/**
+ * How long to follow every app's log before listing the apps again, to pick
+ * up any installed since.
+ */
+const appsRelisted = "1 hour";
+
+/** A Home Assistant log in the host journal. */
 export interface Log {
-  readonly identifier: string;
+  /** The journal identifiers to read, or every app's but triage's own when unset. */
+  readonly identifiers?: ReadonlyArray<string>;
   /** Where its events come from, and the store's cursor key for it. */
   readonly source: string;
   /** What the server's own log calls it. */
   readonly name: string;
   /** Whether its events get Core's version and custom integrations' details. */
   readonly attribute: boolean;
+  readonly formats: Formats;
 }
 
 export const core: Log = {
-  identifier: coreIdentifier,
+  identifiers: [coreIdentifier],
   source: coreSource,
   name: "Home Assistant Core",
   attribute: true,
+  formats: {},
 };
 
 export const supervisor: Log = {
-  identifier: supervisorIdentifier,
+  identifiers: [supervisorIdentifier],
   source: supervisorSource,
   name: "the Supervisor",
   attribute: false,
+  formats: {},
+};
+
+export const apps: Log = {
+  source: appsSource,
+  name: "apps",
+  attribute: false,
+  formats: { other: true },
 };
 
 /**
- * Collects errors and warnings from Home Assistant's `logs`, such as Core's
- * and the Supervisor's, from the host journal the Supervisor mounts into the
+ * Collects errors and warnings from Home Assistant's `logs`, such as Core's,
+ * the Supervisor's and apps', from the host journal the Supervisor mounts into the
  * app, straight into the server's own store, as events from `host`. Runs in
  * the background for as long as the layer, and logs rather than failing when
  * the journal isn't there or can't be read.
@@ -117,10 +138,35 @@ export const layer = (options: {
         return byHost;
       };
 
+      // This app's own container, whose log is triage's and isn't collected.
+      const hostname = (yield* fs
+        .readFileString("/proc/sys/kernel/hostname")
+        .pipe(Effect.orElseSucceed(() => ""))).trim();
+
+      const identifiersOf = (log: Log) =>
+        log.identifiers === undefined
+          ? journal
+              .identifiers({ merge: true })
+              .pipe(
+                Effect.map((all) =>
+                  all.filter(
+                    (identifier) =>
+                      isApp(identifier) && !isAppOn(identifier, hostname),
+                  ),
+                ),
+              )
+          : Effect.succeed(log.identifiers);
+
       const collect = Effect.fnUntraced(function* (log: Log) {
         // journalctl --follow only reads the current boot, so catch up on
         // earlier boots with a plain read before following.
         for (const follow of [false, true]) {
+          const identifiers = yield* identifiersOf(log);
+
+          if (identifiers.length === 0) {
+            return;
+          }
+
           const after = yield* store.cursor(log.source);
 
           // A full batch means more entries are already waiting, so the last
@@ -135,10 +181,17 @@ export const layer = (options: {
             .read({
               after: Option.getOrUndefined(after),
               follow,
-              identifier: log.identifier,
+              identifiers,
               merge: true,
             })
             .pipe(
+              // Every app's log stops following now and then, so the apps are
+              // listed again, and it carries on from the saved cursor.
+              Stream.interruptWhen(
+                follow && log.identifiers === undefined
+                  ? Effect.sleep(appsRelisted)
+                  : Effect.never,
+              ),
               Stream.groupedWithin(batchSize, "1 second"),
               Stream.runForEach(
                 Effect.fnUntraced(function* (batch) {
@@ -146,7 +199,7 @@ export const layer = (options: {
 
                   const split =
                     batch.length === batchSize
-                      ? lastRecordStart(all) || all.length
+                      ? lastRecordStart(all, log.formats) || all.length
                       : all.length;
 
                   const entries = all.slice(0, split);
@@ -159,7 +212,10 @@ export const layer = (options: {
                     return;
                   }
 
-                  const paired = withBreadcrumbs(recent, recordsOf(entries));
+                  const paired = withBreadcrumbs(
+                    recent,
+                    recordsOf(entries, log.formats),
+                  );
 
                   recent = paired.recent;
 
@@ -223,8 +279,9 @@ export const layer = (options: {
         }
       });
 
-      // Following only stops when journalctl does, so start again after a
-      // pause, from the saved cursor, whether it failed or not.
+      // Following only stops when journalctl does, or to list the apps again,
+      // so start again after a pause, from the saved cursor, whether it failed
+      // or not. With no apps yet, that's checking for one each minute.
       yield* Effect.forEach(
         options.logs,
         (log) =>

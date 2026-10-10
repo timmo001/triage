@@ -43,6 +43,7 @@ Environment variables win over the file. The Home Assistant app uses this for it
 | `TRIAGE_LANGUAGE` | `en` | The web UI's [language](/languages), such as `de` or `pt-BR` |
 | `TRIAGE_COLLECT_CORE` | `false` (`true` in the Home Assistant app) | Collect Home Assistant Core's errors and warnings from the host journal, as the host `home-assistant`. Only in the [Home Assistant app](/setup/server#home-assistant) |
 | `TRIAGE_COLLECT_SUPERVISOR` | `false` (`true` in the Home Assistant app) | Collect the Home Assistant Supervisor's errors and warnings from the host journal, as the host `home-assistant`. Only in the [Home Assistant app](/setup/server#home-assistant) |
+| `TRIAGE_COLLECT_APPS` | `false` (`true` in the Home Assistant app) | Collect Home Assistant apps' errors and warnings from the host journal, as the host `home-assistant`. Only lines that give a level are read. Only in the [Home Assistant app](/setup/server#home-assistant) |
 
 ## Workers and admins
 

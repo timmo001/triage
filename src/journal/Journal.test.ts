@@ -43,7 +43,7 @@ describe("Journal", () => {
     expect(command.args).toContain("--follow");
   });
 
-  test("reads one program at every priority, from every journal mounted", async () => {
+  test("reads programs at every priority, from every journal mounted", async () => {
     const seen: Array<ChildProcess.Command> = [];
 
     const spawner = Layer.mock(ChildProcessSpawner.ChildProcessSpawner, {
@@ -58,7 +58,11 @@ describe("Journal", () => {
       const journal = yield* Journal;
 
       yield* journal
-        .read({ follow: false, identifier: "homeassistant", merge: true })
+        .read({
+          follow: false,
+          identifiers: ["homeassistant", "addon_example"],
+          merge: true,
+        })
         .pipe(Stream.runDrain);
     }).pipe(
       Effect.provide(Journal.layer.pipe(Layer.provide(spawner))),
@@ -73,6 +77,7 @@ describe("Journal", () => {
 
     expect(command.args).toContain("--merge");
     expect(command.args).toContain("SYSLOG_IDENTIFIER=homeassistant");
+    expect(command.args).toContain("SYSLOG_IDENTIFIER=addon_example");
     expect(command.args.some((arg) => arg.startsWith("PRIORITY="))).toBe(false);
   });
 });

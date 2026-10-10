@@ -62,3 +62,10 @@ configuration:
       Fouten en waarschuwingen van de Home Assistant Supervisor, met hun
       tracebacks, uit het journal van de host verzamelen, als de host
       home-assistant.
+  # Apps are what Home Assistant used to call add-ons.
+  collect_apps:
+    name: Fouten van apps verzamelen
+    description: >-
+      Fouten en waarschuwingen van je andere apps uit het journal van de host
+      verzamelen, als de host home-assistant. Alleen regels met een niveau
+      worden gelezen.

@@ -66,3 +66,10 @@ configuration:
       Collecter les erreurs et avertissements du Supervisor de Home
       Assistant, avec leurs tracebacks, depuis le journal de l’hôte, comme
       l’hôte home-assistant.
+  # Apps are what Home Assistant used to call add-ons.
+  collect_apps:
+    name: Collecter les erreurs des apps
+    description: >-
+      Collecter les erreurs et avertissements de vos autres apps depuis le
+      journal de l’hôte, comme l’hôte home-assistant. Seules les lignes qui
+      indiquent un niveau sont lues.

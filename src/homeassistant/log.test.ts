@@ -7,6 +7,8 @@ import {
   recordsOf,
   warningOf,
   integrationOf,
+  isApp,
+  isAppOn,
   lastRecordStart,
   supervisorSource,
   withBreadcrumbs,
@@ -16,7 +18,11 @@ const redact = makeRedact({ hosts: ["kitchen-pi"] });
 
 let cursor = 0;
 
-const line = (message: string, timestamp = 1_700_000_000_123_456): Entry => {
+const line = (
+  message: string,
+  timestamp = 1_700_000_000_123_456,
+  program = "homeassistant",
+): Entry => {
   cursor += 1;
 
   return {
@@ -24,7 +30,7 @@ const line = (message: string, timestamp = 1_700_000_000_123_456): Entry => {
     __REALTIME_TIMESTAMP: timestamp,
     _HOSTNAME: "homeassistant",
     _BOOT_ID: "boot",
-    SYSLOG_IDENTIFIER: "homeassistant",
+    SYSLOG_IDENTIFIER: program,
     MESSAGE: message,
   };
 };
@@ -116,6 +122,144 @@ describe("Supervisor records", () => {
     expect(event?.identifier).toBe("supervisor.addons.addon");
     expect(event?.integration).toBeUndefined();
     expect(event?.message).toBe("Example app crashed at <ip>");
+  });
+});
+
+describe("apps' records", () => {
+  const app = (program: string, message: string) =>
+    line(message, undefined, program);
+
+  test("read levels in other programs' formats, each line on its own", () => {
+    const records = recordsOf(
+      [
+        app("app_example_shell", "[12:00:00] ERROR: Can't read the config"),
+        app("app_example_shell", "Usage: example [options]"),
+        app("app_example_go", "2026-10-10 12:00:00 WRN Lost connection"),
+        app("app_example_go", "2026-10-10 12:00:01 INF Reconnected"),
+        app(
+          "app_example_mesh",
+          "3d.08:40:55.367 [W] Mle-----: Failed to attach",
+        ),
+        app("app_example_mesh", "3d.08:40:56.001 [N] Mle-----: Attached"),
+        app("hassio_dns", "[ERROR] plugin/errors: 2 example.org. A: timeout"),
+        app(
+          "app_example_broker",
+          "2026-10-10T12:00:00+01:00 [warning] msg: alarm",
+        ),
+        app(
+          "app_example_node",
+          "2026-10-10 12:00:00.000 ERROR  Storage Failed",
+        ),
+      ],
+      { other: true },
+    );
+
+    expect(
+      records.map((record) => [
+        record.program,
+        record.severity,
+        record.logger,
+        record.lines,
+      ]),
+    ).toEqual([
+      [
+        "app_example_shell",
+        "err",
+        "app_example_shell",
+        ["Can't read the config"],
+      ],
+      ["app_example_go", "warning", "app_example_go", ["Lost connection"]],
+      [
+        "app_example_mesh",
+        "warning",
+        "app_example_mesh",
+        ["Mle-----: Failed to attach"],
+      ],
+      [
+        "hassio_dns",
+        "err",
+        "hassio_dns",
+        ["plugin/errors: 2 example.org. A: timeout"],
+      ],
+      ["app_example_broker", "warning", "app_example_broker", ["msg: alarm"]],
+      ["app_example_node", "err", "app_example_node", ["Storage Failed"]],
+    ]);
+  });
+
+  test("leave out lines with no level, and words that aren't one", () => {
+    expect(
+      recordsOf(
+        [
+          app("app_example_go", "2026/10/10 12:00:00 control: error decoding"),
+          app(
+            "app_example_go",
+            "2026/10/10 12:00:00 Error connecting to server",
+          ),
+          app("app_example_ntp", "2026-10-10T12:00:00Z Clock interference"),
+        ],
+        { other: true },
+      ),
+    ).toEqual([]);
+  });
+
+  test("name an app in Core's format by the app, and keep its tracebacks", () => {
+    const records = recordsOf(
+      [
+        app(
+          "app_example_python",
+          "2026-10-10 12:00:00.000 ERROR (MainThread) [example.provider] Setup failed",
+        ),
+        app("app_example_go", "2026-10-10 12:00:00 INF Unrelated"),
+        app("app_example_python", "Traceback (most recent call last):"),
+        app("app_example_go", "unrelated output"),
+        app("app_example_python", "example.SetupFailedError: refused"),
+      ],
+      { other: true },
+    );
+
+    expect(records).toHaveLength(1);
+    expect(records[0]?.logger).toBe("app_example_python");
+    expect(records[0]?.lines).toEqual([
+      "[example.provider] Setup failed",
+      "Traceback (most recent call last):",
+      "example.SetupFailedError: refused",
+    ]);
+  });
+
+  test("only count other formats when asked, as Core's log doesn't need them", () => {
+    expect(
+      recordsOf([app("homeassistant", "[ERROR] Not Core's format")]),
+    ).toEqual([]);
+  });
+
+  test("keep breadcrumbs to the same app", () => {
+    const [, error] = withBreadcrumbs(
+      [],
+      recordsOf(
+        [
+          app("app_example_go", "2026-10-10 12:00:00 WRN From another app"),
+          app("app_example_shell", "[12:00:00] ERROR: Failed"),
+        ],
+        { other: true },
+      ),
+    ).records;
+
+    expect(error?.breadcrumbs).toEqual([]);
+  });
+});
+
+describe("isApp and isAppOn", () => {
+  test("recognise apps' containers, and triage's own by its hostname", () => {
+    expect(isApp("app_core_example")).toBe(true);
+    expect(isApp("addon_core_example")).toBe(true);
+    expect(isApp("hassio_dns")).toBe(false);
+    expect(isApp("homeassistant")).toBe(false);
+    expect(isAppOn("app_0123abcd_triage", "0123abcd-triage")).toBe(true);
+    expect(isAppOn("app_core_speech-to-text", "core-speech-to-text")).toBe(
+      true,
+    );
+    expect(isAppOn("app_core_example", "0123abcd-triage")).toBe(false);
+    expect(isAppOn("app_core_example", "")).toBe(false);
   });
 });
 

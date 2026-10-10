@@ -16,10 +16,10 @@ export interface ReadOptions {
   /** Keep reading new entries as they're written. */
   readonly follow: boolean;
   /**
-   * Read every entry this program logged, at any priority, instead of the
+   * Read every entry these programs logged, at any priority, instead of the
    * entries triage cares about from every program.
    */
-  readonly identifier?: string | undefined;
+  readonly identifiers?: ReadonlyArray<string> | undefined;
   /**
    * Read every journal found rather than only this machine's, for a journal
    * mounted without its machine ID, as in a Home Assistant app.
@@ -53,6 +53,13 @@ export class Journal extends Context.Service<
   {
     read(options: ReadOptions): Stream.Stream<Entry, JournalError>;
     /**
+     * Every program that has logged to the journal, by its
+     * `SYSLOG_IDENTIFIER`, from every journal found when `merge` is set.
+     */
+    identifiers(options: {
+      readonly merge: boolean;
+    }): Effect.Effect<ReadonlyArray<string>, JournalError>;
+    /**
      * The messages a unit logged before an entry, in the same boot, oldest
      * first. Raw, so they must be redacted before they're stored.
      */
@@ -81,7 +88,7 @@ export class Journal extends Context.Service<
                 : [`--after-cursor=${options.after}`]),
               ...(options.follow ? ["--follow"] : []),
               ...(options.merge === true ? ["--merge"] : []),
-              ...(options.identifier === undefined
+              ...(options.identifiers === undefined
                 ? [
                     ...Array.from(
                       { length: warningPriority + 1 },
@@ -90,7 +97,9 @@ export class Journal extends Context.Service<
                     "+",
                     ...Object.values(MessageId).map((id) => `MESSAGE_ID=${id}`),
                   ]
-                : [`SYSLOG_IDENTIFIER=${options.identifier}`]),
+                : options.identifiers.map(
+                    (identifier) => `SYSLOG_IDENTIFIER=${identifier}`,
+                  )),
             ]),
           )
           .pipe(
@@ -136,7 +145,23 @@ export class Journal extends Context.Service<
         Effect.mapError((cause) => new JournalError({ cause })),
       );
 
-      return Journal.of({ read, before });
+      const identifiers = Effect.fn("Journal.identifiers")(
+        function* (options: { readonly merge: boolean }) {
+          const lines = yield* spawner.lines(
+            ChildProcess.make("journalctl", [
+              "--no-pager",
+              "--quiet",
+              "--field=SYSLOG_IDENTIFIER",
+              ...(options.merge ? ["--merge"] : []),
+            ]),
+          );
+
+          return lines.map((line) => line.trim()).filter((line) => line !== "");
+        },
+        Effect.mapError((cause) => new JournalError({ cause })),
+      );
+
+      return Journal.of({ read, identifiers, before });
     }),
   );
 }
