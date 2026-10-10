@@ -37,6 +37,7 @@ options:
   new_hours: 24
   quiet_hours: 72
   language: en
+  collect_core: true
 schema:
   server_admin_token: password?
   trust_proxy: bool
@@ -45,3 +46,4 @@ schema:
   new_hours: int(1,)
   quiet_hours: int(1,)
   language: list(en|de|es|fr|it|ja|nl|pl|pt-BR|zh-Hans)
+  collect_core: bool

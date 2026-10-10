@@ -100,7 +100,15 @@ export const regularUsers = (passwd: string): ReadonlyArray<string> =>
  */
 export class Redactor extends Context.Service<
   Redactor,
-  { readonly redact: Redact }
+  {
+    readonly redact: Redact;
+    /**
+     * Redacts like `redact`, and another machine's hostname too, for a
+     * journal from a machine other than this one, such as a Home Assistant
+     * app's host.
+     */
+    readonly withHost: (hostname: string) => Redact;
+  }
 >()("triage/Redactor") {
   static readonly layer = Layer.effect(
     Redactor,
@@ -117,14 +125,14 @@ export class Redactor extends Context.Service<
         Config.withDefault(""),
       );
 
+      const users = [
+        ...regularUsers(passwd),
+        ...names.split(",").map((name) => name.trim()),
+      ];
+
       return Redactor.of({
-        redact: makeRedact({
-          users: [
-            ...regularUsers(passwd),
-            ...names.split(",").map((name) => name.trim()),
-          ],
-          hosts: [hostname],
-        }),
+        redact: makeRedact({ users, hosts: [hostname] }),
+        withHost: (other) => makeRedact({ users, hosts: [hostname, other] }),
       });
     }),
   );

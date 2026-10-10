@@ -41,6 +41,7 @@ Environment variables win over the file. The Home Assistant app uses this for it
 | `TRIAGE_NEW_HOURS` | `24` | How long an issue stays [new](/issues#states) after it's first seen |
 | `TRIAGE_QUIET_HOURS` | `72` | How long an issue goes without events before it's [quiet](/issues#states), and how long it stays regressed |
 | `TRIAGE_LANGUAGE` | `en` | The web UI's [language](/languages), such as `de` or `pt-BR` |
+| `TRIAGE_COLLECT_CORE` | `false` (`true` in the Home Assistant app) | Collect Home Assistant Core's errors and warnings from the host journal, as the host `home-assistant`. Only in the [Home Assistant app](/setup/server#home-assistant) |
 
 ## Workers and admins
 

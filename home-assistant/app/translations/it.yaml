@@ -51,3 +51,9 @@ configuration:
       Français, it Italiano, ja 日本語, nl Nederlands, pl Polski, pt-BR
       Português (Brasil) o zh-Hans 简体中文. Le traduzioni sono generate
       dall’IA, quindi qualcosa potrebbe suonare strano.
+  # Home Assistant Core is the main part of Home Assistant. Keep "Core".
+  collect_core:
+    name: Raccogli gli errori di Home Assistant Core
+    description: >-
+      Raccogli errori e avvisi di Home Assistant Core, con i loro traceback,
+      dal journal dell’host, come host home-assistant.

@@ -17,6 +17,7 @@ import { Argument, CliError, Command, Flag } from "effect/cli";
 import packageJson from "../package.json" with { type: "json" };
 import { Attribution } from "./collect/Attribution.js";
 import { Collector } from "./collect/Collector.js";
+import * as CoreCollector from "./homeassistant/CoreCollector.js";
 import { Journal } from "./journal/Journal.js";
 import { formatLine } from "./logger.js";
 import { IssueTools, IssueToolsLayer, mcpOptions } from "./mcp/IssueTools.js";
@@ -800,12 +801,26 @@ const serve = Command.make(
           `There's no ${language} translation. Use one of: ${languages.join(", ")}`,
       ),
     ),
+    collectCore: Flag.Boolean("collect-core").pipe(
+      Flag.withDescription(
+        "Collect Home Assistant Core's errors and warnings from the host journal, as the host home-assistant, in a Home Assistant app with journald. Off unless set",
+      ),
+      Flag.withFallbackConfig(Config.Boolean("TRIAGE_COLLECT_CORE")),
+      Flag.withDefault(false),
+    ),
     ...processFlags,
   },
   Effect.fnUntraced(function* (input) {
-    const app = Layer.merge(
+    const coreCollection = input.collectCore
+      ? CoreCollector.layer({ host: "home-assistant" }).pipe(
+          Layer.provide(Layer.merge(Journal.layer, Redactor.layer)),
+        )
+      : Layer.empty;
+
+    const app = Layer.mergeAll(
       Server.layer(input),
       yield* processLoops(input),
+      coreCollection,
     ).pipe(
       Layer.provide(
         Work.layerStore({

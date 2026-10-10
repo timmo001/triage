@@ -41,3 +41,9 @@ configuration:
       网页界面的语言：de Deutsch、en English、es Español、fr Français、it
       Italiano、ja 日本語、nl Nederlands、pl Polski、pt-BR Português (Brasil) 或
       zh-Hans 简体中文。翻译由 AI 生成，部分内容可能读起来不太自然。
+  # Home Assistant Core is the main part of Home Assistant. Keep "Core".
+  collect_core:
+    name: 收集 Home Assistant Core 的错误
+    description: >-
+      从主机日志中收集 Home Assistant Core 的错误和警告及其回溯信息，主机名为
+      home-assistant。
