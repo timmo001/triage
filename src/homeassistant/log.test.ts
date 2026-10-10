@@ -3,13 +3,14 @@ import { Fingerprint, Issue } from "@timmo001/effect-triage";
 import type { Entry } from "../journal/Entry.js";
 import { makeRedact } from "../redact.js";
 import {
-  coreEvent,
-  coreRecords,
-  coreWarning,
+  eventOf,
+  recordsOf,
+  warningOf,
   integrationOf,
   lastRecordStart,
+  supervisorSource,
   withBreadcrumbs,
-} from "./coreLog.js";
+} from "./log.js";
 
 const redact = makeRedact({ hosts: ["kitchen-pi"] });
 
@@ -40,9 +41,9 @@ const traceback = [
   line("TimeoutError"),
 ];
 
-describe("coreRecords", () => {
+describe("recordsOf", () => {
   test("joins a traceback to the record that logged it", () => {
-    const [record] = coreRecords(traceback);
+    const [record] = recordsOf(traceback);
 
     expect(record?.severity).toBe("err");
     expect(record?.logger).toBe("homeassistant.components.hue");
@@ -51,7 +52,7 @@ describe("coreRecords", () => {
   });
 
   test("leaves out info, and lines before the first record", () => {
-    const records = coreRecords([
+    const records = recordsOf([
       line("    raise ValueError"),
       line(
         "2026-10-10 12:00:01.000 INFO (MainThread) [homeassistant.core] Starting",
@@ -72,10 +73,11 @@ describe("lastRecordStart", () => {
   });
 });
 
-describe("coreEvent", () => {
+describe("eventOf", () => {
   test("is a redacted log error from the logger, titled by its first line", () => {
-    const [record] = coreRecords(traceback);
-    const event = record && coreEvent(record, "home-assistant", redact);
+    const [record] = recordsOf(traceback);
+
+    const event = record && eventOf(record, { host: "home-assistant", redact });
 
     expect(event?._tag).toBe("LogError");
     expect(event?.host).toBe("home-assistant");
@@ -94,6 +96,29 @@ describe("coreEvent", () => {
   });
 });
 
+describe("Supervisor records", () => {
+  test("read like Core's, from the Supervisor's own source", () => {
+    const [record] = recordsOf([
+      line(
+        "2026-10-10 12:00:00.123 ERROR (MainThread) [supervisor.addons.addon] Example app crashed at 10.0.0.5",
+      ),
+    ]);
+
+    const event =
+      record &&
+      eventOf(record, {
+        host: "home-assistant",
+        redact,
+        source: supervisorSource,
+      });
+
+    expect(event?.source).toBe("homeassistant-supervisor");
+    expect(event?.identifier).toBe("supervisor.addons.addon");
+    expect(event?.integration).toBeUndefined();
+    expect(event?.message).toBe("Example app crashed at <ip>");
+  });
+});
+
 describe("withBreadcrumbs", () => {
   const at = (seconds: number, message: string) =>
     line(message, (1_700_000_000 + seconds) * 1_000_000);
@@ -101,7 +126,7 @@ describe("withBreadcrumbs", () => {
   test("keeps what Core logged in the 30 seconds before, across batches", () => {
     const first = withBreadcrumbs(
       [],
-      coreRecords([
+      recordsOf([
         at(
           0,
           "2026-10-10 12:00:00.000 WARNING (MainThread) [homeassistant.components.demo] Too old",
@@ -115,7 +140,7 @@ describe("withBreadcrumbs", () => {
 
     const second = withBreadcrumbs(
       first.recent,
-      coreRecords([
+      recordsOf([
         at(
           50,
           "2026-10-10 12:00:50.000 ERROR (MainThread) [homeassistant.components.demo.coordinator] Error fetching demo data",
@@ -131,7 +156,11 @@ describe("withBreadcrumbs", () => {
 
     const event =
       error &&
-      coreEvent(error.record, "home-assistant", redact, error.breadcrumbs);
+      eventOf(error.record, {
+        host: "home-assistant",
+        redact,
+        breadcrumbs: error.breadcrumbs,
+      });
 
     expect(event?.breadcrumbs).toEqual([
       "WARNING [homeassistant.components.demo] Timed out",
@@ -153,20 +182,20 @@ describe("integrationOf", () => {
   });
 });
 
-describe("coreWarning", () => {
+describe("warningOf", () => {
   test("counts a warning under its logger", () => {
-    const [record] = coreRecords([
+    const [record] = recordsOf([
       line(
         "2026-10-10 12:00:02.000 WARNING (SyncWorker_3) [custom_components.thing] Update took 12 seconds",
       ),
     ]);
 
-    const warning = record && coreWarning(record, "home-assistant", redact);
+    const warning = record && warningOf(record, "home-assistant", redact);
 
     expect(warning?.identifier).toBe("custom_components.thing");
     expect(warning?.template).toBe("Update took <n> seconds");
     expect(
-      record && coreEvent(record, "home-assistant", redact),
+      record && eventOf(record, { host: "home-assistant", redact }),
     ).toBeUndefined();
   });
 });

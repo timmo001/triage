@@ -95,7 +95,7 @@
   "issues.loadingMore": "正在加载更多问题",
   "issues.loadMoreFailed": "无法加载更多问题。",
   "issues.none": "这里没有问题。",
-  "issues.coreNotCollected": "应用无法读取主机日志，因此未收集 Home Assistant Core 的错误。",
+  "issues.homeAssistantNotCollected": "应用无法读取主机日志，因此未收集 Home Assistant 的错误。",
 
   // The issue list's column headings, kept short.
   "column.state": "状态",

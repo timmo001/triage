@@ -996,14 +996,15 @@ export class TriageIssues extends LitElement {
 
   /** Say when the server can't collect what it's meant to. */
   #renderNotice() {
-    const core = AsyncResult.getOrElse(
+    const homeAssistant = AsyncResult.getOrElse(
       this.#collection.value,
       () => undefined,
-    )?.homeAssistantCore;
+    )?.homeAssistant;
 
-    return core === "noJournal"
+    return homeAssistant === "noJournal"
       ? html`<p class="notice" role="status">
-          ${icon(mdiAlertCircleOutline)} ${t("issues.coreNotCollected")}
+          ${icon(mdiAlertCircleOutline)}
+          ${t("issues.homeAssistantNotCollected")}
         </p>`
       : nothing;
   }

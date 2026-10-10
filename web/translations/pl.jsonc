@@ -100,7 +100,7 @@
   "issues.loadingMore": "Wczytywanie kolejnych problemów",
   "issues.loadMoreFailed": "Nie udało się wczytać kolejnych problemów.",
   "issues.none": "Brak problemów.",
-  "issues.coreNotCollected": "Błędy Home Assistant Core nie są zbierane, bo aplikacja nie może odczytać dziennika hosta.",
+  "issues.homeAssistantNotCollected": "Błędy Home Assistant nie są zbierane, bo aplikacja nie może odczytać dziennika hosta.",
 
   // The issue list's column headings, kept short.
   "column.state": "Stan",

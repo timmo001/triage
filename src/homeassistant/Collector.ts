@@ -3,18 +3,20 @@ import { type Entry, text } from "../journal/Entry.js";
 import { Journal } from "../journal/Journal.js";
 import { type Redact, Redactor } from "../redact.js";
 import { Store } from "../store/Store.js";
-import { CoreConfig } from "./CoreConfig.js";
-import { CoreStatus } from "./CoreStatus.js";
+import { HomeAssistantConfig } from "./Config.js";
 import {
-  coreEvent,
   coreIdentifier,
-  type CoreRecord,
-  coreRecords,
   coreSource,
-  coreWarning,
+  eventOf,
   lastRecordStart,
+  type LogRecord,
+  recordsOf,
+  supervisorIdentifier,
+  supervisorSource,
+  warningOf,
   withBreadcrumbs,
-} from "./coreLog.js";
+} from "./log.js";
+import { CollectionStatus } from "./Status.js";
 
 /** The most journal entries stored together. */
 const batchSize = 1000;
@@ -22,21 +24,54 @@ const batchSize = 1000;
 /** Where the Supervisor mounts the host journal with `journald: true`. */
 const journalDirectories = ["/var/log/journal", "/run/log/journal"];
 
+/** A Home Assistant log in the host journal, in Core's format. */
+export interface Log {
+  readonly identifier: string;
+  /** Where its events come from, and the store's cursor key for it. */
+  readonly source: string;
+  /** What the server's own log calls it. */
+  readonly name: string;
+  /** Whether its events get Core's version and custom integrations' details. */
+  readonly attribute: boolean;
+}
+
+export const core: Log = {
+  identifier: coreIdentifier,
+  source: coreSource,
+  name: "Home Assistant Core",
+  attribute: true,
+};
+
+export const supervisor: Log = {
+  identifier: supervisorIdentifier,
+  source: supervisorSource,
+  name: "the Supervisor",
+  attribute: false,
+};
+
 /**
- * Collects Home Assistant Core's errors and warnings from the host journal the
- * Supervisor mounts into the app, straight into the server's own store, as
- * events from `host`. Runs in the background for as long as the layer, and
- * logs rather than failing when the journal isn't there or can't be read.
+ * Collects errors and warnings from Home Assistant's `logs`, such as Core's
+ * and the Supervisor's, from the host journal the Supervisor mounts into the
+ * app, straight into the server's own store, as events from `host`. Runs in
+ * the background for as long as the layer, and logs rather than failing when
+ * the journal isn't there or can't be read.
  */
-export const layer = (options: { readonly host: string }) =>
+export const layer = (options: {
+  readonly host: string;
+  readonly logs: ReadonlyArray<Log>;
+}) =>
   Layer.effectDiscard(
     Effect.gen(function* () {
+      if (options.logs.length === 0) {
+        return;
+      }
+
       const fs = yield* FileSystem.FileSystem;
       const journal = yield* Journal;
       const store = yield* Store;
       const { redact, withHost } = yield* Redactor;
-      const config = yield* CoreConfig;
-      const status = yield* CoreStatus;
+      const config = yield* HomeAssistantConfig;
+      const status = yield* CollectionStatus;
 
       const mounted = yield* Effect.forEach(journalDirectories, (directory) =>
         fs.exists(directory).pipe(Effect.orElseSucceed(() => false)),
@@ -46,13 +81,13 @@ export const layer = (options: { readonly host: string }) =>
         yield* status.set("noJournal");
 
         return yield* Effect.logWarning(
-          "Can't collect Home Assistant Core's errors: the host journal isn't mounted. Turn on journald for the app",
+          "Can't collect Home Assistant's errors: the host journal isn't mounted. Turn on journald for the app",
         );
       }
 
       if (!config.mounted) {
         yield* Effect.logWarning(
-          "Can't redact Home Assistant's device, entity and area names from Core's errors, or add versions: its config directory isn't mounted",
+          "Can't redact Home Assistant's device, entity and area names from its errors, or add versions: its config directory isn't mounted",
         );
       }
 
@@ -82,25 +117,25 @@ export const layer = (options: { readonly host: string }) =>
         return byHost;
       };
 
-      const collect = Effect.gen(function* () {
+      const collect = Effect.fnUntraced(function* (log: Log) {
         // journalctl --follow only reads the current boot, so catch up on
         // earlier boots with a plain read before following.
         for (const follow of [false, true]) {
-          const after = yield* store.cursor(coreSource);
+          const after = yield* store.cursor(log.source);
 
           // A full batch means more entries are already waiting, so the last
           // record's traceback may go on in the next one. Hold it back until
           // then, and leave the cursor before it, so a restart reads it again.
           let carried: ReadonlyArray<Entry> = [];
-          // The latest records, for what Core logged before an error.
-          let recent: ReadonlyArray<CoreRecord> = [];
+          // The latest records, for what was logged before an error.
+          let recent: ReadonlyArray<LogRecord> = [];
           let collected = 0;
 
           yield* journal
             .read({
               after: Option.getOrUndefined(after),
               follow,
-              identifier: coreIdentifier,
+              identifier: log.identifier,
               merge: true,
             })
             .pipe(
@@ -124,7 +159,7 @@ export const layer = (options: { readonly host: string }) =>
                     return;
                   }
 
-                  const paired = withBreadcrumbs(recent, coreRecords(entries));
+                  const paired = withBreadcrumbs(recent, recordsOf(entries));
 
                   recent = paired.recent;
 
@@ -137,25 +172,28 @@ export const layer = (options: { readonly host: string }) =>
 
                   const events = yield* Effect.forEach(
                     records.flatMap(({ record, breadcrumbs, redact }) => {
-                      const event = coreEvent(
-                        record,
-                        options.host,
+                      const event = eventOf(record, {
+                        host: options.host,
                         redact,
+                        source: log.source,
                         breadcrumbs,
                         redactNames,
-                      );
+                      });
 
                       return event === undefined ? [] : [event];
                     }),
-                    config.attribute,
+                    (event) =>
+                      log.attribute
+                        ? config.attribute(event)
+                        : Effect.succeed(event),
                   );
 
                   const added = yield* store.record(
-                    coreSource,
+                    log.source,
                     events,
                     last.__CURSOR,
                     records.flatMap(({ record, redact }) => {
-                      const warning = coreWarning(
+                      const warning = warningOf(
                         record,
                         options.host,
                         redact,
@@ -170,9 +208,7 @@ export const layer = (options: { readonly host: string }) =>
 
                   if (follow && added > 0) {
                     yield* Effect.logInfo(
-                      "Collected",
-                      added,
-                      "new Home Assistant Core errors",
+                      `Collected ${added} new errors from ${log.name}`,
                     );
                   }
                 }),
@@ -181,27 +217,32 @@ export const layer = (options: { readonly host: string }) =>
 
           if (!follow && collected > 0) {
             yield* Effect.logInfo(
-              "Caught up on",
-              collected,
-              "new Home Assistant Core errors",
+              `Caught up on ${collected} new errors from ${log.name}`,
             );
           }
         }
       });
 
-      yield* Effect.logInfo("Collecting Home Assistant Core's errors");
-
       // Following only stops when journalctl does, so start again after a
       // pause, from the saved cursor, whether it failed or not.
-      yield* collect.pipe(
-        Effect.catch((error) =>
-          Effect.logWarning(
-            `Couldn't collect Home Assistant Core's errors, retrying in a minute: ${error.message}`,
+      yield* Effect.forEach(
+        options.logs,
+        (log) =>
+          Effect.logInfo(`Collecting errors from ${log.name}`).pipe(
+            Effect.andThen(
+              collect(log).pipe(
+                Effect.catch((error) =>
+                  Effect.logWarning(
+                    `Couldn't collect errors from ${log.name}, retrying in a minute: ${error.message}`,
+                  ),
+                ),
+                Effect.andThen(Effect.sleep("1 minute")),
+                Effect.forever,
+                Effect.forkScoped,
+              ),
+            ),
           ),
-        ),
-        Effect.andThen(Effect.sleep("1 minute")),
-        Effect.forever,
-        Effect.forkScoped,
+        { discard: true },
       );
     }),
   );

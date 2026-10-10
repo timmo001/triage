@@ -95,7 +95,7 @@
   "issues.loadingMore": "Weitere Probleme werden geladen",
   "issues.loadMoreFailed": "Weitere Probleme konnten nicht geladen werden.",
   "issues.none": "Hier gibt es keine Probleme.",
-  "issues.coreNotCollected": "Die Fehler von Home Assistant Core werden nicht erfasst, weil die App das Journal des Hosts nicht lesen kann.",
+  "issues.homeAssistantNotCollected": "Die Fehler von Home Assistant werden nicht erfasst, weil die App das Journal des Hosts nicht lesen kann.",
 
   // The issue list's column headings, kept short.
   "column.state": "Status",

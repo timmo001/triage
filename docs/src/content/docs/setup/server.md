@@ -54,6 +54,8 @@ The app's other options are **trust_proxy**, **decide_daily**, **suggest_daily**
 
 The app also collects Home Assistant Core's own errors and warnings, as the host `home-assistant`, unless you turn off **collect_core**. The app reads them from the host journal, which Home Assistant mounts into it read only. Each error comes with its traceback, and is grouped by the logger that logged it. Its integration is shown with it, with links to the integration's docs and Core's issues for one built into Core, or its version and issue tracker for a custom one, along with Core's version and any warnings and errors Core logged in the 30 seconds before it. They're redacted like every other host's events, and the names of devices, entities, areas and people in Home Assistant are taken out too. The app reads those, and the versions, from Home Assistant's config directory, which is also mounted read only. If the app can't read the host journal, the issues page says so.
 
+The Supervisor's errors and warnings, such as an app that failed to start or an update that failed, are collected the same way and as the same host, unless you turn off **collect_supervisor**. The Supervisor logs in the same format as Core, so its errors are grouped by logger and come with their tracebacks too.
+
 **Triage** in Home Assistant's sidebar opens the [issues page](/issues#in-a-browser) for Home Assistant's admins, with no admin token needed: Home Assistant has already signed them in. It's served on a separate port that only answers Home Assistant, so port 7171 still needs a token.
 
 The app stops briefly during backups so its database is copied consistently. Hosts keep their events until the server is back.

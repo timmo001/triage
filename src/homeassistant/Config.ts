@@ -14,7 +14,7 @@ import {
   parseRegistries,
   type Registries,
   registryFiles,
-} from "./coreNames.js";
+} from "./names.js";
 
 /**
  * Where the Supervisor mounts Home Assistant's config directory, read only,
@@ -34,18 +34,18 @@ interface Stamped {
 }
 
 /**
- * Reads what Core's log doesn't say from Home Assistant's config directory:
- * the names in its registries, to redact from Core's errors, the version of
- * Core that's running and custom integrations' manifests. Only those files are
+ * Reads what Home Assistant's logs don't say from its config directory: the
+ * names in its registries, to redact from its errors, the version of Core
+ * that's running and custom integrations' manifests. Only those files are
  * read, never `secrets.yaml` or anything else there. Outside a Home Assistant
  * app, or without the mount, there are no names and no versions.
  */
-export class CoreConfig extends Context.Service<
-  CoreConfig,
+export class HomeAssistantConfig extends Context.Service<
+  HomeAssistantConfig,
   {
     /** Whether Home Assistant's config directory is there to read. */
     readonly mounted: boolean;
-    /** Redacts the registries' current names, as Core's log has them. */
+    /** Redacts the registries' current names, as Home Assistant logs them. */
     readonly redactNames: Effect.Effect<Redact>;
     /**
      * Adds Core's version, and a custom integration's version and issue
@@ -54,9 +54,9 @@ export class CoreConfig extends Context.Service<
      */
     readonly attribute: (event: Event.Event) => Effect.Effect<Event.Event>;
   }
->()("triage/homeassistant/CoreConfig") {
+>()("triage/homeassistant/HomeAssistantConfig") {
   static readonly layer = Layer.effect(
-    CoreConfig,
+    HomeAssistantConfig,
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
@@ -202,7 +202,7 @@ export class CoreConfig extends Context.Service<
         });
       });
 
-      return CoreConfig.of({
+      return HomeAssistantConfig.of({
         mounted,
         redactNames: refreshNames,
         attribute,

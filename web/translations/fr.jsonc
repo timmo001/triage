@@ -99,7 +99,7 @@
   "issues.loadingMore": "Chargement d’autres problèmes",
   "issues.loadMoreFailed": "Impossible de charger d’autres problèmes.",
   "issues.none": "Aucun problème ici.",
-  "issues.coreNotCollected": "Les erreurs de Home Assistant Core ne sont pas collectées, car l'app ne peut pas lire le journal de l'hôte.",
+  "issues.homeAssistantNotCollected": "Les erreurs de Home Assistant ne sont pas collectées, car l'app ne peut pas lire le journal de l'hôte.",
 
   // The issue list's column headings, kept short.
   "column.state": "État",

@@ -29,6 +29,7 @@ FLAGS
   --suggest-daily integer      The most suggestions each language model may make in any 24 hours, here with --suggest or by workers
   --language string            The web UI's language: de, en, es, fr, it, ja, nl, pl, pt-BR, zh-Hans
   --collect-core               Collect Home Assistant Core's errors and warnings from the host journal, as the host home-assistant, in a Home Assistant app with journald. Off unless set
+  --collect-supervisor         Collect the Home Assistant Supervisor's errors and warnings from the host journal, as the host home-assistant, in a Home Assistant app with journald. Off unless set
   --decide                     Ask a decision model about new issues every few minutes, keeping the answers without acting on them. Off unless set
   --provider choice            Decide through any TypeSafe System One API, such as Ollaya or Ollama locally, or with Clef on Cloudflare using $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN (choices: typesafe, cloudflare)
   --url string                 The System One API: Ollaya by default, Ollama at http://127.0.0.1:11434/v1, or a hosted one with $TRIAGE_DECISION_API_KEY

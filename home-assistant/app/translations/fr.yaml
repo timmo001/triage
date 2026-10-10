@@ -59,3 +59,10 @@ configuration:
       Collecter les erreurs et avertissements de Home Assistant Core, avec
       leurs tracebacks, depuis le journal de l’hôte, comme l’hôte
       home-assistant.
+  # The Supervisor runs Home Assistant, its apps and updates. Keep "Supervisor".
+  collect_supervisor:
+    name: Collecter les erreurs du Supervisor
+    description: >-
+      Collecter les erreurs et avertissements du Supervisor de Home
+      Assistant, avec leurs tracebacks, depuis le journal de l’hôte, comme
+      l’hôte home-assistant.

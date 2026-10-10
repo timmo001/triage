@@ -55,3 +55,10 @@ configuration:
     description: >-
       Fouten en waarschuwingen van Home Assistant Core, met hun tracebacks,
       uit het journal van de host verzamelen, als de host home-assistant.
+  # The Supervisor runs Home Assistant, its apps and updates. Keep "Supervisor".
+  collect_supervisor:
+    name: Fouten van de Supervisor verzamelen
+    description: >-
+      Fouten en waarschuwingen van de Home Assistant Supervisor, met hun
+      tracebacks, uit het journal van de host verzamelen, als de host
+      home-assistant.

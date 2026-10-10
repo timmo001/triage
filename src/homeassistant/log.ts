@@ -16,7 +16,17 @@ export const coreIdentifier = "homeassistant";
  */
 export const coreSource = "homeassistant-core";
 
-/** Terminal colour codes, which Core's log has even when it isn't a terminal. */
+/** The journal's `SYSLOG_IDENTIFIER` for the Supervisor's container. */
+export const supervisorIdentifier = "hassio_supervisor";
+
+/**
+ * Where the Supervisor's events come from, and the store's cursor key for
+ * reading them. The Supervisor logs in the same format as Core, so its records
+ * are read the same way.
+ */
+export const supervisorSource = "homeassistant-supervisor";
+
+/** Terminal colour codes, which these logs have even when they aren't a terminal. */
 const colours = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 
 /**
@@ -26,7 +36,7 @@ const colours = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 const recordStart =
   /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? (?<level>[A-Z]+) \(.*?\) \[(?<logger>[^\]]+)\] (?<message>.*)$/s;
 
-/** The severity of a Core log level that triage keeps, from warning up. */
+/** The severity of a log level that triage keeps, from warning up. */
 const severityOf = (level: string): Severity.Severity | undefined => {
   switch (level) {
     case "CRITICAL":
@@ -57,8 +67,8 @@ export const lastRecordStart = (
   return index === -1 ? undefined : index;
 };
 
-/** One record Core logged, with the lines that followed it, such as a traceback. */
-export interface CoreRecord {
+/** One record in Core's format, with the lines that followed it, such as a traceback. */
+export interface LogRecord {
   /** The journal entry that started it. */
   readonly entry: Entry;
   readonly severity: Severity.Severity;
@@ -69,14 +79,14 @@ export interface CoreRecord {
 }
 
 /**
- * Group Core's journal entries into records. The journal holds one entry per
- * line Core wrote, so a traceback's lines follow the record that logged it.
+ * Group a log's journal entries into records. The journal holds one entry per
+ * line written, so a traceback's lines follow the record that logged it.
  * Records below warning are left out, and so are lines before the first
  * record, such as the end of a traceback that started in an earlier batch.
  */
-export const coreRecords = (
+export const recordsOf = (
   entries: ReadonlyArray<Entry>,
-): ReadonlyArray<CoreRecord> => {
+): ReadonlyArray<LogRecord> => {
   const records: Array<{
     entry: Entry;
     severity: Severity.Severity | undefined;
@@ -105,10 +115,10 @@ export const coreRecords = (
   );
 };
 
-/** How long before an error Core's other records are kept with it, in milliseconds. */
+/** How long before an error the log's other records are kept with it, in milliseconds. */
 const breadcrumbMillis = 30_000;
 
-/** The most of Core's earlier records kept with an error. */
+/** The most of the log's earlier records kept with an error. */
 const breadcrumbRecords = 10;
 
 const levelNames: Record<Severity.Severity, string> = {
@@ -122,22 +132,22 @@ const levelNames: Record<Severity.Severity, string> = {
   debug: "DEBUG",
 };
 
-const millisOf = (record: CoreRecord) =>
+const millisOf = (record: LogRecord) =>
   Math.floor(record.entry.__REALTIME_TIMESTAMP / 1000);
 
 /** A record's first line, with its level and logger, as a breadcrumb. */
-const breadcrumbOf = (record: CoreRecord) =>
+const breadcrumbOf = (record: LogRecord) =>
   `${levelNames[record.severity]} [${record.logger}] ${record.lines[0] ?? ""}`;
 
 /**
- * Pair each record with what Core logged in the {@link breadcrumbMillis}
+ * Pair each record with what the log had in the {@link breadcrumbMillis}
  * before it, from any logger, oldest first, carrying on from the records in
  * `previous`. Returns the records to carry on from next time too, since
  * batches don't line up with what happened.
  */
 export const withBreadcrumbs = (
-  previous: ReadonlyArray<CoreRecord>,
-  records: ReadonlyArray<CoreRecord>,
+  previous: ReadonlyArray<LogRecord>,
+  records: ReadonlyArray<LogRecord>,
 ) => {
   let recent = previous;
 
@@ -176,7 +186,7 @@ export const integrationOf = (
       };
 };
 
-const common = (record: CoreRecord, host: string) => {
+const common = (record: LogRecord, host: string) => {
   const bootId = text(record.entry, "_BOOT_ID");
 
   return {
@@ -189,22 +199,34 @@ const common = (record: CoreRecord, host: string) => {
 const unchanged: Redact = (text) => text;
 
 /**
- * Turn a Core record at error or worse into a log error from its logger, with
- * any traceback after the message and what Core logged just before, or
- * nothing for a warning. Redacted here, before it's stored, like every other
- * event, with Home Assistant's own names taken out of the message by
- * `redactNames` first.
+ * Turn a Core or Supervisor record at error or worse into a log error from its
+ * logger, with any traceback after the message and what was logged just
+ * before, or nothing for a warning. Redacted here, before it's stored, like
+ * every other event, with Home Assistant's own names taken out of the message
+ * by `redactNames` first.
  */
-export const coreEvent = (
-  record: CoreRecord,
-  host: string,
-  redact: Redact,
-  breadcrumbs: ReadonlyArray<string> = [],
-  redactNames: Redact = unchanged,
+export const eventOf = (
+  record: LogRecord,
+  options: {
+    readonly host: string;
+    readonly redact: Redact;
+    /** Where it was read from, Core's log unless given. */
+    readonly source?: string;
+    readonly breadcrumbs?: ReadonlyArray<string>;
+    readonly redactNames?: Redact;
+  },
 ): Event.Event | undefined => {
   if (record.severity === "warning") {
     return undefined;
   }
+
+  const {
+    host,
+    redact,
+    source = coreSource,
+    breadcrumbs = [],
+    redactNames = unchanged,
+  } = options;
 
   const { bootId, ...rest } = common(record, host);
   const identifier = redact(record.logger);
@@ -214,7 +236,7 @@ export const coreEvent = (
   return Event.Event.cases.LogError.make({
     ...rest,
     id: Fingerprint.issueId(record.entry.__CURSOR),
-    source: coreSource,
+    source,
     ...(bootId !== "" && { bootId }),
     severity: record.severity,
     identifier,
@@ -226,9 +248,12 @@ export const coreEvent = (
   });
 };
 
-/** Turn a Core record at warning into one occurrence of a warning from its logger. */
-export const coreWarning = (
-  record: CoreRecord,
+/**
+ * Turn a Core or Supervisor record at warning into one occurrence of a warning
+ * from its logger.
+ */
+export const warningOf = (
+  record: LogRecord,
   host: string,
   redact: Redact,
   redactNames: Redact = unchanged,

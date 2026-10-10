@@ -4,8 +4,8 @@ import type { Redact } from "../redact.js";
 /** A name someone gave something in Home Assistant, and what replaces it. */
 export type Name = readonly [name: string, placeholder: string];
 
-/** What Home Assistant's registries name, for redacting from Core's log. */
-export interface CoreNames {
+/** What Home Assistant's registries name, for redacting from its logs. */
+export interface Names {
   /** Every entity's ID, such as `light.kitchen`. */
   readonly entityIds: ReadonlyArray<string>;
   readonly names: ReadonlyArray<Name>;
@@ -51,7 +51,8 @@ const People = Schema.Struct({
   }),
 });
 
-const CoreConfig = Schema.Struct({
+/** Core's own settings in `core.config`, which name the home. */
+const CoreSettings = Schema.Struct({
   data: Schema.Struct({ location_name: OptionalName }),
 });
 
@@ -85,7 +86,7 @@ const named = (
  * Supervisor, whose names aren't anyone's; entities only keep a name someone
  * gave them, since the rest come from their device and integration.
  */
-export const parseRegistries = (registries: Registries): CoreNames => {
+export const parseRegistries = (registries: Registries): Names => {
   const read = <S extends Schema.Top & { readonly DecodingServices: never }>(
     json: string | undefined,
     schema: S,
@@ -132,7 +133,7 @@ export const parseRegistries = (registries: Registries): CoreNames => {
         "<user>",
       ),
       ...named(
-        [read(registries.config, CoreConfig)?.data.location_name],
+        [read(registries.config, CoreSettings)?.data.location_name],
         "<home>",
       ),
     ],
@@ -145,24 +146,24 @@ const shortest = 3;
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * Replace Home Assistant's names in Core's log: each entity ID's object ID,
+ * Replace Home Assistant's names in its logs: each entity ID's object ID,
  * keeping its domain, as in `light.<entity>`, then the longest names first,
  * so `Kitchen lamp` goes before `Kitchen`. Names match their case, since
  * people write them capitalised and code doesn't, which keeps an area named
  * `Hue` from replacing the `hue` in loggers and paths.
  */
-export const namesRedactor = (core: CoreNames): Redact => {
+export const namesRedactor = (registry: Names): Redact => {
   const placeholders = new Map(
-    core.names.filter(([name]) => name.length >= shortest),
+    registry.names.filter(([name]) => name.length >= shortest),
   );
 
   const names = [...placeholders.keys()].sort((a, b) => b.length - a.length);
 
   const entityIds =
-    core.entityIds.length === 0
+    registry.entityIds.length === 0
       ? undefined
       : new RegExp(
-          `(?<![\\w.])(?:${core.entityIds.map(escape).join("|")})(?!\\w)`,
+          `(?<![\\w.])(?:${registry.entityIds.map(escape).join("|")})(?!\\w)`,
           "g",
         );
 

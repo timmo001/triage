@@ -48,3 +48,9 @@ configuration:
     description: >-
       Home Assistant Core のエラーと警告を、トレースバックと一緒にホストのジャーナルから、ホスト
       home-assistant として収集します。
+  # The Supervisor runs Home Assistant, its apps and updates. Keep "Supervisor".
+  collect_supervisor:
+    name: Supervisor のエラーを収集
+    description: >-
+      Home Assistant Supervisor のエラーと警告を、トレースバックと一緒にホストのジャーナルから、ホスト
+      home-assistant として収集します。

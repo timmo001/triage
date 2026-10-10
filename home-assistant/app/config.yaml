@@ -44,6 +44,7 @@ options:
   quiet_hours: 72
   language: en
   collect_core: true
+  collect_supervisor: true
 schema:
   server_admin_token: password?
   trust_proxy: bool
@@ -53,3 +54,4 @@ schema:
   quiet_hours: int(1,)
   language: list(en|de|es|fr|it|ja|nl|pl|pt-BR|zh-Hans)
   collect_core: bool
+  collect_supervisor: bool

@@ -57,3 +57,9 @@ configuration:
     description: >-
       Coletar os erros e avisos do Home Assistant Core, com seus tracebacks,
       do journal do host, como o host home-assistant.
+  # The Supervisor runs Home Assistant, its apps and updates. Keep "Supervisor".
+  collect_supervisor:
+    name: Coletar os erros do Supervisor
+    description: >-
+      Coletar os erros e avisos do Supervisor do Home Assistant, com seus
+      tracebacks, do journal do host, como o host home-assistant.

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { namesRedactor, parseRegistries } from "./coreNames.js";
+import { namesRedactor, parseRegistries } from "./names.js";
 
 const registries = {
   devices: JSON.stringify({
