@@ -58,7 +58,7 @@
         "@effect/platform-browser": "4.0.2",
         "@mdi/js": "7.4.47",
         "@tanstack/lit-table": "9.2.8",
-        "@tanstack/lit-virtual": "3.14.2",
+        "@tanstack/lit-virtual": "3.14.3",
         "@timmo001/effect-triage": "workspace:*",
         "dompurify": "3.4.16",
         "effect": "4.0.2",
@@ -172,13 +172,13 @@
 
     "@tanstack/lit-table": ["@tanstack/lit-table@9.2.8", "", { "dependencies": { "@tanstack/lit-store": "^0.14.2", "@tanstack/table-core": "9.2.8" }, "peerDependencies": { "@lit/context": "^1.1.0", "lit": "^3.1.3" } }, "sha512-43Y0tFkNNBrLegbGJ8uxBSNfMXJ/2d/SzDBhFUuybO8W7nwWmde3f81PDVLtpujU/Jz8Na/MtglOmcZIhls1+w=="],
 
-    "@tanstack/lit-virtual": ["@tanstack/lit-virtual@3.14.2", "", { "dependencies": { "@tanstack/virtual-core": "3.17.11" }, "peerDependencies": { "lit": "^3.1.0" } }, "sha512-rqcB46bUexVpIlsjESJurdnT6kh7AK1x3WMrNfugx5amcG+Qpkq9YzvSkrhCwzZUkSzo4vKqCZAmrLVubzJMGg=="],
+    "@tanstack/lit-virtual": ["@tanstack/lit-virtual@3.14.3", "", { "dependencies": { "@tanstack/virtual-core": "3.18.0" }, "peerDependencies": { "lit": "^3.1.0" } }, "sha512-JFUcIZkqfXUnCH8MI/O5vB9RnKKG79Hzrih17MZdGfiaEEsPHKZFb3+UiZzcTYWqiXPVoOjWbTVuE20rhn4v/A=="],
 
     "@tanstack/store": ["@tanstack/store@0.11.2", "", {}, "sha512-sJ4mjol8uQsHV0gOJzzjwXfh2Fwm+Sz0+8deqiTm4jGbMdjzNSW+xZCFm0kUa870uhd8yi+DpKnZb5Kc4apa0Q=="],
 
     "@tanstack/table-core": ["@tanstack/table-core@9.2.8", "", { "dependencies": { "@tanstack/store": "^0.11.2" } }, "sha512-M4D6fY5jnc7z7TaoD3Pjvz5R+8MbhzCGYdkcFf2T1AgjigwLinvFWZh6mtqfN016A7yGIroOL0GiTlVGsTh6Vg=="],
 
-    "@tanstack/virtual-core": ["@tanstack/virtual-core@3.17.11", "", {}, "sha512-+ILjvtHup6Y2hzQ6YzwMgX1Q+oQpxEGOXCEsCNaPoIP0VxMbizIBTmYTDtkerkIQS8/CbP1BRuyt8V/8BCsy1g=="],
+    "@tanstack/virtual-core": ["@tanstack/virtual-core@3.18.0", "", {}, "sha512-8frWsyfyBwLGoDQ6wN6Lq3CoT8j4BPJUzE6nH4P9mruLhxPOamk82prC3JxRMLJzYnNa9ISaZ8NtfxEiOGkHEQ=="],
 
     "@timmo001/effect-triage": ["@timmo001/effect-triage@workspace:packages/effect-triage"],
 
