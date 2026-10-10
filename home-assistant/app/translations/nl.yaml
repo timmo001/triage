@@ -62,6 +62,15 @@ configuration:
       Fouten en waarschuwingen van de Home Assistant Supervisor, met hun
       tracebacks, uit het journal van de host verzamelen, als de host
       home-assistant.
+  # The Supervisor's own containers for DNS, audio and so on. Keep "Supervisor".
+  collect_plugins:
+    name: Fouten van de Supervisor-plugins verzamelen
+    description: >-
+      Fouten en waarschuwingen van de plugins van de Supervisor, zoals DNS en
+      audio, uit het journal van de host verzamelen, als de host
+      home-assistant. Alleen regels met een niveau worden gelezen. DNS logt
+      veel dat zelden het oplossen waard is, dus dit staat uit tot je het
+      aanzet.
   # Apps are what Home Assistant used to call add-ons.
   collect_apps:
     name: Fouten van apps verzamelen

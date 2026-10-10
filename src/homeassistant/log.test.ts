@@ -9,6 +9,7 @@ import {
   integrationOf,
   isApp,
   isAppOn,
+  isPlugin,
   lastRecordStart,
   supervisorSource,
   withBreadcrumbs,
@@ -186,6 +187,21 @@ describe("apps' records", () => {
     ]);
   });
 
+  test("read single-letter levels before a colon, as PulseAudio writes them", () => {
+    const records = recordsOf(
+      [
+        app("hassio_audio", "E: [pulseaudio] module.c: Failed to load module"),
+        app("hassio_audio", "I: [pulseaudio] main.c: Started"),
+        app("hassio_audio", "E Not marked out"),
+      ],
+      { other: true },
+    );
+
+    expect(records.map((record) => [record.severity, record.lines])).toEqual([
+      ["err", ["[pulseaudio] module.c: Failed to load module"]],
+    ]);
+  });
+
   test("leave out lines with no level, and words that aren't one", () => {
     expect(
       recordsOf(
@@ -248,7 +264,14 @@ describe("apps' records", () => {
   });
 });
 
-describe("isApp and isAppOn", () => {
+describe("isApp, isAppOn and isPlugin", () => {
+  test("recognise the Supervisor plugins, but not the Supervisor", () => {
+    expect(isPlugin("hassio_dns")).toBe(true);
+    expect(isPlugin("hassio_audio")).toBe(true);
+    expect(isPlugin("hassio_supervisor")).toBe(false);
+    expect(isPlugin("app_core_example")).toBe(false);
+  });
+
   test("recognise apps' containers, and triage's own by its hostname", () => {
     expect(isApp("app_core_example")).toBe(true);
     expect(isApp("addon_core_example")).toBe(true);

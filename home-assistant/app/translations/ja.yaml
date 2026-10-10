@@ -54,6 +54,13 @@ configuration:
     description: >-
       Home Assistant Supervisor のエラーと警告を、トレースバックと一緒にホストのジャーナルから、ホスト
       home-assistant として収集します。
+  # The Supervisor's own containers for DNS, audio and so on. Keep "Supervisor".
+  collect_plugins:
+    name: Supervisor プラグインのエラーを収集
+    description: >-
+      DNS やオーディオなど Supervisor のプラグインのエラーと警告をホストのジャーナルから、ホスト
+      home-assistant として収集します。レベルが書かれた行だけを読み取ります。DNS
+      は直す必要のあまりないログを多く出すため、オンにするまではオフです。
   # Apps are what Home Assistant used to call add-ons.
   collect_apps:
     name: アプリのエラーを収集

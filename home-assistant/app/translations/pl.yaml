@@ -60,6 +60,14 @@ configuration:
     description: >-
       Zbieraj błędy i ostrzeżenia Home Assistant Supervisora, z ich
       tracebackami, z dziennika hosta, jako host home-assistant.
+  # The Supervisor's own containers for DNS, audio and so on. Keep "Supervisor".
+  collect_plugins:
+    name: Zbieraj błędy wtyczek Supervisora
+    description: >-
+      Zbieraj błędy i ostrzeżenia wtyczek Supervisora, takich jak DNS i audio,
+      z dziennika hosta, jako host home-assistant. Czytane są tylko wiersze z
+      poziomem. DNS zapisuje dużo rzeczy, które rzadko warto naprawiać, więc
+      jest to wyłączone, dopóki tego nie włączysz.
   # Apps are what Home Assistant used to call add-ons.
   collect_apps:
     name: Zbieraj błędy aplikacji

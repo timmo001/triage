@@ -817,6 +817,13 @@ const serve = Command.make(
       Flag.withFallbackConfig(Config.Boolean("TRIAGE_COLLECT_SUPERVISOR")),
       Flag.withDefault(false),
     ),
+    collectPlugins: Flag.Boolean("collect-plugins").pipe(
+      Flag.withDescription(
+        "Collect the Home Assistant Supervisor plugins' errors and warnings, such as DNS and audio, from the host journal, as the host home-assistant, in a Home Assistant app with journald. Only lines with a level are read. Off unless set",
+      ),
+      Flag.withFallbackConfig(Config.Boolean("TRIAGE_COLLECT_PLUGINS")),
+      Flag.withDefault(false),
+    ),
     collectApps: Flag.Boolean("collect-apps").pipe(
       Flag.withDescription(
         "Collect Home Assistant apps' errors and warnings from the host journal, as the host home-assistant, in a Home Assistant app with journald. Only lines with a level are read, and this app's own are left out. Off unless set",
@@ -830,6 +837,7 @@ const serve = Command.make(
     const logs = [
       ...(input.collectCore ? [HomeAssistantCollector.core] : []),
       ...(input.collectSupervisor ? [HomeAssistantCollector.supervisor] : []),
+      ...(input.collectPlugins ? [HomeAssistantCollector.plugins] : []),
       ...(input.collectApps ? [HomeAssistantCollector.apps] : []),
     ];
 

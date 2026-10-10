@@ -53,6 +53,12 @@ configuration:
     description: >-
       从主机日志中收集 Home Assistant Supervisor 的错误和警告及其回溯信息，主机名为
       home-assistant。
+  # The Supervisor's own containers for DNS, audio and so on. Keep "Supervisor".
+  collect_plugins:
+    name: 收集 Supervisor 插件的错误
+    description: >-
+      从主机日志中收集 Supervisor 插件（如 DNS 和音频）的错误和警告，主机名为
+      home-assistant。只读取标明级别的行。DNS 会记录大量很少需要修复的内容，因此在你开启前保持关闭。
   # Apps are what Home Assistant used to call add-ons.
   collect_apps:
     name: 收集应用的错误

@@ -33,6 +33,20 @@ export const supervisorSource = "homeassistant-supervisor";
 export const appsSource = "homeassistant-apps";
 
 /**
+ * Where the Supervisor's plugins' events come from, such as DNS and audio, and
+ * the store's cursor key for reading them. Every plugin's log is read
+ * together.
+ */
+export const pluginsSource = "homeassistant-plugins";
+
+/**
+ * Whether a journal identifier is one of the Supervisor's plugins'
+ * containers, such as `hassio_dns`, but not the Supervisor's own.
+ */
+export const isPlugin = (identifier: string) =>
+  /^hassio_./.test(identifier) && identifier !== supervisorIdentifier;
+
+/**
  * Whether a journal identifier is an app's container, `app_<slug>`, or
  * `addon_<slug>` on older Supervisors.
  */
@@ -64,16 +78,17 @@ const below = "below";
 
 /**
  * The severity of a log level, or {@link below} for one below warning, or
- * nothing when it isn't a level. Single letters, as in OpenThread's `[W]`,
- * only count in brackets.
+ * nothing when it isn't a level. Single letters, as in OpenThread's `[W]` or
+ * PulseAudio's `W:`, only count when they're marked out, in brackets or
+ * before a colon.
  */
 const levelOf = (
   level: string,
-  bracketed: boolean,
+  marked: boolean,
 ): Severity.Severity | typeof below | undefined => {
   const upper = level.toUpperCase();
 
-  if (upper.length === 1 && !bracketed) {
+  if (upper.length === 1 && !marked) {
     return undefined;
   }
 
@@ -114,9 +129,10 @@ const levelOf = (
 /**
  * A line in another program's format with a level near its start, after up
  * to two timestamp-like words: `[12:00:00] ERROR: Message` from `bashio`,
- * `2026-10-10 12:00:00 WRN Message`, `3d.08:40:51.599 [W] Mle-: Message` or
- * `[ERROR] plugin/errors: Message`. A word only counts as a level in
- * brackets, in capitals or before a colon, so `Error connecting` doesn't.
+ * `2026-10-10 12:00:00 WRN Message`, `3d.08:40:51.599 [W] Mle-: Message`,
+ * `E: [pulseaudio] Message` or `[ERROR] plugin/errors: Message`. A word only
+ * counts as a level in brackets, in capitals or before a colon, so
+ * `Error connecting` doesn't.
  */
 const levelLine =
   /^(?:\S*\d\S*\s+){0,2}(?:\[(?<bracketed>[A-Za-z]+)\]|(?<word>[A-Za-z]+)(?<colon>:)?)(?:\s+|$)(?<message>.*)$/s;
@@ -134,7 +150,7 @@ const otherFormat = (line: string) => {
     match.bracketed === undefined
       ? word !== undefined &&
         (word === word.toUpperCase() || match.colon !== undefined)
-        ? levelOf(word, false)
+        ? levelOf(word, match.colon !== undefined)
         : undefined
       : levelOf(match.bracketed, true);
 

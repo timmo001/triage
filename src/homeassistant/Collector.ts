@@ -12,8 +12,10 @@ import {
   type Formats,
   isApp,
   isAppOn,
+  isPlugin,
   lastRecordStart,
   type LogRecord,
+  pluginsSource,
   recordsOf,
   supervisorIdentifier,
   supervisorSource,
@@ -29,15 +31,20 @@ const batchSize = 1000;
 const journalDirectories = ["/var/log/journal", "/run/log/journal"];
 
 /**
- * How long to follow every app's log before listing the apps again, to pick
- * up any installed since.
+ * How long to follow a log that's listed, such as every app's, before listing
+ * it again, to pick up any installed since.
  */
-const appsRelisted = "1 hour";
+const relisted = "1 hour";
 
 /** A Home Assistant log in the host journal. */
 export interface Log {
-  /** The journal identifiers to read, or every app's but triage's own when unset. */
+  /** The journal identifiers to read, when they're known. */
   readonly identifiers?: ReadonlyArray<string>;
+  /**
+   * Otherwise, which of the journal's identifiers to read, such as every
+   * app's. triage's own is always left out.
+   */
+  readonly matches?: (identifier: string) => boolean;
   /** Where its events come from, and the store's cursor key for it. */
   readonly source: string;
   /** What the server's own log calls it. */
@@ -63,7 +70,16 @@ export const supervisor: Log = {
   formats: {},
 };
 
+export const plugins: Log = {
+  matches: isPlugin,
+  source: pluginsSource,
+  name: "the Supervisor plugins",
+  attribute: false,
+  formats: { other: true },
+};
+
 export const apps: Log = {
+  matches: isApp,
   source: appsSource,
   name: "apps",
   attribute: false,
@@ -72,7 +88,7 @@ export const apps: Log = {
 
 /**
  * Collects errors and warnings from Home Assistant's `logs`, such as Core's,
- * the Supervisor's and apps', from the host journal the Supervisor mounts into the
+ * the Supervisor's, its plugins' and apps', from the host journal the Supervisor mounts into the
  * app, straight into the server's own store, as events from `host`. Runs in
  * the background for as long as the layer, and logs rather than failing when
  * the journal isn't there or can't be read.
@@ -143,19 +159,22 @@ export const layer = (options: {
         .readFileString("/proc/sys/kernel/hostname")
         .pipe(Effect.orElseSucceed(() => ""))).trim();
 
-      const identifiersOf = (log: Log) =>
-        log.identifiers === undefined
-          ? journal
+      const identifiersOf = (log: Log) => {
+        const matches = log.matches;
+
+        return log.identifiers !== undefined || matches === undefined
+          ? Effect.succeed(log.identifiers ?? [])
+          : journal
               .identifiers({ merge: true })
               .pipe(
                 Effect.map((all) =>
                   all.filter(
                     (identifier) =>
-                      isApp(identifier) && !isAppOn(identifier, hostname),
+                      matches(identifier) && !isAppOn(identifier, hostname),
                   ),
                 ),
-              )
-          : Effect.succeed(log.identifiers);
+              );
+      };
 
       const collect = Effect.fnUntraced(function* (log: Log) {
         // journalctl --follow only reads the current boot, so catch up on
@@ -185,11 +204,12 @@ export const layer = (options: {
               merge: true,
             })
             .pipe(
-              // Every app's log stops following now and then, so the apps are
-              // listed again, and it carries on from the saved cursor.
+              // A listed log, such as every app's, stops following now and
+              // then, so it's listed again, and carries on from the saved
+              // cursor.
               Stream.interruptWhen(
                 follow && log.identifiers === undefined
-                  ? Effect.sleep(appsRelisted)
+                  ? Effect.sleep(relisted)
                   : Effect.never,
               ),
               Stream.groupedWithin(batchSize, "1 second"),

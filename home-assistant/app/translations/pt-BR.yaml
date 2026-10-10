@@ -63,6 +63,14 @@ configuration:
     description: >-
       Coletar os erros e avisos do Supervisor do Home Assistant, com seus
       tracebacks, do journal do host, como o host home-assistant.
+  # The Supervisor's own containers for DNS, audio and so on. Keep "Supervisor".
+  collect_plugins:
+    name: Coletar os erros dos plugins do Supervisor
+    description: >-
+      Coletar os erros e avisos dos plugins do Supervisor, como DNS e áudio,
+      do journal do host, como o host home-assistant. Só as linhas que indicam
+      um nível são lidas. O DNS registra muita coisa que raramente vale a pena
+      corrigir, então fica desligado até você ligar.
   # Apps are what Home Assistant used to call add-ons.
   collect_apps:
     name: Coletar os erros dos apps

@@ -30,6 +30,7 @@ FLAGS
   --language string            The web UI's language: de, en, es, fr, it, ja, nl, pl, pt-BR, zh-Hans
   --collect-core               Collect Home Assistant Core's errors and warnings from the host journal, as the host home-assistant, in a Home Assistant app with journald. Off unless set
   --collect-supervisor         Collect the Home Assistant Supervisor's errors and warnings from the host journal, as the host home-assistant, in a Home Assistant app with journald. Off unless set
+  --collect-plugins            Collect the Home Assistant Supervisor plugins' errors and warnings, such as DNS and audio, from the host journal, as the host home-assistant, in a Home Assistant app with journald. Only lines with a level are read. Off unless set
   --collect-apps               Collect Home Assistant apps' errors and warnings from the host journal, as the host home-assistant, in a Home Assistant app with journald. Only lines with a level are read, and this app's own are left out. Off unless set
   --decide                     Ask a decision model about new issues every few minutes, keeping the answers without acting on them. Off unless set
   --provider choice            Decide through any TypeSafe System One API, such as Ollaya or Ollama locally, or with Clef on Cloudflare using $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN (choices: typesafe, cloudflare)
