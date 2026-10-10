@@ -54,12 +54,13 @@ export const parseFrames = (
       return [];
     }
 
-    const [, name = "n/a", module = ""] = match;
+    const [, name = "n/a", module = "n/a"] = match;
 
+    // systemd-coredump writes n/a for what it doesn't know.
     return [
       {
         ...(name !== "n/a" && { function: name }),
-        module: redact(module),
+        ...(module !== "n/a" && { module: redact(module) }),
       },
     ];
   });

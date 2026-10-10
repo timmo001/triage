@@ -22,6 +22,7 @@ Stack trace of thread 4242:
 #0  0x00005f1e2a3b4c5d unsetparam_pm (/usr/bin/zsh + 0x9c5d)
 #1  0x00005f1e2a3b4d6e n/a (/home/alex/.local/lib/libplugin.so + 0x1d6e)
 #2  0x00005f1e2a3b4e7f runshfunc (/usr/bin/zsh + 0x2e7f)
+#3  0x00007f1e2a3b4f80 n/a (n/a + 0x0)
 
 Stack trace of thread 4243:
 #0  0x00007f0000000000 poll (libc.so.6 + 0x1000)
@@ -52,8 +53,25 @@ describe("toEvent", () => {
         { function: "unsetparam_pm", module: "/usr/bin/zsh" },
         { module: "~/.local/lib/libplugin.so" },
         { function: "runshfunc", module: "/usr/bin/zsh" },
+        {},
       ],
     });
+  });
+
+  test("leaves out a frame's module when systemd-coredump doesn't know it", () => {
+    const crash = event({
+      MESSAGE_ID: MessageId.coredump,
+      PRIORITY: "2",
+      MESSAGE: `Stack trace of thread 4242:
+#0  0x00007f1e2a3b4f80 n/a (n/a + 0x0)
+#1  0x00005f1e2a3b4e7f runshfunc (/usr/bin/zsh + 0x2e7f)`,
+      COREDUMP_EXE: "/usr/bin/zsh",
+      COREDUMP_SIGNAL_NAME: "SIGSEGV",
+    });
+
+    expect(Fingerprint.fingerprint(crash)).toBe(
+      "crash|zsh|SIGSEGV|?|runshfunc",
+    );
   });
 
   test("skips job failures, which repeat the unit failure", () => {

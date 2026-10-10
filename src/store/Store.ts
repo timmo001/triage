@@ -809,6 +809,93 @@ const migrations = SqliteMigrator.fromRecord({
 
     yield* sql`CREATE INDEX events_host_time ON events (host, timestamp)`;
   }),
+  // Crash frames no longer keep systemd-coredump's n/a as their module, which
+  // fingerprinted as `a` once modules were cut to their file name, so such a
+  // frame counts as `?`. Each event's new fingerprint goes to the issue that
+  // already has it, so its next events still join it, and an issue's own
+  // fingerprint changes to match.
+  "0017_crash_frames_without_modules": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const decodeEvent = Schema.decodeUnknownEffect(EventJson);
+    let last = 0;
+
+    while (true) {
+      const rows = yield* sql<{
+        rowid: number;
+        issue_id: string;
+        data: string;
+      }>`
+        SELECT rowid, issue_id, data FROM events
+        WHERE rowid > ${last} AND data LIKE '%"module":"n/a"%'
+        ORDER BY rowid LIMIT 1000
+      `;
+
+      if (rows.length === 0) {
+        break;
+      }
+
+      for (const row of rows) {
+        const crash = Option.filter(
+          yield* Effect.option(decodeEvent(row.data)),
+          Event.Event.guards.Crash,
+        );
+
+        if (Option.isNone(crash)) {
+          continue;
+        }
+
+        const event = Event.Event.cases.Crash.make({
+          ...crash.value,
+          frames: crash.value.frames.map((frame) =>
+            frame.module === "n/a"
+              ? frame.function === undefined
+                ? {}
+                : { function: frame.function }
+              : frame,
+          ),
+        });
+
+        const fingerprint = Fingerprint.fingerprint(event);
+
+        yield* sql`
+          UPDATE events SET data = ${yield* encodeEvent(event)},
+            fingerprint = ${fingerprint}
+          WHERE rowid = ${row.rowid}
+        `;
+
+        yield* sql`
+          INSERT OR IGNORE INTO issue_fingerprints (fingerprint, issue_id)
+          VALUES (${fingerprint}, ${row.issue_id})
+        `;
+      }
+
+      last = rows.at(-1)?.rowid ?? last;
+    }
+
+    const issues = yield* sql<{ id: string; fingerprint: string }>`
+      SELECT id, fingerprint FROM issues
+      WHERE kind = 'Crash' AND '|' || fingerprint || '|' LIKE '%|n/a|%'
+    `;
+
+    for (const issue of issues) {
+      const [kind, executable, signal, ...frames] =
+        issue.fingerprint.split("|");
+
+      const fingerprint = [
+        kind,
+        executable,
+        signal,
+        ...frames.map((frame) => (frame === "n/a" ? "?" : frame)),
+      ].join("|");
+
+      yield* sql`UPDATE issues SET fingerprint = ${fingerprint} WHERE id = ${issue.id}`;
+
+      yield* sql`
+        INSERT OR IGNORE INTO issue_fingerprints (fingerprint, issue_id)
+        VALUES (${fingerprint}, ${issue.id})
+      `;
+    }
+  }),
 });
 
 /** How long a host keeps warning counts, sent or not. */
