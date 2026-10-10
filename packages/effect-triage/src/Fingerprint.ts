@@ -4,6 +4,13 @@ import { Event } from "./Event.js";
 const crashFrames = 3;
 
 const replacements: ReadonlyArray<readonly [RegExp, string]> = [
+  // A whole URL, path and all, so the same failure with several endpoints is
+  // one issue. It may already hold a redacted <ip>, but a bare < or > around
+  // it, and trailing punctuation, stay outside it.
+  [
+    /\b[a-z][a-z0-9+.-]*:\/\/(?:<\w+>|[^\s'"`)\]<>])*(?:<\w+>|[^\s'"`)\]<>.,;:!?])/gi,
+    "<url>",
+  ],
   [
     /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
     "<uuid>",
@@ -13,13 +20,19 @@ const replacements: ReadonlyArray<readonly [RegExp, string]> = [
   [/\b0x[0-9a-f]+\b/gi, "<hex>"],
   [/\b[0-9a-f]{12,}\b/gi, "<hex>"],
   [/(?<![\w<])\/[^\s:,;'")\]]+/g, "<path>"],
+  // A number with a unit of time, size, frequency or signal, such as a
+  // back-off's 30s or an OOM kill's 512kB, keeping the unit.
+  [
+    /(?<!\w)-?\d+(?:\.\d+)?(?=(?:ns|us|µs|ms|s|min|m|h|d|[kKMGT]i?B|[kKMGT]|B|[kMG]?Hz|dBm|dB)\b)/g,
+    "<n>",
+  ],
   [/(?<!\w)-?\b\d+(?:\.\d+)?\b/g, "<n>"],
 ];
 
 /**
  * Reduce a log message to its template by replacing the parts that change
- * between occurrences: UUIDs, MAC and IP addresses, hex values, paths and
- * numbers.
+ * between occurrences: URLs, UUIDs, MAC and IP addresses, hex values, paths
+ * and numbers, with or without a unit.
  */
 export const template = (message: string): string =>
   replacements

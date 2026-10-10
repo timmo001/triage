@@ -26,6 +26,35 @@ describe("template", () => {
       template("pw.node: (bluez_output.80_C3_BA_7B_93_4E.1) usb 1-6:1.0"),
     ).toBe("pw.node: (bluez_output.<mac>.<n>) usb <n>-<n>:<n>");
   });
+
+  test("replaces whole URLs, so each endpoint isn't its own issue", () => {
+    expect(template("Request failed for 'http://<ip>:8080/api/items'")).toBe(
+      "Request failed for '<url>'",
+    );
+    expect(template("Request failed for 'http://<ip>:8080/api/users/42'")).toBe(
+      "Request failed for '<url>'",
+    );
+    expect(template("GET https://example.com/a?b=1.")).toBe("GET <url>.");
+    expect(template("see <https://example.com/docs>")).toBe("see <<url>>");
+  });
+
+  test("replaces numbers with a unit, keeping the unit", () => {
+    expect(template("retrying in 15s")).toBe(template("retrying in 60s"));
+    expect(template("retrying in 15s")).toBe("retrying in <n>s");
+    expect(
+      template(
+        "Out of memory: Killed process 1234 (example) total-vm:512000kB, anon-rss:2048kB",
+      ),
+    ).toBe(
+      "Out of memory: Killed process <n> (example) total-vm:<n>kB, anon-rss:<n>kB",
+    );
+    expect(template("took 1.5ms at -5dBm on 2.4GHz")).toBe(
+      "took <n>ms at <n>dBm on <n>GHz",
+    );
+    expect(template("a2dp-sink on x86_64, 2nd try")).toBe(
+      "a2dp-sink on x86_64, 2nd try",
+    );
+  });
 });
 
 describe("fingerprint", () => {
