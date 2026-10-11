@@ -9,13 +9,13 @@
     "lint:lit": "lit-analyzer \"src/**/*.ts\" --strict"
   },
   "dependencies": {
-    "@effect/platform-browser": "4.0.2",
+    "@effect/platform-browser": "4.0.3",
     "@mdi/js": "7.4.47",
     "@tanstack/lit-table": "9.2.8",
     "@tanstack/lit-virtual": "3.14.3",
     "@timmo001/effect-triage": "workspace:*",
     "dompurify": "3.4.16",
-    "effect": "4.0.2",
+    "effect": "4.0.3",
     "lit": "3.3.3",
     "marked": "18.1.0"
   },
