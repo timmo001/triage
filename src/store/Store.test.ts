@@ -249,6 +249,85 @@ describe("Store", () => {
     ]);
   });
 
+  test("stores a batch of new, known and repeated events, reopening once", async () => {
+    const result = await Effect.gen(function* () {
+      const store = yield* Store;
+      const now = Date.now();
+
+      const other = (id: string, timestamp: number, host = "omarchy") =>
+        Event.Event.cases.LogError.make({
+          id,
+          host,
+          source: "journal",
+          timestamp,
+          severity: "err",
+          identifier: "sshd",
+          message: `refused (${id})`,
+        });
+
+      yield* store.add([log("1", now - 3000)]);
+
+      const [resolved] = yield* store.issues({ limit: 1 });
+      const id = resolved?.id ?? "";
+
+      yield* store.setStatus(id, "resolved", { by: "aidan" });
+
+      // One repeat, one from before the fix, two from after it on different
+      // hosts, and two starting another issue, in one batch.
+      const added = yield* store.add([
+        log("1", now - 3000),
+        log("2", now - 2000),
+        { ...log("3", now + 1000), host: "laptop" },
+        log("4", now + 2000),
+        other("5", now - 1000),
+        other("6", now),
+      ]);
+
+      const issues = yield* store.issues({
+        limit: 10,
+        sort: "title",
+        order: "asc",
+      });
+
+      const review = yield* store.review(id, 1);
+
+      return {
+        added,
+        issues: issues.map(({ title, count, state, hosts }) => ({
+          title,
+          count,
+          state,
+          hosts,
+        })),
+        notes: Option.map(review, ({ notes }) =>
+          notes.map(({ by, status }) => ({ by, status })),
+        ),
+      };
+    }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+    expect(result.added).toBe(5);
+    expect(result.issues).toEqual([
+      {
+        title: "bluetoothd: connect failed (<n>)",
+        count: 4,
+        state: "regressed",
+        hosts: ["laptop", "omarchy"],
+      },
+      {
+        title: "sshd: refused (<n>)",
+        count: 2,
+        state: "new",
+        hosts: ["omarchy"],
+      },
+    ]);
+    expect(
+      Option.getOrThrow(result.notes).map(({ by, status }) => ({ by, status })),
+    ).toEqual([
+      { by: "laptop", status: "regressed" },
+      { by: "aidan", status: "resolved" },
+    ]);
+  });
+
   test("filters, sorts, groups and pages issues, and counts them", async () => {
     const result = await Effect.gen(function* () {
       const store = yield* Store;

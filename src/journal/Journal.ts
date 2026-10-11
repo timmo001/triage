@@ -1,4 +1,13 @@
-import { Context, Effect, Layer, Option, Schema, Stream } from "effect";
+import {
+  Context,
+  Effect,
+  Filter,
+  Layer,
+  Option,
+  Result,
+  Schema,
+  Stream,
+} from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { Entry, fields, text } from "./Entry.js";
 import { MessageId, warningPriority } from "./toEvent.js";
@@ -104,17 +113,20 @@ export class Journal extends Context.Service<
           )
           .pipe(
             Stream.mapError((cause) => new JournalError({ cause })),
-            Stream.mapEffect((line) =>
-              decodeEntry(line).pipe(
-                Effect.map((entry) => [entry]),
-                Effect.catch((error) =>
-                  Effect.logWarning("Skipping an unreadable journal entry", {
-                    error: error.message,
-                  }).pipe(Effect.as([])),
+            // A filter rather than a map and flatten, which cost a chunk and
+            // a fiber step per line.
+            Stream.filterMapEffect(
+              Filter.makeEffect((line: string) =>
+                decodeEntry(line).pipe(
+                  Effect.map((entry) => Result.succeed(entry)),
+                  Effect.catch((error) =>
+                    Effect.logWarning("Skipping an unreadable journal entry", {
+                      error: error.message,
+                    }).pipe(Effect.as(Result.fail(line))),
+                  ),
                 ),
               ),
             ),
-            Stream.flattenIterable,
           );
 
       const before = Effect.fn("Journal.before")(

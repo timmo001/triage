@@ -1024,6 +1024,15 @@ const migrations = SqliteMigrator.fromRecord({
       }
     }
   }),
+  // The hosts an issue happened on, from the index alone, without reading
+  // each event. Listing issues, filtering them by host and the hosts summary
+  // all read it, where before the host filter read every one of a host's
+  // events for every issue.
+  "0022_events_by_issue_host": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`CREATE INDEX events_issue_host ON events (issue_id, host, timestamp)`;
+  }),
 });
 
 /** How long a host keeps warning counts, sent or not. */
@@ -1579,90 +1588,229 @@ export class Store extends Context.Service<
       Effect.forkScoped,
     );
 
-    const insert = Effect.fnUntraced(function* (event: Event.Event) {
-      const issue = Issue.fromEvent(event);
+    /** The rows written in one statement, well within SQLite's variable limit. */
+    const chunkRows = 500;
 
-      const owner = yield* sql<{ issue_id: string }>`
-        SELECT issue_id FROM issue_fingerprints
-        WHERE fingerprint = ${issue.fingerprint}
-      `;
+    const chunks = <A>(items: ReadonlyArray<A>) =>
+      Array.from({ length: Math.ceil(items.length / chunkRows) }, (_, index) =>
+        items.slice(index * chunkRows, (index + 1) * chunkRows),
+      );
 
-      const issueId = owner[0]?.issue_id ?? issue.id;
+    /** What's known of the issue a fingerprint belongs to. */
+    interface Owner {
+      readonly issueId: string;
+      readonly status: string | null;
+      readonly resolvedAt: number | null;
+    }
 
-      if (owner.length === 0) {
+    /** What a batch adds to an issue, and who reopened it if it was resolved. */
+    interface Added {
+      count: number;
+      firstSeen: number;
+      lastSeen: number;
+      regressedBy: string | undefined;
+    }
+
+    /**
+     * Store events a batch at a time: one lookup of their fingerprints'
+     * issues, one insert of the issues they start, one of the events
+     * themselves, and an update per issue they add to, rather than three or
+     * four statements for every event. Returns how many were new.
+     */
+    const insertAll = Effect.fnUntraced(function* (
+      events: ReadonlyArray<Event.Event>,
+    ) {
+      if (events.length === 0) {
+        return 0;
+      }
+
+      const pairs = events.map((event) => ({
+        event,
+        issue: Issue.fromEvent(event),
+      }));
+
+      const owners = new Map<string, Owner>();
+
+      for (const keys of chunks([
+        ...new Set(pairs.map(({ issue }) => issue.fingerprint)),
+      ])) {
+        const rows = yield* sql<{
+          fingerprint: string;
+          issue_id: string;
+          status: string | null;
+          resolved_at: number | null;
+        }>`
+          SELECT issue_fingerprints.fingerprint, issue_fingerprints.issue_id,
+            issues.status, issues.resolved_at
+          FROM issue_fingerprints
+          LEFT JOIN issues ON issues.id = issue_fingerprints.issue_id
+          WHERE ${sql.in("issue_fingerprints.fingerprint", keys)}
+        `;
+
+        for (const row of rows) {
+          owners.set(row.fingerprint, {
+            issueId: row.issue_id,
+            status: row.status,
+            resolvedAt: row.resolved_at,
+          });
+        }
+      }
+
+      // The issues the batch starts, from the first event with each new
+      // fingerprint.
+      const started = new Map<string, Issue.Issue>();
+
+      for (const { issue } of pairs) {
+        if (!owners.has(issue.fingerprint) && !started.has(issue.fingerprint)) {
+          started.set(issue.fingerprint, issue);
+        }
+      }
+
+      for (const batch of chunks([...started.values()])) {
         yield* sql`
-          INSERT INTO issues ${sql.insert({
-            id: issue.id,
-            fingerprint: issue.fingerprint,
-            kind: issue.kind,
-            title: issue.title,
-            first_seen: issue.firstSeen,
-            last_seen: issue.lastSeen,
-            count: 0,
-          })}
+          INSERT INTO issues ${sql.insert(
+            batch.map((issue) => ({
+              id: issue.id,
+              fingerprint: issue.fingerprint,
+              kind: issue.kind,
+              title: issue.title,
+              first_seen: issue.firstSeen,
+              last_seen: issue.lastSeen,
+              count: 0,
+            })),
+          )}
           ON CONFLICT (id) DO NOTHING
         `;
 
         yield* sql`
-          INSERT INTO issue_fingerprints ${sql.insert({
-            fingerprint: issue.fingerprint,
-            issue_id: issue.id,
-          })}
+          INSERT INTO issue_fingerprints ${sql.insert(
+            batch.map((issue) => ({
+              fingerprint: issue.fingerprint,
+              issue_id: issue.id,
+            })),
+          )}
         `;
       }
 
-      const inserted = yield* sql`
-        INSERT INTO events ${sql.insert({
-          host: event.host,
-          id: event.id,
-          issue_id: issueId,
-          fingerprint: issue.fingerprint,
-          timestamp: event.timestamp,
-          data: yield* encodeEvent(event),
-        })}
-        ON CONFLICT (host, id) DO NOTHING
-        RETURNING id
-      `;
-
-      if (inserted.length === 0) {
-        return 0;
+      for (const issue of started.values()) {
+        owners.set(issue.fingerprint, {
+          issueId: issue.id,
+          status: "open",
+          resolvedAt: null,
+        });
       }
 
-      yield* sql`
-        UPDATE issues SET
-          count = count + 1,
-          first_seen = min(first_seen, ${event.timestamp}),
-          last_seen = max(last_seen, ${event.timestamp})
-        WHERE id = ${issueId}
-      `;
+      const ownerOf = (issue: Issue.Issue): Owner => {
+        const owner = owners.get(issue.fingerprint);
 
-      // Events from before an issue was resolved, sent late, don't reopen it.
-      const now = yield* Clock.currentTimeMillis;
+        if (owner === undefined) {
+          throw new Error("Every fingerprint has an issue by now");
+        }
 
-      const regressed = yield* sql`
-        UPDATE issues SET
-          status = 'open',
-          resolved_at = NULL,
-          regressed_at = ${now}
-        WHERE id = ${issueId}
-          AND status = 'resolved'
-          AND resolved_at < ${event.timestamp}
-        RETURNING id
-      `;
+        return owner;
+      };
 
-      if (regressed.length > 0) {
+      const byIssue = new Map(
+        [...owners.values()].map((owner) => [owner.issueId, owner]),
+      );
+
+      const added = new Map<string, Added>();
+      let total = 0;
+
+      for (const batch of chunks(pairs)) {
+        const rows = yield* sql<{
+          host: string;
+          id: string;
+          issue_id: string;
+          timestamp: number;
+        }>`
+          INSERT INTO events ${sql.insert(
+            yield* Effect.forEach(batch, ({ event, issue }) =>
+              Effect.map(encodeEvent(event), (data) => ({
+                host: event.host,
+                id: event.id,
+                issue_id: ownerOf(issue).issueId,
+                fingerprint: issue.fingerprint,
+                timestamp: event.timestamp,
+                data,
+              })),
+            ),
+          )}
+          ON CONFLICT (host, id) DO NOTHING
+          RETURNING host, id, issue_id, timestamp
+        `;
+
+        total += rows.length;
+
+        for (const row of rows) {
+          const sum = added.get(row.issue_id) ?? {
+            count: 0,
+            firstSeen: row.timestamp,
+            lastSeen: row.timestamp,
+            regressedBy: undefined,
+          };
+
+          sum.count += 1;
+          sum.firstSeen = Math.min(sum.firstSeen, row.timestamp);
+          sum.lastSeen = Math.max(sum.lastSeen, row.timestamp);
+
+          // Events from before an issue was resolved, sent late, don't
+          // reopen it. The first new one from after it does.
+          const owner = byIssue.get(row.issue_id);
+
+          if (
+            sum.regressedBy === undefined &&
+            owner?.status === "resolved" &&
+            owner.resolvedAt !== null &&
+            owner.resolvedAt < row.timestamp
+          ) {
+            sum.regressedBy = row.host;
+          }
+
+          added.set(row.issue_id, sum);
+        }
+      }
+
+      for (const [issueId, sum] of added) {
         yield* sql`
-          INSERT INTO notes ${sql.insert({
-            issue_id: issueId,
-            created_at: now,
-            created_by: event.host,
-            status: "regressed",
-            text: "",
-          })}
+          UPDATE issues SET
+            count = count + ${sum.count},
+            first_seen = min(first_seen, ${sum.firstSeen}),
+            last_seen = max(last_seen, ${sum.lastSeen})
+          WHERE id = ${issueId}
         `;
+
+        if (sum.regressedBy === undefined) {
+          continue;
+        }
+
+        const now = yield* Clock.currentTimeMillis;
+
+        const regressed = yield* sql`
+          UPDATE issues SET
+            status = 'open',
+            resolved_at = NULL,
+            regressed_at = ${now}
+          WHERE id = ${issueId}
+            AND status = 'resolved'
+            AND resolved_at < ${sum.lastSeen}
+          RETURNING id
+        `;
+
+        if (regressed.length > 0) {
+          yield* sql`
+            INSERT INTO notes ${sql.insert({
+              issue_id: issueId,
+              created_at: now,
+              created_by: sum.regressedBy,
+              status: "regressed",
+              text: "",
+            })}
+          `;
+        }
       }
 
-      return 1;
+      return total;
     });
 
     const countWarnings = Effect.fnUntraced(function* (
@@ -1670,34 +1818,57 @@ export class Store extends Context.Service<
     ) {
       const cutoff = (yield* Clock.currentTimeMillis) - warningRetention;
 
-      const recent = warnings.filter((warning) => warning.lastSeen >= cutoff);
+      const recent = sumWarnings(
+        warnings.filter((warning) => warning.lastSeen >= cutoff),
+      );
 
-      for (const warning of sumWarnings(recent)) {
-        yield* sql`
-          INSERT INTO warnings (host, boot_id, identifier, unit, template,
-            example, count, first_seen, last_seen, version)
-          SELECT ${warning.host}, ${warning.bootId}, ${warning.identifier ?? ""},
-            ${warning.unit ?? ""}, ${warning.template}, ${warning.example},
-            ${warning.count}, ${warning.firstSeen}, ${warning.lastSeen},
-            coalesce(MAX(version), 0) + 1
-          FROM warnings
-          WHERE true
-          ON CONFLICT (host, boot_id, identifier, unit, template) DO UPDATE SET
-            example = CASE WHEN excluded.last_seen >= last_seen
-              THEN excluded.example ELSE example END,
-            count = count + excluded.count,
-            first_seen = min(first_seen, excluded.first_seen),
-            last_seen = max(last_seen, excluded.last_seen),
-            version = excluded.version
+      if (recent.length > 0) {
+        // One version for the batch, above every count's so far, so each
+        // count that changes is sent again. Read once rather than for every
+        // count, as there's no index on it.
+        const [latest] = yield* sql<{ version: number }>`
+          SELECT coalesce(MAX(version), 0) + 1 AS version FROM warnings
         `;
+
+        const version = latest?.version ?? 1;
+
+        for (const warning of recent) {
+          yield* sql`
+            INSERT INTO warnings ${sql.insert({
+              host: warning.host,
+              boot_id: warning.bootId,
+              identifier: warning.identifier ?? "",
+              unit: warning.unit ?? "",
+              template: warning.template,
+              example: warning.example,
+              count: warning.count,
+              first_seen: warning.firstSeen,
+              last_seen: warning.lastSeen,
+              version,
+            })}
+            ON CONFLICT (host, boot_id, identifier, unit, template) DO UPDATE SET
+              example = CASE WHEN excluded.last_seen >= last_seen
+                THEN excluded.example ELSE example END,
+              count = count + excluded.count,
+              first_seen = min(first_seen, excluded.first_seen),
+              last_seen = max(last_seen, excluded.last_seen),
+              version = excluded.version
+          `;
+        }
       }
 
-      yield* sql`
-        DELETE FROM warning_uploads WHERE warning_id IN (
-          SELECT id FROM warnings WHERE last_seen < ${cutoff}
-        )
+      const expired = yield* sql<{ id: number }>`
+        SELECT id FROM warnings WHERE last_seen < ${cutoff} LIMIT 1
       `;
-      yield* sql`DELETE FROM warnings WHERE last_seen < ${cutoff}`;
+
+      if (expired.length > 0) {
+        yield* sql`
+          DELETE FROM warning_uploads WHERE warning_id IN (
+            SELECT id FROM warnings WHERE last_seen < ${cutoff}
+          )
+        `;
+        yield* sql`DELETE FROM warnings WHERE last_seen < ${cutoff}`;
+      }
     });
 
     const record = Effect.fn("Store.record")(
@@ -1707,7 +1878,7 @@ export class Store extends Context.Service<
         next: string,
         warnings: ReadonlyArray<Warning.Warning> = [],
       ) {
-        const added = yield* Effect.forEach(events, insert);
+        const added = yield* insertAll(events);
 
         yield* countWarnings(warnings);
 
@@ -1716,7 +1887,7 @@ export class Store extends Context.Service<
           ON CONFLICT (source) DO UPDATE SET cursor = excluded.cursor
         `;
 
-        return added.reduce<number>((total, count) => total + count, 0);
+        return added;
       },
       sql.withTransaction,
       Effect.mapError((cause) => new StoreError({ cause })),
@@ -1774,9 +1945,7 @@ export class Store extends Context.Service<
 
     const add = Effect.fn("Store.add")(
       function* (events: ReadonlyArray<Event.Event>) {
-        const added = yield* Effect.forEach(events, insert);
-
-        return added.reduce<number>((total, count) => total + count, 0);
+        return yield* insertAll(events);
       },
       sql.withTransaction,
       Effect.mapError((cause) => new StoreError({ cause })),
@@ -1922,13 +2091,19 @@ export class Store extends Context.Service<
       Effect.mapError((cause) => new StoreError({ cause })),
     );
 
+    // The distinct issue and host pairs come from the index on them, and
+    // each host's count and latest event from the index on host and time,
+    // so no event itself is read.
     const listHosts = SqlSchema.findAll({
       Request: Schema.Void,
       Result: HostRow,
       execute: () => sql`
-        SELECT host, COUNT(*) AS events, COUNT(DISTINCT issue_id) AS issues,
-          MAX(timestamp) AS last_seen
-        FROM events GROUP BY host ORDER BY last_seen DESC
+        SELECT host,
+          (SELECT COUNT(*) FROM events WHERE events.host = pairs.host) AS events,
+          COUNT(*) AS issues,
+          (SELECT MAX(timestamp) FROM events WHERE events.host = pairs.host) AS last_seen
+        FROM (SELECT DISTINCT issue_id, host FROM events) AS pairs
+        GROUP BY host ORDER BY last_seen DESC
       `,
     });
 

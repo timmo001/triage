@@ -57,24 +57,46 @@ export const placeholder: Mark = (kind) => `<${kind}>`;
 const tokenLength = 12;
 
 /**
+ * How many tokens are kept to hand, so the hostname, program names and
+ * addresses that come up in entry after entry aren't hashed again each time.
+ */
+const tokenCacheSize = 4096;
+
+/**
  * Mark values with tokens made from `key`, so the same value always gets the
  * same token on this machine but can't be worked out from it elsewhere, and
  * pass each one to `remember`. Values are compared ignoring case.
  */
-export const tokenize =
-  (key: Uint8Array, remember: (redaction: Redaction) => void): Mark =>
-  (kind, value, shown = value) => {
-    const hash = createHmac("sha256", key)
-      .update(`${kind}\0${value.toLowerCase()}`)
-      .digest("hex")
-      .slice(0, tokenLength);
+export const tokenize = (
+  key: Uint8Array,
+  remember: (redaction: Redaction) => void,
+): Mark => {
+  const tokens = new Map<string, string>();
 
-    const token = `<${kind}:${hash}>`;
+  return (kind, value, shown = value) => {
+    const input = `${kind}\0${value.toLowerCase()}`;
+    let token = tokens.get(input);
+
+    if (token === undefined) {
+      const hash = createHmac("sha256", key)
+        .update(input)
+        .digest("hex")
+        .slice(0, tokenLength);
+
+      token = `<${kind}:${hash}>`;
+
+      if (tokens.size >= tokenCacheSize) {
+        tokens.clear();
+      }
+
+      tokens.set(input, token);
+    }
 
     remember({ token, kind, value: shown });
 
     return token;
   };
+};
 
 type Rule = (text: string, mark: Mark) => string;
 

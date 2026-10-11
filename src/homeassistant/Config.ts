@@ -77,17 +77,38 @@ export class HomeAssistantConfig extends Context.Service<
           Effect.option,
         );
 
+      // Each file's last read, given back while its mtime hasn't changed, so
+      // attributing an event only stats the version and manifest files
+      // rather than reading and parsing them again.
+      const reads = new Map<string, Stamped>();
+
       const read = Effect.fnUntraced(function* (file: string) {
         const mtime = yield* mtimeOf(file);
 
         if (Option.isNone(mtime)) {
+          reads.delete(file);
+
           return Option.none<Stamped>();
         }
 
-        return yield* fs.readFileString(file).pipe(
-          Effect.map((text) => ({ text, mtime: mtime.value })),
+        const cached = reads.get(file);
+
+        if (cached !== undefined && cached.mtime === mtime.value) {
+          return Option.some(cached);
+        }
+
+        const stamped = yield* fs.readFileString(file).pipe(
+          Effect.map((text): Stamped => ({ text, mtime: mtime.value })),
           Effect.option,
         );
+
+        if (Option.isSome(stamped)) {
+          reads.set(file, stamped.value);
+        } else {
+          reads.delete(file);
+        }
+
+        return stamped;
       });
 
       const storage = (name: string) =>
@@ -131,20 +152,58 @@ export class HomeAssistantConfig extends Context.Service<
         return redactNames;
       });
 
-      const coreVersion = Effect.gen(function* () {
-        const file = yield* read(path.join(configDirectory, ".HA_VERSION"));
+      /** What was last made of a file's text, while the text is the same. */
+      const parsed = <A>(parse: (file: Stamped) => Option.Option<A>) => {
+        const results = new Map<
+          string,
+          { text: string; result: Option.Option<A> }
+        >();
 
-        return Option.flatMap(file, ({ text, mtime }) => {
-          const version = text.trim();
+        return (file: string) =>
+          Effect.map(read(file), (stamped) => {
+            if (Option.isNone(stamped)) {
+              results.delete(file);
 
-          return version === ""
-            ? Option.none()
-            : Option.some({ version: redact(version), since: mtime });
-        });
+              return Option.none<A>();
+            }
+
+            const last = results.get(file);
+
+            if (last !== undefined && last.text === stamped.value.text) {
+              return last.result;
+            }
+
+            const result = parse(stamped.value);
+
+            results.set(file, { text: stamped.value.text, result });
+
+            return result;
+          });
+      };
+
+      const versionOf = parsed(({ text, mtime }) => {
+        const version = text.trim();
+
+        return version === ""
+          ? Option.none()
+          : Option.some({ version: redact(version), since: mtime });
       });
 
-      const manifestOf = Effect.fnUntraced(function* (domain: string) {
-        const file = yield* read(
+      const coreVersion = versionOf(path.join(configDirectory, ".HA_VERSION"));
+
+      const decodeManifest = Schema.decodeOption(
+        Schema.fromJsonString(Manifest),
+      );
+
+      const parseManifest = parsed(({ text, mtime }) =>
+        Option.map(decodeManifest(text), (manifest) => ({
+          manifest,
+          since: mtime,
+        })),
+      );
+
+      const manifestOf = (domain: string) =>
+        parseManifest(
           path.join(
             configDirectory,
             "custom_components",
@@ -152,13 +211,6 @@ export class HomeAssistantConfig extends Context.Service<
             "manifest.json",
           ),
         );
-
-        return Option.flatMap(file, ({ text, mtime }) =>
-          Schema.decodeOption(Schema.fromJsonString(Manifest))(text).pipe(
-            Option.map((manifest) => ({ manifest, since: mtime })),
-          ),
-        );
-      });
 
       const attribute = Effect.fnUntraced(function* (event: Event.Event) {
         if (!mounted) {
