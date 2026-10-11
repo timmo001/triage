@@ -545,19 +545,49 @@ const contentTypes = new Map([
 
 const { "index.html": indexHtml = "", ...assets } = bundleWeb();
 
+/** Assets at least this big are also kept gzipped, for browsers that take it. */
+const compressFrom = 1024;
+
+const assetHeaders = {
+  "cache-control": "public, max-age=31536000, immutable",
+  vary: "accept-encoding",
+};
+
 /**
  * The web UI's assets, built into the binary. Their names carry a content
- * hash, so they never change.
+ * hash, so they never change. The bigger ones are compressed once here, so
+ * the page's script, a few hundred kilobytes, isn't sent whole on every load.
  */
 const webFiles = new Map(
-  Object.entries(assets).map(([name, body]) => [
-    name,
-    HttpServerResponse.text(body, {
-      contentType: contentTypes.get(name.split(".").pop() ?? ""),
-      headers: { "cache-control": "public, max-age=31536000, immutable" },
-    }),
-  ]),
+  Object.entries(assets).map(([name, body]) => {
+    const contentType = contentTypes.get(name.split(".").pop() ?? "");
+
+    const plain = HttpServerResponse.text(body, {
+      contentType,
+      headers: assetHeaders,
+    });
+
+    return [
+      name,
+      {
+        plain,
+        gzipped:
+          body.length < compressFrom
+            ? plain
+            : HttpServerResponse.uint8Array(
+                Bun.gzipSync(new TextEncoder().encode(body)),
+                {
+                  contentType,
+                  headers: { ...assetHeaders, "content-encoding": "gzip" },
+                },
+              ),
+      },
+    ];
+  }),
 );
+
+const acceptsGzip = (request: HttpServerRequest.HttpServerRequest) =>
+  /(?:^|,)\s*gzip\s*(?:;|,|$)/.test(request.headers["accept-encoding"] ?? "");
 
 const notFound = HttpServerResponse.empty({ status: 404 });
 
@@ -587,7 +617,7 @@ const web = (options: { readonly ingress: boolean }) =>
     const file = webFiles.get(path);
 
     if (file !== undefined) {
-      return Effect.succeed(file);
+      return Effect.succeed(acceptsGzip(request) ? file.gzipped : file.plain);
     }
 
     if (

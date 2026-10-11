@@ -141,13 +141,35 @@ export const program = (key: string): string | undefined => {
   return name === undefined || name === "" || name === "?" ? undefined : name;
 };
 
-/** A short, stable ID for a fingerprint: 64-bit FNV-1a as 16 hex digits. */
-export const issueId = (fingerprint: string): string => {
-  let hash = 0xcbf29ce484222325n;
+const encoder = new TextEncoder();
 
-  for (const byte of new TextEncoder().encode(fingerprint)) {
-    hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n);
+/** The FNV-1a 64-bit prime, 2^40 + 0x1b3, as the low part of its product. */
+const prime = 0x1b3;
+
+/**
+ * A short, stable ID for a fingerprint: 64-bit FNV-1a as 16 hex digits. The
+ * hash is kept as two 32-bit halves, since multiplying by the prime in plain
+ * number arithmetic is several times quicker than with BigInt and this runs
+ * for every event and warning.
+ */
+export const issueId = (fingerprint: string): string => {
+  let high = 0xcbf29ce4;
+  let low = 0x84222325;
+
+  for (const byte of encoder.encode(fingerprint)) {
+    low = (low ^ byte) >>> 0;
+
+    // hash * (2^40 + 0x1b3) mod 2^64: the low half shifted up by 40 bits
+    // lands in the high half, and the small multiple carries into it.
+    const product = low * prime;
+
+    high =
+      ((low << 8) +
+        Math.imul(high, prime) +
+        Math.floor(product / 0x100000000)) >>>
+      0;
+    low = product >>> 0;
   }
 
-  return hash.toString(16).padStart(16, "0");
+  return high.toString(16).padStart(8, "0") + low.toString(16).padStart(8, "0");
 };

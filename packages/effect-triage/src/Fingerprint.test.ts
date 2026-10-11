@@ -127,7 +127,11 @@ describe("fingerprint", () => {
   });
 
   test("issue IDs are stable", () => {
+    expect(issueId("")).toBe("cbf29ce484222325");
     expect(issueId("a")).toBe("af63dc4c8601ec8c");
+    expect(issueId("log|bluetoothd|connect failed")).toBe("4f24ff61da785258");
+    expect(issueId("s=1b2c3d;i=1a2b3c")).toBe("3c3284690b811a25");
+    expect(issueId("ünïcödé ✓ 日本語 🎉")).toBe("037626df53a71e53");
   });
 });
 
