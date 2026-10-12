@@ -1,14 +1,11 @@
-## Performance
+## What's Changed
+* Update dependency oxlint-tsgolint to v7.0.2004 by @renovate[bot] in https://github.com/timmo001/triage/pull/75
+* Update Effect to v4.0.3 by @renovate[bot] in https://github.com/timmo001/triage/pull/71
+* Update dependency @timmo001/docs-kit to v0.1.1 by @renovate[bot] in https://github.com/timmo001/triage/pull/76
+* Lock file maintenance by @renovate[bot] in https://github.com/timmo001/triage/pull/77
+* Lock file maintenance by @renovate[bot] in https://github.com/timmo001/triage/pull/78
+* Update dependency blume to v2.2.3 by @renovate[bot] in https://github.com/timmo001/triage/pull/79
+* Update dependency @tanstack/lit-virtual to v3.14.4 by @renovate[bot] in https://github.com/timmo001/triage/pull/80
 
-- Events are stored a batch at a time, with one lookup and insert per batch and one update per issue, rather than three or four statements for every event, so hosts catching up on a long journal upload much faster.
-- A new index on each issue's hosts means listing issues, filtering them by host and the hosts summary no longer read every event. A migration adds it on first start.
-- Warning counts read their version once per batch, and expired ones are only cleared when there are some.
-- Issue IDs are hashed without BigInt, and the tokens for values that come up again and again, like host and program names, are kept rather than worked out each time. Issue IDs and tokens are unchanged.
-- Reading the journal takes a step less per line.
-- The web UI's bigger files are sent gzipped to browsers that take it.
 
-## Home Assistant
-
-- Attributing events to Home Assistant's version and custom integrations only reads `.HA_VERSION` and their manifests again when they change.
-- The images are built with Bun 1.4.3.
-
+**Full Changelog**: https://github.com/timmo001/triage/compare/0.18.3...0.18.4
