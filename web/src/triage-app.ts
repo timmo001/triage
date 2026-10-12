@@ -53,7 +53,7 @@ export class TriageApp extends LitElement {
       }
 
       main {
-        max-width: 72rem;
+        max-width: 120rem;
         margin: 0 auto;
         padding: 1rem var(--triage-gutter) 3rem;
       }
