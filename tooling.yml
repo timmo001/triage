@@ -1,0 +1,13 @@
+---
+# Tool releases triage was last reviewed against. The tooling-drift tool
+# (mise run tooling:status / tooling:publish) compares each with the latest
+# release and opens a pull request for review when it moves; its README
+# documents this file.
+assignee: timmo001
+dispatch:
+  - ci.yml
+  - lint-general.yml
+tools:
+  - repo: home-assistant/supervisor
+    reviewed: 2026.10.1
+    review: Check the Supervisor log endpoints, the log line formats and the app names read in src/homeassistant (Collector, log, names).
