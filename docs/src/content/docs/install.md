@@ -34,7 +34,9 @@ The Home Assistant app runs the server on Home Assistant OS, for amd64 and aarch
 
 [![Add the repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Ftimmo001%2Ftriage)
 
-then install Triage, set its admin token and start it. See [Run a server](/setup/server#home-assistant).
+or [add all my apps at once](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Ftimmo001%2Fhome-assistant-apps). Add one or the other, not both: Home Assistant treats them as different apps, so moving between them starts with empty settings and data.
+
+Then install Triage, set its admin token and start it. See [Run a server](/setup/server#home-assistant).
 
 ## Container
 
