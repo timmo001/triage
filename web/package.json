@@ -14,7 +14,7 @@
     "@tanstack/lit-table": "9.2.8",
     "@tanstack/lit-virtual": "3.14.6",
     "@timmo001/effect-triage": "workspace:*",
-    "dompurify": "3.4.16",
+    "dompurify": "3.4.17",
     "effect": "4.0.4",
     "lit": "3.3.3",
     "marked": "18.1.0"
