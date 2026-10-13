@@ -46,9 +46,9 @@
     "@timmo001/effect-triage": "0.18.4"
   },
   "peerDependencies": {
-    "effect": "4.0.3"
+    "effect": "4.0.4"
   },
   "devDependencies": {
-    "effect": "4.0.3"
+    "effect": "4.0.4"
   }
 }

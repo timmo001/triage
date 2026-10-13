@@ -5,15 +5,15 @@
     "": {
       "name": "triage",
       "dependencies": {
-        "@effect/ai-anthropic": "4.0.3",
-        "@effect/ai-cloudflare": "4.0.3",
-        "@effect/ai-openai-compat": "4.0.3",
-        "@effect/ai-typesafe": "4.0.3",
-        "@effect/platform-bun": "4.0.3",
-        "@effect/sql-sqlite-bun": "4.0.3",
+        "@effect/ai-anthropic": "4.0.4",
+        "@effect/ai-cloudflare": "4.0.4",
+        "@effect/ai-openai-compat": "4.0.4",
+        "@effect/ai-typesafe": "4.0.4",
+        "@effect/platform-bun": "4.0.4",
+        "@effect/sql-sqlite-bun": "4.0.4",
         "@timmo001/effect-triage": "workspace:*",
         "@timmo001/effect-triage-client": "workspace:*",
-        "effect": "4.0.3",
+        "effect": "4.0.4",
       },
       "devDependencies": {
         "@effect/tsgo": "0.51.1",
@@ -35,33 +35,33 @@
         "@timmo001/effect-triage": "0.18.4",
       },
       "devDependencies": {
-        "effect": "4.0.3",
+        "effect": "4.0.4",
       },
       "peerDependencies": {
-        "effect": "4.0.3",
+        "effect": "4.0.4",
       },
     },
     "packages/effect-triage": {
       "name": "@timmo001/effect-triage",
       "version": "0.18.4",
       "devDependencies": {
-        "effect": "4.0.3",
+        "effect": "4.0.4",
       },
       "peerDependencies": {
-        "effect": "4.0.3",
+        "effect": "4.0.4",
       },
     },
     "web": {
       "name": "@triage/web",
       "version": "0.4.1",
       "dependencies": {
-        "@effect/platform-browser": "4.0.3",
+        "@effect/platform-browser": "4.0.4",
         "@mdi/js": "7.4.47",
         "@tanstack/lit-table": "9.2.8",
         "@tanstack/lit-virtual": "3.14.4",
         "@timmo001/effect-triage": "workspace:*",
         "dompurify": "3.4.16",
-        "effect": "4.0.3",
+        "effect": "4.0.4",
         "lit": "3.3.3",
         "marked": "18.1.0",
       },
@@ -70,21 +70,21 @@
   "packages": {
     "@babel/runtime": ["@babel/runtime@7.29.10", "", {}, "sha512-NpugTzbKgGrNe45Ui32cN8vCFFMxVtP/9rtfwv0nP5FRDAjvYBxJcLVpYA9mr1jxP6cnIT7x9LUzuDTbWYYNRA=="],
 
-    "@effect/ai-anthropic": ["@effect/ai-anthropic@4.0.3", "", { "peerDependencies": { "effect": "^4.0.3" } }, "sha512-c0rKev8Bg9iwBTiuANlq+2DV3XUnLeNbb8ZPzU5KPpzvuNOBpc2yZpFqjlxZa3V7azE4iKT+YeSGJ62fQNk6Fw=="],
+    "@effect/ai-anthropic": ["@effect/ai-anthropic@4.0.4", "", { "peerDependencies": { "effect": "^4.0.4" } }, "sha512-2ci0a75i2LKDlPKqs42hnD34L6BQ3WA/rV0ghjMnzRxTPp97dS8E/Zqlf+ZEzkz5prpOp3SpmsKvbDEwM9r1RA=="],
 
-    "@effect/ai-cloudflare": ["@effect/ai-cloudflare@4.0.3", "", { "peerDependencies": { "effect": "^4.0.3" } }, "sha512-BKNX8HdaHKluIVemNAtJRj1ayC6w2urDhhWJgb9rHayKJeCTio32vikmaikbC5Lzho/OnVPCq7sqR+BfGjCGCQ=="],
+    "@effect/ai-cloudflare": ["@effect/ai-cloudflare@4.0.4", "", { "peerDependencies": { "effect": "^4.0.4" } }, "sha512-JS2NF/BEda5GR1meavxdzYNkBT9IlpAG1sNldJfJkoq6tl6PzIjLGeo3nroDpyiUEEWUf+vfdc/9qrnkIHQDNA=="],
 
-    "@effect/ai-openai-compat": ["@effect/ai-openai-compat@4.0.3", "", { "peerDependencies": { "effect": "^4.0.3" } }, "sha512-n5dETHRuVrkqX10krAudEyuNj/n00ORU18tNa8GgjlGqldbrxt2b8ZTk+uWOMoSLYamhq5t0FK97u+Qv2y1l7Q=="],
+    "@effect/ai-openai-compat": ["@effect/ai-openai-compat@4.0.4", "", { "peerDependencies": { "effect": "^4.0.4" } }, "sha512-7ujq5yF/9xSvPvUdxqcdMfrAb1c9IeN6JZtfU/MXrLVSpEKl0pSmFizd+v7fWeUQMWAp4q5Gah0TU5ErGsJkJQ=="],
 
-    "@effect/ai-typesafe": ["@effect/ai-typesafe@4.0.3", "", { "peerDependencies": { "effect": "^4.0.3" } }, "sha512-GLwC8pv/czX67klmoIjPJVARDkBR3OeXV9I3/b4l/BZlKfMh76WD0KVvx0t4suQ7sZtGf5w2LQ5UPN1xZ34GJQ=="],
+    "@effect/ai-typesafe": ["@effect/ai-typesafe@4.0.4", "", { "peerDependencies": { "effect": "^4.0.4" } }, "sha512-GfDYAAifNjvGwG0kOKbqTB+g0UmafKUa+PPjgMwNdoPfkUe9/3yFBTlSlJrXpQ10AqnFDF+Xm9UgiuRHyN8i7Q=="],
 
-    "@effect/platform-browser": ["@effect/platform-browser@4.0.3", "", { "peerDependencies": { "effect": "^4.0.3" } }, "sha512-1heMTrwHkghTN2DWRb+Os+YdeowMFaxTbBqPzmqJDGU8DlBCKPGr+f4BIjWmnANxlnsIlKUqzr3gKqfR1ueicw=="],
+    "@effect/platform-browser": ["@effect/platform-browser@4.0.4", "", { "peerDependencies": { "effect": "^4.0.4" } }, "sha512-2D+0/Vd+6gMpgR608OPYON4+QMvtbXyl2+HKIlayuXLmlVokI2KoIt37gm01CN+fyRFotBr3hSz4gzLd7xb3Hw=="],
 
-    "@effect/platform-bun": ["@effect/platform-bun@4.0.3", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.3" }, "peerDependencies": { "effect": "^4.0.3" } }, "sha512-Pl2TXjRTRRvGxtGfYWW8L+B1qkZo8mEx7Itvo2lUd15OQPZGDE111S6JDm9EgGfDK3BUz3sbyNeQD687GQm2iQ=="],
+    "@effect/platform-bun": ["@effect/platform-bun@4.0.4", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.4" }, "peerDependencies": { "effect": "^4.0.4" } }, "sha512-L5xA9sF2RET7rqi18Q8yUcWq301o+jBMm9GWJixmJWGwzeipzMqjjPk+10vE8vUiHPbtdtJaBSIgs0AJ2jEF1g=="],
 
-    "@effect/platform-node-shared": ["@effect/platform-node-shared@4.0.3", "", { "dependencies": { "@types/ws": "^8.18.2", "ws": "^8.22.0" }, "peerDependencies": { "effect": "^4.0.3" } }, "sha512-5srkJfmWklWSgwZwlkMeTXobfNtxuwuTCvY9JWdPXRv/PBXAe5kKSptzRxT778oFFsaE9IMI8X61pvkifT9Eug=="],
+    "@effect/platform-node-shared": ["@effect/platform-node-shared@4.0.4", "", { "dependencies": { "@types/ws": "^8.18.2", "ws": "^8.22.0" }, "peerDependencies": { "effect": "^4.0.4" } }, "sha512-gh2KRmqGWrJ0FVL8GqnI1GpB+fCfCUI7sGiUZkxxBHyHj1t94rm6VDJffCfuVZWe6GpvYXtizifVczUrgOce8A=="],
 
-    "@effect/sql-sqlite-bun": ["@effect/sql-sqlite-bun@4.0.3", "", { "peerDependencies": { "effect": "^4.0.3" } }, "sha512-3G1G0MQzEwr8QFZiBv3/gw/4wn1W8Dg0UT5muwXAM+F5Gtsby9J1hRrRZ104OpvlVJ6i0yg2NJk+N95094p+9w=="],
+    "@effect/sql-sqlite-bun": ["@effect/sql-sqlite-bun@4.0.4", "", { "peerDependencies": { "effect": "^4.0.4" } }, "sha512-Ae1qfvi7t7xmuP8EmuwgJ8IINNcgy7caF9dNndBYGOlKeuBTub8xeHnP16nZRhUyn2/h42oB3uyP/trSdaRlIQ=="],
 
     "@effect/tsgo": ["@effect/tsgo@0.51.1", "", { "optionalDependencies": { "@effect/tsgo-darwin-arm64": "0.51.1", "@effect/tsgo-darwin-x64": "0.51.1", "@effect/tsgo-linux-arm": "0.51.1", "@effect/tsgo-linux-arm64": "0.51.1", "@effect/tsgo-linux-x64": "0.51.1", "@effect/tsgo-win32-arm64": "0.51.1", "@effect/tsgo-win32-x64": "0.51.1" }, "bin": { "effect-tsgo": "dist/effect-tsgo.cjs" } }, "sha512-i6mA6cNah+0mkPdu8qZILCO3Pnd9kWo03/s82Ju+1DFhdL28HFagi+1PRGxqgq1uMaHziWQ+ciKvOmIoks2RdA=="],
 
@@ -260,7 +260,7 @@
 
     "dompurify": ["dompurify@3.4.16", "", { "optionalDependencies": { "@types/trusted-types": "^2.0.7" } }, "sha512-sqo+pNp3qRhCIpbgRi1y8Tgk27Bo2Ry7w0dC1NBeNTdZChWjz9Xb/KOoZbRP/R6pQZ80Qw8YhXw13hWWBbMRnQ=="],
 
-    "effect": ["effect@4.0.3", "", {}, "sha512-LoWn/Uwwx0JjHSDmBAAahx8sB+klzM6vsZovnbYowBNw6B4QScJLRLBByO61plvNiycx7HPN8FnsWUCu0eXW5w=="],
+    "effect": ["effect@4.0.4", "", {}, "sha512-Sr50OeVSC3M5UkoUYUhFf3EULryhGaZZUf6OzDHTvaznOw7HRlxOKdF3/4nvQXHL22StOyMG3Cvo8Bt7xUp+Ng=="],
 
     "emoji-regex": ["emoji-regex@8.0.0", "", {}, "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A=="],
 
