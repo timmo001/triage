@@ -9,5 +9,5 @@ dispatch:
   - lint-general.yml
 tools:
   - repo: home-assistant/supervisor
-    reviewed: 2026.10.1
+    reviewed: 2026.10.2
     review: Check the Supervisor log endpoints, the log line formats and the app names read in src/homeassistant (Collector, log, names).
