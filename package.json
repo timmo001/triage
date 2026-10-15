@@ -36,7 +36,7 @@
   "devDependencies": {
     "@effect/tsgo": "0.53.0",
     "@oxlint/plugins": "1.88.0",
-    "@timmo001/oxlint-rules": "0.6.2",
+    "@timmo001/oxlint-rules": "0.6.3",
     "@types/bun": "1.4.3",
     "@typescript/native": "npm:typescript@7.0.2",
     "lit-analyzer": "2.0.3",
