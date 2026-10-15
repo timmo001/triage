@@ -72,7 +72,7 @@ then run `systemctl --user daemon-reload`.
 
 ## Release archive
 
-Each release also has a `triage-<version>-linux-<arch>.tar.gz` archive with just the binary. Put it somewhere on your `PATH`:
+Each release also has a `triage-<version>-linux-<arch>.tar.gz` archive with the binary and the [agent skill](/agents#skill) in `skills/`. Put the binary somewhere on your `PATH`:
 
 ```bash
 tar -xzf triage-<version>-linux-x86_64.tar.gz

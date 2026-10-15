@@ -153,6 +153,9 @@ jobs:
         ./dist/release/root/triage --completions bash > .scripts/linux/completions/triage.bash
         ./dist/release/root/triage --completions fish > .scripts/linux/completions/triage.fish
         ./dist/release/root/triage --completions zsh > .scripts/linux/completions/_triage
+        cp -R skills dist/release/root/skills
+      # Ship the agent skills beside the binary, so a mise install keeps them matched to it.
+      archive-extra-paths: skills
       release-version: ${{ github.event.release.tag_name }}
       source-ref: ${{ github.event.release.tag_name }}
       existing-release: true
