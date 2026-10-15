@@ -20,7 +20,25 @@ The tools see what the web UI does: redacted events, the names hosts were enroll
 
 `find_similar_issues` counts an issue as similar when it's a crash of the same program with the same signal, the same unit failing in any way, another error from the same program, or another OOM kill.
 
-The server tells agents to close an issue once they've fixed it, without waiting to be asked. Each host the issue happened on needs the fix, so the agent checks it's in place on the hosts it can reach and asks you about the others. Then it asks you before resolving the issue. Issues that are noise and can't be fixed get muted instead.
+The server tells agents to close an issue once they've fixed it, without waiting to be asked. Each host the issue happened on needs the fix, so the agent checks it's in place on the hosts it can reach and asks you about the others. Then it asks you before resolving the issue. That includes issues that started while the fix was being built and tested, such as a half-finished unit failing. Issues that are noise and can't be fixed get muted instead.
+
+## Skill
+
+An agent fixing a failing unit, a crash or an error in another repository doesn't know triage has already collected it, so it never looks. The `triage-resolve` [Agent Skill](https://agentskills.io) tells it to: once the fix is in place, it finds the matching issues by unit, program or logger on the hosts involved, checks the fix reached each host, and asks you before resolving them with a note on the commit or version and the hosts. It needs the MCP server.
+
+Install it with the [Skills CLI](https://skills.sh):
+
+```bash
+npx skills add timmo001/triage --skill triage-resolve
+```
+
+Or in Claude Code:
+
+```text
+/plugin install triage --marketplace timmo001/triage
+```
+
+The release tarballs also carry the skill beside the binary, in `skills/triage-resolve`, so it always matches the version you installed. With [mise](https://mise.jdx.dev), point your agent at the `skills` folder in `mise where github:timmo001/triage`.
 
 Agents ask you before merging issues too, since a wrong merge mixes their events and statuses. `merge_issues` is marked destructive, so clients that check for that ask you to approve it as well.
 

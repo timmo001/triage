@@ -1,0 +1,15 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "groupings": [
+    {
+      "title": "Use",
+      "description": "Find and close the triage issues a fix settles.",
+      "skills": ["triage-resolve"]
+    },
+    {
+      "title": "Contribute",
+      "description": "Review and release triage itself.",
+      "skills": ["triage-review", "triage-release"]
+    }
+  ]
+}

@@ -12,6 +12,8 @@ on:
 jobs:
   skills:
     uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@996dd60d03b12f28b482074a9eed7083a18e2439 # 20261013.1
+    with:
+      skill-roots: ".agents/skills skills"
 
   actionlint:
     uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@996dd60d03b12f28b482074a9eed7083a18e2439 # 20261013.1

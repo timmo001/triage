@@ -10,6 +10,10 @@ See the [documentation](https://triage.timmo.dev) to install, set up and use it.
 
 The web UI comes in 10 [languages](https://triage.timmo.dev/languages/). The translations are AI-generated, and translators are very welcome.
 
+## Agent skill
+
+The `triage-resolve` skill has coding agents find and resolve the issues a fix settles, with a note on what fixed it and where. See [Agents](https://triage.timmo.dev/agents/#skill).
+
 ## Packages
 
 | Package | What it's for |

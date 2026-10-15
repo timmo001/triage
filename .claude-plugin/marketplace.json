@@ -1,0 +1,14 @@
+{
+  "name": "triage",
+  "description": "Agent Skills for triage",
+  "owner": { "name": "Aidan Timson", "url": "https://github.com/timmo001" },
+  "plugins": [
+    {
+      "name": "triage",
+      "description": "Find and close the triage issues a fix settles, with a note on what fixed it and where",
+      "license": "Apache-2.0",
+      "source": "./skills",
+      "skills": "./"
+    }
+  ]
+}
