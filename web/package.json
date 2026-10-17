@@ -12,7 +12,7 @@
     "@effect/platform-browser": "4.0.5",
     "@mdi/js": "7.4.47",
     "@tanstack/lit-table": "9.3.1",
-    "@tanstack/lit-virtual": "3.14.9",
+    "@tanstack/lit-virtual": "3.14.10",
     "@timmo001/effect-triage": "workspace:*",
     "dompurify": "3.4.17",
     "effect": "4.0.5",
