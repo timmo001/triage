@@ -45,6 +45,23 @@ Ollaya uses NVIDIA GPUs and Apple silicon, and NVIDIA is what it's tested on mos
 
 Ollaya is one option among several, local and hosted. Browse [Ollaya's models](https://ollaya.dev/library) and [Ollama's decision models](https://ollama.com/search?c=decision), and see [Choices](/choices#decision-models) for every option.
 
+### Intel Arc
+
+Ollama runs models on Intel Arc GPUs through Vulkan, including the integrated ones in recent laptops. Start `ollama serve` with both of these set, or it falls back to the CPU:
+
+```bash
+OLLAMA_VULKAN=1 OLLAMA_IGPU_ENABLE=1 ollama serve
+```
+
+`OLLAMA_IGPU_ENABLE=1` is the one that's easy to miss: without it, Ollama finds an integrated Arc GPU but drops it. On an Arc B390 with Ollama 0.40.5, both decision models and `gemma4:e4b` loaded fully onto the GPU. Three issues took:
+
+| Model | Arc B390 | CPU |
+| --- | --- | --- |
+| [`nimble`](https://ollama.com/library/nimble) | 4.75 s | 176 s |
+| [`tev1`](https://ollama.com/library/tev1) | 3.47 s | Not measured |
+
+The answers were the same on the GPU and the CPU. Ollama ran the CPU test on only 2 of 16 threads, so a CPU can do better than that. `gemma4:e4b` answered at about 34 tokens a second, without the garbled output once reported for Gemma 4 on Vulkan ([ollama/ollama#15328](https://github.com/ollama/ollama/issues/15328)).
+
 ## Suggest
 
 A language model writes a suggested fix for the issues the decision model rates worth fixing. This is the heaviest part, and the one where the model you pick makes the most difference: bigger models give better suggestions.
