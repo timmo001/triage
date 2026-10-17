@@ -12,6 +12,7 @@ import {
   isHostEntry,
   isPlugin,
   lastRecordStart,
+  splitBatch,
   supervisorSource,
   withBreadcrumbs,
 } from "./log.js";
@@ -78,6 +79,28 @@ describe("lastRecordStart", () => {
   test("finds where the last record starts, so its traceback can be held back", () => {
     expect(lastRecordStart([...traceback, ...traceback])).toBe(5);
     expect(lastRecordStart(traceback.slice(1))).toBeUndefined();
+  });
+});
+
+describe("splitBatch", () => {
+  test("holds back a full batch's last record, even one that starts it", () => {
+    const first = splitBatch([], traceback.slice(0, 3), true);
+
+    expect(first.entries).toEqual([]);
+    expect(first.carried).toHaveLength(3);
+
+    const second = splitBatch(first.carried, traceback.slice(3), false);
+
+    expect(recordsOf(second.entries)[0]?.lines).toHaveLength(5);
+    expect(second.carried).toEqual([]);
+  });
+
+  test("stores a record held back once that still fills the batch", () => {
+    const first = splitBatch([], traceback.slice(0, 3), true);
+    const second = splitBatch(first.carried, traceback.slice(3), true);
+
+    expect(second.entries).toHaveLength(5);
+    expect(second.carried).toEqual([]);
   });
 });
 

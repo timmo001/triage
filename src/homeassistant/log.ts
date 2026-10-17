@@ -209,6 +209,30 @@ export const lastRecordStart = (
   return index === -1 ? undefined : index;
 };
 
+/**
+ * Split what's been read so far into the entries to store now and the ones to
+ * hold back for the next batch. A full batch means more entries are already
+ * waiting, so its last record, with any traceback, is held back in case it goes
+ * on. A record that was already held back once and still fills the batch is
+ * stored as it is, so one longer than a batch can't hold up reading for good.
+ */
+export const splitBatch = (
+  carried: ReadonlyArray<Entry>,
+  batch: ReadonlyArray<Entry>,
+  full: boolean,
+  formats: Formats = {},
+) => {
+  const all = [...carried, ...batch];
+  const start = full ? lastRecordStart(all, formats) : undefined;
+
+  const split =
+    start === undefined || (start === 0 && carried.length > 0)
+      ? all.length
+      : start;
+
+  return { entries: all.slice(0, split), carried: all.slice(split) };
+};
+
 /** One record, with the lines that followed it, such as a traceback. */
 export interface LogRecord {
   /** The journal entry that started it. */

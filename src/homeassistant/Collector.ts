@@ -16,10 +16,10 @@ import {
   isAppOn,
   isHostEntry,
   isPlugin,
-  lastRecordStart,
   type LogRecord,
   pluginsSource,
   recordsOf,
+  splitBatch,
   supervisorIdentifier,
   supervisorSource,
   warningOf,
@@ -223,16 +223,16 @@ export const layer = (options: {
               Stream.groupedWithin(batchSize, "1 second"),
               Stream.runForEach(
                 Effect.fnUntraced(function* (batch) {
-                  const all = [...carried, ...batch];
+                  const split = splitBatch(
+                    carried,
+                    batch,
+                    batch.length === batchSize,
+                    log.formats,
+                  );
 
-                  const split =
-                    batch.length === batchSize
-                      ? lastRecordStart(all, log.formats) || all.length
-                      : all.length;
+                  const entries = split.entries;
 
-                  const entries = all.slice(0, split);
-
-                  carried = all.slice(split);
+                  carried = split.carried;
 
                   const last = entries.at(-1);
 
