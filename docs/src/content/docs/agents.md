@@ -20,7 +20,7 @@ The tools see what the web UI does: redacted events, the names hosts were enroll
 
 `find_similar_issues` counts an issue as similar when it's a crash of the same program with the same signal, the same unit failing in any way, another error from the same program, or another OOM kill.
 
-The server tells agents to close an issue once they've fixed it, without waiting to be asked. Each host the issue happened on needs the fix, so the agent checks it's in place on the hosts it can reach and asks you about the others. Then it asks you before resolving the issue. That includes issues that started while the fix was being built and tested, such as a half-finished unit failing. Issues that are noise and can't be fixed get muted instead.
+The server's instructions stay short, since agents read them in every session: how to find issues, and to ask you before resolving or merging them, with a note on what fixed it and where. The [skill](#skill) carries the full steps for closing issues after a fix.
 
 ## Skill
 
