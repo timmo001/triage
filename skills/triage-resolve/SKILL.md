@@ -1,6 +1,6 @@
 ---
 name: triage-resolve
-description: Find and close the triage issues a fix settles, with a note on what fixed it and where. Use after fixing a failing systemd unit, a crash or core dump, an out-of-memory kill, or an error logged to the journal or Home Assistant's logs on a machine triage collects from, whether or not the work started from a triage issue, before reporting the fix done. Not for fixes that involve none of those failures.
+description: Find and close the triage issues a fix settles, noting what fixed it and where. Use after fixing a failing systemd unit, a crash, an out-of-memory kill, or a journal or Home Assistant log error on a machine triage collects from, before reporting the fix done.
 license: Apache-2.0
 compatibility: Needs triage's MCP server (triage mcp, or a triage server's /mcp with an admin token). The triage CLI can resolve, mute and note issues by ID without it.
 ---
