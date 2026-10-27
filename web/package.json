@@ -17,7 +17,7 @@
     "dompurify": "3.4.17",
     "effect": "4.0.5",
     "lit": "3.3.3",
-    "marked": "18.1.1"
+    "marked": "18.1.2"
   },
   "devDependencies": {}
 }
