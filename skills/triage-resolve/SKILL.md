@@ -2,7 +2,7 @@
 name: triage-resolve
 description: Find and close the triage issues a fix settles, noting what fixed it and where. Use after fixing a failing systemd unit, a crash, an out-of-memory kill, or a journal or Home Assistant log error on a machine triage collects from, before reporting the fix done.
 license: Apache-2.0
-compatibility: Needs triage's tools (its MCP server, or a Code Mode namespace that wraps the CLI) or the triage CLI with $TRIAGE_SERVER and an admin token in $TRIAGE_ADMIN_TOKEN.
+compatibility: Needs triage's tools (its MCP server, or a `triage` Code Mode namespace) or the triage CLI with $TRIAGE_SERVER and an admin token in $TRIAGE_ADMIN_TOKEN.
 ---
 
 # Resolve triage issues after a fix
