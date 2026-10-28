@@ -2,7 +2,7 @@
 name: triage-resolve
 description: Find and close the triage issues a fix settles, noting what fixed it and where. Use after fixing a failing systemd unit, a crash, an out-of-memory kill, or a journal or Home Assistant log error on a machine triage collects from, before reporting the fix done.
 license: Apache-2.0
-compatibility: Needs triage's MCP server (triage mcp, or a triage server's /mcp with an admin token). The triage CLI can resolve, mute and note issues by ID without it.
+compatibility: Needs triage's tools (its MCP server, or a Code Mode namespace that wraps the CLI) or the triage CLI with $TRIAGE_SERVER and an admin token in $TRIAGE_ADMIN_TOKEN.
 ---
 
 # Resolve triage issues after a fix
@@ -60,6 +60,19 @@ Use the commit, or the package and version when it ships as a package, and the h
 - Failures caused by building or testing the fix are resolved with it, with a note saying so, so they reopen as regressed if they happen again.
 - Mute only noise that will keep happening and can't be fixed, with a note on why. Label issues with `label_issue` when it's clear whether they're worth fixing or noise.
 
-## Without the MCP server
+## With the CLI
 
-Say the triage tools aren't available and list the issues for the user to find. With issue IDs, the CLI does the rest against the server in `$TRIAGE_SERVER`: `triage resolve <id> --note "<note>"`, `triage mute <id> --note "<note>"` and `triage note <id> "<note>"`.
+Without the tools, the CLI does each step against the server in `$TRIAGE_SERVER`. Issues take an ID or a link to the issue's page, and `--json` prints what the tools return.
+
+| Tool | Command |
+| --- | --- |
+| `list_issues` | `triage issues --server --search <text> --host <host> --state <state> --sort lastSeen` (repeat `--host`, `--state`, `--kind` and `--label` for several) |
+| `get_issue` | `triage issue <id>` |
+| `get_issue_events` | `triage events <id> --limit <n> --offset <n>` |
+| `find_similar_issues` | `triage similar <id>` |
+| `set_issue_status` | `triage resolve <id> --note "<note>"`, `triage mute <id> --note "<note>"` or `triage reopen <id> --note "<note>"` |
+| `add_issue_note` | `triage note <id> "<note>"` |
+| `label_issue` | `triage label <id> worth` or `noise` |
+| `merge_issues` | `triage merge <id> <id>...` |
+
+If neither is available, say so and list the issues for the user to find.
