@@ -11,6 +11,9 @@ Each command has its own page with its help, as `triage <command> --help` prints
 | --- | --- |
 | [`collect`](/commands/collect) | None |
 | [`issues`](/commands/issues) | None |
+| [`issue`](/commands/issue) | None |
+| [`events`](/commands/events) | None |
+| [`similar`](/commands/similar) | None |
 | [`upload`](/commands/upload) | None |
 | [`serve`](/commands/serve) | None |
 | [`work`](/commands/work) | None |
@@ -42,12 +45,15 @@ GLOBAL FLAGS
   --help, -h                                                          Show help information
   --version, -v                                                       Show version information
   --wizard                                                            Start wizard mode for a command
-  --completions <bash|zsh|fish|sh>                                    Print shell completion script (choices: bash, zsh, fish, sh)
+  --completions <bash|zsh|fish|powershell|sh|pwsh>                    Print shell completion script (choices: bash, zsh, fish, powershell, sh, pwsh)
   --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)
 
 SUBCOMMANDS
   collect      Collect crashes, failures and errors from this machine's journal since the last run
   issues       List issues, most recently seen first
+  issue        Read one of the server's issues: its hosts, decisions, suggested fixes, notes, nearby issues and latest events
+  events       Page through an issue's events, newest first
+  similar      Find issues like one of the server's issues, with their suggested fixes and notes, resolved ones first
   upload       Send collected events to the server at $TRIAGE_SERVER, authenticating with $TRIAGE_TOKEN
   serve        Run the triage server over HTTP, which collects events from enrolled hosts. Use a reverse proxy or Cloudflare for HTTPS
   work         Decide on issues and suggest fixes for the server at $TRIAGE_SERVER, authenticating with $TRIAGE_WORKER_TOKEN, within the server's daily limits. Needs --decide, --suggest or both

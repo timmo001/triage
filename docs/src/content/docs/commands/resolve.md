@@ -19,7 +19,7 @@ USAGE
   triage resolve [flags] <issue...>
 
 ARGUMENTS
-  issue... string    The IDs of the issues
+  issue... string    The IDs of the issues, or links to their pages
 
 FLAGS
   --note, -m string    Why, kept in each issue's notes: what fixed it, the commit, package or version, and the hosts it's in place on

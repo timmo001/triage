@@ -1,5 +1,5 @@
 import { BunRuntime, BunServices, BunStdio } from "@effect/platform-bun";
-import { Api, type Issue } from "@timmo001/effect-triage";
+import { Api, type Event, Issue } from "@timmo001/effect-triage";
 import {
   Cause,
   Config,
@@ -22,7 +22,12 @@ import { HomeAssistantConfig } from "./homeassistant/Config.js";
 import { CollectionStatus } from "./homeassistant/Status.js";
 import { Journal } from "./journal/Journal.js";
 import { formatLine } from "./logger.js";
-import { IssueTools, IssueToolsLayer, mcpOptions } from "./mcp/IssueTools.js";
+import {
+  issueId,
+  IssueTools,
+  IssueToolsLayer,
+  mcpOptions,
+} from "./mcp/IssueTools.js";
 import { layerOptions } from "./options.js";
 import { Redactor } from "./redact.js";
 import { IssueAdmin } from "./server/IssueAdmin.js";
@@ -171,6 +176,34 @@ const collect = Command.make(
   Command.provide(collectorLayer),
 );
 
+const issueArgument = Argument.String("issue").pipe(
+  Argument.withDescription(
+    "The issue's ID, or a link to its page in triage's web UI",
+  ),
+  Argument.map(issueId),
+);
+
+/** A repeatable filter flag, left out of the query when it isn't given. */
+const filterFlag = <A>(flag: Flag.Flag<A>) =>
+  flag.pipe(
+    Flag.atLeast(0),
+    Flag.map((values) => (values.length === 0 ? undefined : values)),
+  );
+
+const date = (millis: number) => new Date(millis).toISOString();
+
+const summaryLine = (issue: Api.IssueSummary) =>
+  `${issue.id}  ${issue.state.padEnd(9)}  ${String(issue.count).padStart(6)}  ${date(issue.lastSeen)}  ${issue.title}`;
+
+const noteLines = (notes: ReadonlyArray<Api.IssueNote>) =>
+  notes.map(
+    (note) =>
+      `  ${date(note.createdAt)}  ${note.by ?? "?"}${note.status === null ? "" : ` ${note.status}`}${note.text === "" ? "" : `: ${note.text}`}`,
+  );
+
+const eventLine = (event: Event.Event) =>
+  `${date(event.timestamp)}  ${event.host}  ${event.message.split("\n")[0] ?? ""}`;
+
 const issues = Command.make(
   "issues",
   {
@@ -178,6 +211,49 @@ const issues = Command.make(
       Flag.withAlias("n"),
       Flag.withDescription("The most issues to show"),
       Flag.withDefault(20),
+    ),
+    offset: Flag.Int("offset").pipe(
+      Flag.withDescription("How many issues to skip first"),
+      Flag.withDefault(0),
+    ),
+    search: Flag.String("search").pipe(
+      Flag.withAlias("s"),
+      Flag.withDescription(
+        "Only issues whose title contains this, ignoring case",
+      ),
+      Flag.optional,
+    ),
+    state: filterFlag(
+      Flag.Literals("state", Issue.State.literals).pipe(
+        Flag.withDescription("Only issues in this state. Repeat for several"),
+      ),
+    ),
+    kind: filterFlag(
+      Flag.Literals("kind", Issue.Kind.literals).pipe(
+        Flag.withDescription("Only issues of this kind. Repeat for several"),
+      ),
+    ),
+    host: filterFlag(
+      Flag.String("host").pipe(
+        Flag.withDescription(
+          "Only issues that happened on this host. Repeat for several",
+        ),
+      ),
+    ),
+    label: filterFlag(
+      Flag.Literals("label", Api.LabelFilter.literals).pipe(
+        Flag.withDescription(
+          "Only issues labelled worth or noise, or none for those without a label. Repeat for several",
+        ),
+      ),
+    ),
+    sort: Flag.Literals("sort", Api.IssueSort.literals).pipe(
+      Flag.withDescription("What to sort by, lastSeen by default"),
+      Flag.optional,
+    ),
+    order: Flag.Literals("order", Api.SortOrder.literals).pipe(
+      Flag.withDescription("desc by default"),
+      Flag.optional,
     ),
     server: Flag.Boolean("server").pipe(
       Flag.withDescription(
@@ -188,19 +264,31 @@ const issues = Command.make(
     json,
   },
   Effect.fn(function* (input) {
+    const options = {
+      limit: input.limit,
+      offset: input.offset,
+      search: Option.getOrUndefined(input.search),
+      state: input.state,
+      kind: input.kind,
+      host: input.host,
+      label: input.label,
+      sort: Option.getOrUndefined(input.sort),
+      order: Option.getOrUndefined(input.order),
+    };
+
     const list = input.server
       ? yield* withIssueAdmin(
           yield* Config.option(Config.String("TRIAGE_SERVER")),
           Effect.gen(function* () {
             const admin = yield* IssueAdmin;
 
-            return yield* admin.list({ limit: input.limit });
+            return yield* admin.list(options);
           }),
         )
       : yield* Effect.gen(function* () {
           const store = yield* Store;
 
-          return yield* store.issues({ limit: input.limit });
+          return yield* store.issues(options);
         }).pipe(Effect.provide(Store.layer));
 
     if (input.json) {
@@ -210,12 +298,160 @@ const issues = Command.make(
     }
 
     for (const issue of list) {
-      yield* Console.log(
-        `${issue.id}  ${issue.state.padEnd(9)}  ${String(issue.count).padStart(6)}  ${new Date(issue.lastSeen).toISOString()}  ${issue.title}`,
-      );
+      yield* Console.log(summaryLine(issue));
     }
   }),
 ).pipe(Command.withDescription("List issues, most recently seen first"));
+
+const issueCommand = Command.make(
+  "issue",
+  {
+    issue: issueArgument,
+    json,
+    server: serverFlag(
+      "Read the issue on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
+  },
+  Effect.fn(function* (input) {
+    const review = yield* withIssueAdmin(
+      input.server,
+      Effect.gen(function* () {
+        const admin = yield* IssueAdmin;
+
+        return yield* admin.review(input.issue);
+      }),
+    );
+
+    if (input.json) {
+      yield* Console.log(JSON.stringify(review));
+
+      return;
+    }
+
+    const { issue } = review;
+
+    const lines = [
+      `${issue.id}  ${issue.kind}  ${issue.state}  ${issue.count} events${review.label === undefined ? "" : `  labelled ${review.label}`}`,
+      issue.title,
+      `First seen ${date(issue.firstSeen)}, last seen ${date(issue.lastSeen)}`,
+      `Hosts: ${review.hosts.map((host) => `${host.host} (${host.count})`).join(", ")}`,
+      ...review.decisions.map(
+        (decision) =>
+          `Decision: ${decision.model} worth ${decision.worth.toFixed(2)}, severity ${decision.severity}: ${decision.cause}`,
+      ),
+      ...(review.notes.length === 0
+        ? []
+        : ["Notes:", ...noteLines(review.notes)]),
+      ...(review.nearby.length === 0
+        ? []
+        : [
+            "Nearby:",
+            ...review.nearby.map((near) => `  ${summaryLine(near)}`),
+          ]),
+      "Latest events:",
+      ...review.events.map((event) => `  ${eventLine(event)}`),
+    ];
+
+    yield* Console.log(lines.join("\n"));
+  }),
+).pipe(
+  Command.withDescription(
+    "Read one of the server's issues: its hosts, decisions, suggested fixes, notes, nearby issues and latest events",
+  ),
+);
+
+const events = Command.make(
+  "events",
+  {
+    issue: issueArgument,
+    limit: Flag.Int("limit").pipe(
+      Flag.withAlias("n"),
+      Flag.withDescription(
+        `The most events to show, up to ${Api.maxEventPage}`,
+      ),
+      Flag.withDefault(100),
+    ),
+    offset: Flag.Int("offset").pipe(
+      Flag.withDescription("How many of the newest events to skip"),
+      Flag.withDefault(0),
+    ),
+    json,
+    server: serverFlag(
+      "Read the events on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
+  },
+  Effect.fn(function* (input) {
+    const page = yield* withIssueAdmin(
+      input.server,
+      Effect.gen(function* () {
+        const admin = yield* IssueAdmin;
+
+        return yield* admin.events(input.issue, {
+          limit: Math.min(Math.max(input.limit, 1), Api.maxEventPage),
+          offset: Math.max(input.offset, 0),
+        });
+      }),
+    );
+
+    if (input.json) {
+      yield* Console.log(JSON.stringify(page));
+
+      return;
+    }
+
+    yield* Console.log(
+      [
+        `${page.events.length} of ${page.total} events`,
+        ...page.events.map(eventLine),
+      ].join("\n"),
+    );
+  }),
+).pipe(Command.withDescription("Page through an issue's events, newest first"));
+
+const similar = Command.make(
+  "similar",
+  {
+    issue: issueArgument,
+    limit: Flag.Int("limit").pipe(
+      Flag.withAlias("n"),
+      Flag.withDescription(`The most issues to show, up to ${Api.maxSimilar}`),
+      Flag.withDefault(10),
+    ),
+    json,
+    server: serverFlag(
+      "Read the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
+  },
+  Effect.fn(function* (input) {
+    const issues = yield* withIssueAdmin(
+      input.server,
+      Effect.gen(function* () {
+        const admin = yield* IssueAdmin;
+
+        return yield* admin.similar(
+          input.issue,
+          Math.min(Math.max(input.limit, 1), Api.maxSimilar),
+        );
+      }),
+    );
+
+    if (input.json) {
+      yield* Console.log(JSON.stringify(issues));
+
+      return;
+    }
+
+    for (const issue of issues) {
+      yield* Console.log(
+        [summaryLine(issue), ...noteLines(issue.notes)].join("\n"),
+      );
+    }
+  }),
+).pipe(
+  Command.withDescription(
+    "Find issues like one of the server's issues, with their suggested fixes and notes, resolved ones first",
+  ),
+);
 
 const upload = Command.make(
   "upload",
@@ -486,9 +722,7 @@ const suggest = Command.make(
 const label = Command.make(
   "label",
   {
-    issue: Argument.String("issue").pipe(
-      Argument.withDescription("The issue's ID"),
-    ),
+    issue: issueArgument,
     verdict: Argument.Literals("verdict", ["worth", "noise"]).pipe(
       Argument.withDescription(
         "worth: a real fault worth fixing; noise: expected, harmless or caused by the user",
@@ -526,8 +760,11 @@ const statusCommand = (options: {
     options.command,
     {
       issues: Argument.String("issue").pipe(
-        Argument.withDescription("The IDs of the issues"),
+        Argument.withDescription(
+          "The IDs of the issues, or links to their pages",
+        ),
         Argument.atLeast(1),
+        Argument.map((ids) => ids.map(issueId)),
       ),
       note: Flag.String("note").pipe(
         Flag.withAlias("m"),
@@ -587,9 +824,7 @@ const reopen = statusCommand({
 const note = Command.make(
   "note",
   {
-    issue: Argument.String("issue").pipe(
-      Argument.withDescription("The issue's ID"),
-    ),
+    issue: issueArgument,
     text: Argument.String("text").pipe(
       Argument.withDescription(
         "The note, in Markdown, such as what you found or a fix in progress. It's redacted like events",
@@ -621,8 +856,11 @@ const merge = Command.make(
   "merge",
   {
     issues: Argument.String("issue").pipe(
-      Argument.withDescription("The IDs of the issues"),
+      Argument.withDescription(
+        "The IDs of the issues, or links to their pages",
+      ),
       Argument.atLeast(2),
+      Argument.map((ids) => ids.map(issueId)),
     ),
     server: serverFlag(
       "Merge the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
@@ -1161,6 +1399,9 @@ const triage = Command.make("triage").pipe(
   Command.withSubcommands([
     collect,
     issues,
+    issueCommand,
+    events,
+    similar,
     upload,
     serve,
     work,

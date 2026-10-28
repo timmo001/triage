@@ -19,7 +19,7 @@ USAGE
   triage note [flags] <issue> <text>
 
 ARGUMENTS
-  issue string    The issue's ID
+  issue string    The issue's ID, or a link to its page in triage's web UI
   text string     The note, in Markdown, such as what you found or a fix in progress. It's redacted like events
 
 FLAGS

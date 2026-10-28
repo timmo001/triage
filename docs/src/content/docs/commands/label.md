@@ -19,7 +19,7 @@ USAGE
   triage label [flags] <issue> <verdict>
 
 ARGUMENTS
-  issue string      The issue's ID
+  issue string      The issue's ID, or a link to its page in triage's web UI
   verdict choice    worth: a real fault worth fixing; noise: expected, harmless or caused by the user
 
 FLAGS

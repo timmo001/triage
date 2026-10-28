@@ -19,7 +19,7 @@ USAGE
   triage merge [flags] <issue...>
 
 ARGUMENTS
-  issue... string    The IDs of the issues
+  issue... string    The IDs of the issues, or links to their pages
 
 FLAGS
   --server string    Merge the issues on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine
