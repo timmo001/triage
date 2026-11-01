@@ -28,7 +28,6 @@ import {
   mdiPackageVariantClosed,
   mdiPower,
   mdiPuzzleOutline,
-  mdiRefresh,
   mdiRestore,
   mdiServer,
   mdiSkullOutline,
@@ -68,7 +67,9 @@ import {
   formatTime,
   icon,
   renderDefect,
+  renderEmpty,
   renderError,
+  renderLoadMoreFailed,
   requestValues,
   severityLabel,
   shown,
@@ -733,7 +734,7 @@ export class TriageIssue extends LitElement {
       onInitial: () => renderEventSkeletons(3),
       onError: (error) =>
         Predicate.isTagged(error, "NoSuchElementError")
-          ? html`<p class="message">${t("issue.noEvents")}</p>`
+          ? renderEmpty(mdiCheckCircleOutline, t("issue.noEvents"))
           : this.#renderEventsFailure(renderError(error)),
       onDefect: () => this.#renderEventsFailure(renderDefect()),
       onSuccess: ({ value }) =>
@@ -757,12 +758,9 @@ export class TriageIssue extends LitElement {
       onSome: ({ value }) =>
         this.#renderEventList(
           value.items,
-          html`<p class="message">
-            ${t("issue.loadMoreFailed")}
-            <button @click=${() => registry.refresh(issueEvents(this.issueId))}>
-              ${icon(mdiRefresh)} ${t("retry")}
-            </button>
-          </p>`,
+          renderLoadMoreFailed(t("issue.loadMoreFailed"), () =>
+            registry.refresh(issueEvents(this.issueId)),
+          ),
         ),
     });
   }

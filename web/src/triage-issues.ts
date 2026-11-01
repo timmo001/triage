@@ -78,7 +78,9 @@ import {
   formatTime,
   icon,
   renderDefect,
+  renderEmpty,
   renderError,
+  renderLoadMoreFailed,
   requestValues,
   shown,
   stateBadge,
@@ -375,21 +377,6 @@ export class TriageIssues extends LitElement {
         margin: var(--triage-space-3) 0;
       }
 
-      .notice {
-        display: flex;
-        align-items: center;
-        gap: var(--triage-space-2);
-        margin: var(--triage-space-3) 0;
-        padding: var(--triage-space-2) var(--triage-space-3);
-        border: var(--triage-border-width) solid var(--triage-regressed);
-        border-radius: var(--triage-border-radius-sm);
-        background: var(--triage-surface);
-      }
-
-      .notice > .icon {
-        color: var(--triage-regressed);
-      }
-
       .search {
         flex: 1 1 14rem;
         display: flex;
@@ -492,13 +479,6 @@ export class TriageIssues extends LitElement {
 
       .list {
         margin-top: var(--triage-space-3);
-      }
-
-      .load-failed {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--triage-space-3);
       }
 
       .options:popover-open {
@@ -943,10 +923,9 @@ export class TriageIssues extends LitElement {
     )?.homeAssistant;
 
     return homeAssistant === "noJournal"
-      ? html`<p class="notice" role="status">
-          ${icon(mdiAlertCircleOutline)}
-          ${t("issues.homeAssistantNotCollected")}
-        </p>`
+      ? html`<gw-alert class="message" tone="warning"
+          >${t("issues.homeAssistantNotCollected")}</gw-alert
+        >`
       : nothing;
   }
 
@@ -1001,6 +980,7 @@ export class TriageIssues extends LitElement {
           />
         </label>
         <gw-menu-button
+          appearance="outlined"
           labels="auto"
           heading=${t("group.by")}
           icon=${mdiFormatListGroup}
@@ -1022,6 +1002,7 @@ export class TriageIssues extends LitElement {
             this.#update({ group: event.detail.value })}
         ></gw-menu-button>
         <gw-menu-button
+          appearance="outlined"
           labels="auto"
           heading=${t("sort.by")}
           icon=${settings.order === "asc" ? mdiSortAscending : mdiSortDescending}
@@ -1432,12 +1413,9 @@ export class TriageIssues extends LitElement {
       onSome: ({ value }) =>
         this.#renderList(
           value.items,
-          html`<p class="message load-failed">
-            ${t("issues.loadMoreFailed")}
-            <button @click=${() => this.#refresh()}>
-              ${icon(mdiRefresh)} ${t("retry")}
-            </button>
-          </p>`,
+          renderLoadMoreFailed(t("issues.loadMoreFailed"), () =>
+            this.#refresh(),
+          ),
         ),
     });
   }
@@ -1467,7 +1445,7 @@ export class TriageIssues extends LitElement {
               onInitial: () => this.#renderSkeleton(),
               onError: (error) =>
                 Predicate.isTagged(error, "NoSuchElementError")
-                  ? html`<p class="message">${t("issues.none")}</p>`
+                  ? renderEmpty(mdiCheckCircleOutline, t("issues.none"))
                   : this.#renderFailure(renderError(error)),
               onDefect: () => this.#renderFailure(renderDefect()),
               onSuccess: ({ value }) =>

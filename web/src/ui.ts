@@ -4,6 +4,7 @@ import {
   mdiBellOffOutline,
   mdiCheckCircleOutline,
   mdiLogout,
+  mdiRefresh,
   mdiProgressClock,
   mdiSleep,
   mdiStarFourPointsOutline,
@@ -13,7 +14,10 @@ import { html, svg } from "lit";
 import { registry } from "./AtomController.js";
 import { language, t } from "./i18n.js";
 import "./triage-sign-in.js";
+import "@timmo001/groundwork-ui/gw-alert.ts";
 import "@timmo001/groundwork-ui/gw-badge.ts";
+import "@timmo001/groundwork-ui/gw-button.ts";
+import "@timmo001/groundwork-ui/gw-empty-state.ts";
 import { resolveTokens, token } from "./triage.js";
 
 /** A Material Design icon, from one of `@mdi/js`'s paths. */
@@ -169,24 +173,57 @@ export const renderError = (error: { readonly _tag: string }) => {
   if (Predicate.isTagged(error, "Unauthorized")) {
     return registry.get(token) === ""
       ? html`<triage-sign-in></triage-sign-in>`
-      : html`<p class="message">
+      : html`<gw-alert class="message" tone="danger" urgent>
           ${t("error.tokenRefused")}
-          <button @click=${signOut}>${icon(mdiLogout)} ${t("signOut")}</button>
-        </p>`;
+          <gw-button
+            slot="actions"
+            size="small"
+            appearance="filled"
+            variant="neutral"
+            icon=${mdiLogout}
+            @click=${signOut}
+            >${t("signOut")}</gw-button
+          >
+        </gw-alert>`;
   }
 
   if (Predicate.isTagged(error, "IssueNotFound")) {
-    return html`<p class="message">${t("error.issueNotFound")}</p>`;
+    return html`<gw-alert class="message" tone="warning"
+      >${t("error.issueNotFound")}</gw-alert
+    >`;
   }
 
-  return html`<p class="message">${t("error.generic")}</p>`;
+  return html`<gw-alert class="message" tone="danger" urgent
+    >${t("error.generic")}</gw-alert
+  >`;
 };
 
 export const renderDefect = () =>
-  html`<p class="message">${t("error.unreachable")}</p>`;
+  html`<gw-alert class="message" tone="danger" urgent
+    >${t("error.unreachable")}</gw-alert
+  >`;
 
-export const renderLoading = () =>
-  html`<p class="message" aria-busy="true">${t("loading")}</p>`;
+/**
+ * A `gw-alert` for a page of a list that failed to load, with the items
+ * already loaded kept above it and a button to try again.
+ */
+export const renderLoadMoreFailed = (message: string, retry: () => void) =>
+  html`<gw-alert class="message" tone="danger" urgent>
+    ${message}
+    <gw-button
+      slot="actions"
+      size="small"
+      appearance="filled"
+      variant="neutral"
+      icon=${mdiRefresh}
+      @click=${retry}
+      >${t("retry")}</gw-button
+    >
+  </gw-alert>`;
+
+/** What a list shows with nothing in it. */
+export const renderEmpty = (path: string, message: string) =>
+  html`<gw-empty-state icon=${path}><p>${message}</p></gw-empty-state>`;
 
 /** A redaction token, such as `<ip:71d0a3c2e94b>`, kept by the split below. */
 const tokenPattern = /(<[a-z]+:[0-9a-f]{12}>)/;

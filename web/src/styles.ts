@@ -109,9 +109,9 @@ export const shared = css`
     color: var(--triage-muted);
   }
 
+  /* An error or notice in the flow of a page, a gw-alert */
   .message {
-    padding: var(--triage-space-8) 0;
-    color: var(--triage-muted);
+    margin: var(--triage-space-4) 0;
   }
 
   /* A redacted value shown from this machine, with its token in the tooltip. */
