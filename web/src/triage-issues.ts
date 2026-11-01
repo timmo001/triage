@@ -864,7 +864,7 @@ export class TriageIssues extends LitElement {
         <gw-input
           class="search"
           type="search"
-          hide-label
+          label-hidden
           label=${t("issues.search")}
           placeholder=${t("issues.search")}
           icon=${mdiMagnify}
