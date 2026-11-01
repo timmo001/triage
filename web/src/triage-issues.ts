@@ -4,7 +4,6 @@ import {
   mdiCallMerge,
   mdiCheckCircleOutline,
   mdiChevronDown,
-  mdiChevronLeft,
   mdiChevronRight,
   mdiClose,
   mdiFilterVariant,
@@ -71,7 +70,10 @@ import {
 import "./triage-filter.js";
 import "@timmo001/groundwork-ui/gw-skeleton.ts";
 import "@timmo001/groundwork-ui/gw-button.ts";
+import "@timmo001/groundwork-ui/gw-input.ts";
 import "@timmo001/groundwork-ui/gw-menu-button.ts";
+import "@timmo001/groundwork-ui/gw-sheet.ts";
+import type { GwSheet } from "@timmo001/groundwork-ui/gw-sheet.ts";
 import {
   ago,
   formatPercent,
@@ -377,34 +379,6 @@ export class TriageIssues extends LitElement {
         margin: var(--triage-space-3) 0;
       }
 
-      .search {
-        flex: 1 1 14rem;
-        display: flex;
-        align-items: center;
-        gap: var(--triage-space-1-5);
-        padding: 0 var(--triage-space-2);
-        font-size: inherit;
-        color: var(--triage-muted);
-        background: var(--triage-surface);
-        border: var(--triage-border-width) solid var(--triage-border);
-        border-radius: var(--triage-border-radius-sm);
-      }
-
-      .search:focus-within {
-        border-color: var(--triage-accent);
-      }
-
-      .search input {
-        flex: 1;
-        min-width: 0;
-        padding: var(--triage-space-1-5) 0;
-        font: inherit;
-        color: var(--triage-text);
-        background: none;
-        border: 0;
-        outline: none;
-      }
-
       label {
         display: inline-flex;
         align-items: center;
@@ -429,12 +403,11 @@ export class TriageIssues extends LitElement {
         /* The kit's controls at 36px, the bar's height, before density */
         --gw-button-scale: 0.9;
         --gw-menu-button-scale: 0.9;
+        --gw-field-scale: 0.9;
       }
 
       .search {
-        box-sizing: border-box;
         min-width: 0;
-        height: calc(2.5rem * 0.9 * var(--gw-control-scale, 1));
       }
 
       .bar .toolbar > * {
@@ -481,65 +454,15 @@ export class TriageIssues extends LitElement {
         margin-top: var(--triage-space-3);
       }
 
-      .options:popover-open {
-        box-sizing: border-box;
-        margin: 0;
-        overflow-y: auto;
-        scrollbar-width: thin;
-        color: inherit;
-        background: var(--triage-surface);
-        border: var(--triage-border-width) solid var(--triage-border);
-      }
-
-      .options:popover-open {
-        inset: auto 0 0;
-        width: 100%;
-        max-height: 85vh;
-        padding: var(--triage-space-4);
-        border-radius: var(--triage-border-radius-lg)
-          var(--triage-border-radius-lg) 0 0;
+      /* The filters sit edge to edge in the sheet, each with its own
+         dividers, and reach its padding with --triage-filter-inset */
+      .options {
         --triage-filter-inset: var(--triage-space-4);
       }
 
-      .options::backdrop {
-        background: var(--triage-scrim);
-      }
-
-      .sheet-head {
-        display: flex;
-        align-items: center;
-        gap: var(--triage-space-2);
-      }
-
-      .sheet-head > .icon-only {
-        background: none;
-        border-color: transparent;
-      }
-
-      .options .sheet-head h2 {
-        flex: 1;
-        margin: 0;
-        font-size: var(--triage-font-size-m);
-        text-transform: none;
-        letter-spacing: 0;
-        color: var(--triage-text);
-      }
-
-      .wide-only,
-      .narrow-only {
-        display: inline-flex;
-      }
-
-      .options h2 {
-        display: flex;
-        align-items: center;
-        gap: var(--triage-space-1-5);
-        margin: var(--triage-space-3) 0 0;
-        font-size: var(--triage-font-size-xs);
-        font-weight: var(--triage-font-weight-semibold);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--triage-muted);
+      .options::part(body) {
+        gap: 0;
+        padding-block: 0;
       }
 
       .count {
@@ -644,21 +567,6 @@ export class TriageIssues extends LitElement {
       }
 
       @media (min-width: 40rem) {
-        .narrow-only {
-          display: none;
-        }
-
-        .options:popover-open {
-          display: flex;
-          flex-direction: column;
-          inset: 0 auto 0 0;
-          width: 20rem;
-          height: 100%;
-          max-height: none;
-          border-width: 0 var(--triage-border-width) 0 0;
-          border-radius: 0;
-        }
-
         .options triage-filter[expanded] {
           flex: 1 0 auto;
         }
@@ -669,10 +577,6 @@ export class TriageIssues extends LitElement {
           margin-inline: calc(-1 * var(--triage-gutter, 0rem));
           border-inline: 0;
           border-radius: 0;
-        }
-
-        .wide-only {
-          display: none;
         }
       }
 
@@ -786,7 +690,7 @@ export class TriageIssues extends LitElement {
   @query(".list.skeleton") accessor skeleton: HTMLElement | null = null;
 
   /** The filters sheet, opened from the toolbar. */
-  @query("#options") accessor options: HTMLElement | null = null;
+  @query("#options") accessor options: GwSheet | null = null;
 
   /** The rows, whose offset tells the virtualiser where the list starts. */
   @query('[role="rowgroup"]') accessor rowGroup: HTMLElement | null = null;
@@ -949,7 +853,7 @@ export class TriageIssues extends LitElement {
             icon=${mdiFilterVariant}
             label=${filtering === 0 ? t("filters") : `${t("filters")} (${filtering})`}
             class=${filtering === 0 ? "" : "active"}
-            @click=${() => this.options?.showPopover()}
+            @click=${() => this.options?.toggle()}
             >${t("filters")}</gw-button
           >${
             filtering === 0
@@ -957,28 +861,28 @@ export class TriageIssues extends LitElement {
               : html`<span class="count" aria-hidden="true">${filtering}</span>`
           }
         </span>
-        <label class="search">
-          ${icon(mdiMagnify)}
-          <input
-            type="search"
-            placeholder=${t("issues.search")}
-            aria-label=${t("issues.search")}
-            .value=${settings.search ?? ""}
-            @input=${(event: Event) => {
-              const input = event.target;
+        <gw-input
+          class="search"
+          type="search"
+          hide-label
+          label=${t("issues.search")}
+          placeholder=${t("issues.search")}
+          icon=${mdiMagnify}
+          .value=${settings.search ?? ""}
+          @input=${(event: Event) => {
+            const input = event.target;
 
-              if (!(input instanceof HTMLInputElement)) {
-                return;
-              }
+            if (!(input instanceof HTMLInputElement)) {
+              return;
+            }
 
-              clearTimeout(this.#search);
-              this.#search = setTimeout(
-                () => this.#update({ search: input.value }),
-                300,
-              );
-            }}
-          />
-        </label>
+            clearTimeout(this.#search);
+            this.#search = setTimeout(
+              () => this.#update({ search: input.value }),
+              300,
+            );
+          }}
+        ></gw-input>
         <gw-menu-button
           appearance="outlined"
           labels="auto"
@@ -1051,37 +955,33 @@ export class TriageIssues extends LitElement {
     const known = AsyncResult.getOrElse(this.#hosts.value, () => []);
 
     return html`
-      <div id="options" class="options" popover>
-        <div class="sheet-head">
-          <button
-            class="icon-only"
-            popovertarget="options"
-            popovertargetaction="hide"
-            aria-label=${t("close")}
-            title=${t("close")}
-          >
-            <span class="wide-only">${icon(mdiChevronLeft)}</span
-            ><span class="narrow-only">${icon(mdiChevronDown)}</span>
-          </button>
-          <h2>${t("filters")}</h2>
-          <button
-            ?disabled=${
-              settings.state === undefined &&
-              settings.host === undefined &&
-              settings.kind === undefined &&
-              settings.label === undefined
-            }
-            @click=${() =>
-              this.#update({
-                state: undefined,
-                host: undefined,
-                kind: undefined,
-                label: undefined,
-              })}
-          >
-            ${icon(mdiFilterVariantRemove)} ${t("filters.clear")}
-          </button>
-        </div>
+      <gw-sheet
+        id="options"
+        class="options"
+        heading=${t("filters")}
+        close-label=${t("close")}
+      >
+        <gw-button
+          slot="actions"
+          size="small"
+          variant="neutral"
+          appearance="plain"
+          icon=${mdiFilterVariantRemove}
+          ?disabled=${
+            settings.state === undefined &&
+            settings.host === undefined &&
+            settings.kind === undefined &&
+            settings.label === undefined
+          }
+          @click=${() =>
+            this.#update({
+              state: undefined,
+              host: undefined,
+              kind: undefined,
+              label: undefined,
+            })}
+          >${t("filters.clear")}</gw-button
+        >
         <triage-filter
           label=${t("filter.state")}
           path=${mdiListStatus}
@@ -1140,7 +1040,7 @@ export class TriageIssues extends LitElement {
           @filter-change=${(event: CustomEvent<ReadonlyArray<string>>) =>
             this.#update({ label: event.detail })}
         ></triage-filter>
-      </div>
+      </gw-sheet>
     `;
   }
 
