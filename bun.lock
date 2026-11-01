@@ -62,8 +62,8 @@
         "@tanstack/lit-table": "9.3.1",
         "@tanstack/lit-virtual": "3.15.1",
         "@timmo001/effect-triage": "workspace:*",
-        "@timmo001/groundwork-tokens": "0.9.11",
-        "@timmo001/groundwork-ui": "0.9.11",
+        "@timmo001/groundwork-tokens": "0.9.16",
+        "@timmo001/groundwork-ui": "0.9.16",
         "dompurify": "3.4.17",
         "effect": "4.0.5",
         "lit": "3.3.3",
@@ -190,7 +190,7 @@
 
     "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.9.11", "", { "dependencies": { "culori": "4.0.2", "effect": "4.1.1" } }, "sha512-ce9LWxVAMZHS4PIe61sTm3/VxMi2s+VGmKDyL71qqJ8SuHLlryalwl3B3BinHUR19PcJ20Q+QbOCrOk9XEa8rA=="],
 
-    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.9.11", "", {}, "sha512-/8m670t6mE9LvpRun3ce0zZe6OlkwR9SqlJoSK3T26KvtcRckfzKATVkdFApWkBHc+qpgOEUoLd3EucWMW/q1w=="],
+    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.9.16", "", {}, "sha512-D+Pfeve2F+8/Kd+Vy/3U26MxuyPHeZYGT4R/f7fg97Ce1MikAT/XFbzppM3A+rVRVNgQ8k5X1zPUC8Q16yDrpA=="],
 
     "@timmo001/oxlint-rules": ["@timmo001/oxlint-rules@0.6.3", "", { "peerDependencies": { "@oxlint/plugins": "1.88.0", "oxlint": "1.88.0" }, "bin": { "oxlint-rules": "dist/cli.js" } }, "sha512-DxIid4Bu5t8bLuWcAIZlikLVLabSrJ1ai2siFB+E+7HdY3TPMgsUU44/Is+9RAQYVH8LEYjOQFVedH5MOXL5YQ=="],
 
@@ -376,9 +376,13 @@
 
     "@timmo001/groundwork-tokens/effect": ["effect@4.1.1", "", {}, "sha512-XYu65BrcmNqu5i7PPvP4dqL+R5ma37zIsfuSPjcn78mog+6e5PkilNg7Xo+pBpjXJYlWEIpH4j91tMrfW05CMw=="],
 
+    "@triage/web/@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.9.16", "", { "dependencies": { "culori": "4.0.2", "effect": "4.1.1" } }, "sha512-QfmV+WKcaZquh/hEz7UKo71AFC3LyvwkBULfDIdnsZTF4InV98b9KeGFEZfYp+XfRI5MeVkWm3jrq0MAll+hbw=="],
+
     "web-component-analyzer/typescript": ["typescript@5.2.2", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-mI4WrpHsbCIcwT9cF4FZvr80QUeKvsUsUvKDoR+X/7XHQH98xYD8YHZg7ANtz2GtZt/CBq2QJ0thkGJMHfqc1w=="],
 
     "wrap-ansi/ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
+
+    "@triage/web/@timmo001/groundwork-tokens/effect": ["effect@4.1.1", "", {}, "sha512-XYu65BrcmNqu5i7PPvP4dqL+R5ma37zIsfuSPjcn78mog+6e5PkilNg7Xo+pBpjXJYlWEIpH4j91tMrfW05CMw=="],
 
     "wrap-ansi/ansi-styles/color-convert": ["color-convert@2.0.1", "", { "dependencies": { "color-name": "~1.1.4" } }, "sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ=="],
 

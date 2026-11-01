@@ -105,7 +105,6 @@ export class TriageFilter extends LitElement {
         margin-inline: calc(-1 * var(--triage-filter-inset, 0rem));
         padding-inline: var(--triage-filter-inset, 0rem);
         overflow-y: auto;
-        scrollbar-width: thin;
         scrollbar-gutter: stable;
       }
 

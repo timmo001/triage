@@ -7,9 +7,6 @@
   font-size: var(--triage-font-size-m);
   color: var(--triage-text);
   background: var(--triage-bg);
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, var(--triage-muted) 45%, transparent)
-    transparent;
 }
 
 body {
