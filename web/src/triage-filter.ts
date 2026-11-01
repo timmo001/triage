@@ -10,7 +10,7 @@ import { customElement, property, query } from "lit/decorators.js";
 import { t } from "./i18n.js";
 import { shared } from "./styles.js";
 import { badge, icon } from "./ui.js";
-import "./triage-skeleton.js";
+import "@timmo001/groundwork-ui/gw-skeleton.ts";
 
 export interface FilterOption {
   readonly value: string;
@@ -92,11 +92,11 @@ export class TriageFilter extends LitElement {
       .toggle .badge {
         margin-inline-start: var(--triage-space-1);
         font-variant-numeric: tabular-nums;
-        --badge-color: var(--triage-muted);
+        --gw-tone: var(--triage-muted);
       }
 
       .toggle .badge.filtering {
-        --badge-color: var(--triage-accent);
+        --gw-tone: var(--triage-accent);
       }
 
       .scroller {
@@ -173,7 +173,7 @@ export class TriageFilter extends LitElement {
         margin-top: ${listPadding}px;
       }
 
-      .skeleton triage-skeleton {
+      .skeleton gw-skeleton {
         width: 1.1rem;
         height: 1.1rem;
         min-height: 0;
@@ -356,10 +356,10 @@ export class TriageFilter extends LitElement {
                 ${skeletonWidths.map(
                   (width) => html`
                     <div class="skeleton">
-                      <triage-skeleton-text
-                        style="--triage-skeleton-text-width: ${width}"
-                      ></triage-skeleton-text>
-                      <triage-skeleton></triage-skeleton>
+                      <gw-skeleton-text
+                        style="--gw-skeleton-width: ${width}"
+                      ></gw-skeleton-text>
+                      <gw-skeleton></gw-skeleton>
                     </div>
                   `,
                 )}

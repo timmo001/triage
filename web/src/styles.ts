@@ -3,6 +3,9 @@ import { css } from "lit";
 export const shared = css`
   :host {
     display: block;
+    /* Placeholders in Triage's border color, with its small corners */
+    --gw-skeleton-color: var(--triage-border);
+    --gw-skeleton-radius: 0.25rem;
   }
 
   h1 {
@@ -60,100 +63,46 @@ export const shared = css`
     color: var(--triage-accent);
   }
 
-  .badge {
-    --badge-color: var(--triage-accent);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--triage-space-2);
-    max-width: 100%;
-    min-height: 2.25rem;
-    box-sizing: border-box;
-    padding: var(--triage-space-1) var(--triage-space-4) var(--triage-space-1)
-      var(--triage-space-3);
-    border: var(--triage-border-width) solid var(--triage-border);
-    border-radius: var(--triage-border-radius-pill);
-    background: var(--triage-surface);
-    color: var(--triage-text);
-    vertical-align: middle;
+  /*
+   * Triage's own badge sizes, kept whatever the theme's density: 28px with
+   * 14px text for states and notes, and 32px for event fields
+   */
+  .badge.small {
+    --gw-badge-scale: calc(0.78 / var(--gw-control-scale, 1));
   }
 
-  .badge > .icon {
-    color: var(--badge-color);
-  }
-
-  .badge-info {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  .badge-label {
-    font-size: var(--triage-font-size-xs);
-    font-weight: var(--triage-font-weight-medium);
-    line-height: var(--triage-line-height-condensed);
-    color: var(--triage-muted);
-  }
-
-  .badge-content {
+  .badge.small::part(value) {
     font-size: var(--triage-font-size-s);
     font-weight: var(--triage-font-weight-medium);
-    line-height: var(--triage-line-height-condensed);
-    overflow-wrap: anywhere;
-  }
-
-  .badge.small {
-    gap: var(--triage-space-1);
-    min-height: 1.75rem;
-    padding: var(--triage-space-0-5) var(--triage-space-2)
-      var(--triage-space-0-5) var(--triage-space-1-5);
-  }
-
-  .badge.small .badge-content {
-    white-space: nowrap;
   }
 
   .badge.dense {
-    gap: var(--triage-space-1-5);
-    min-height: 2rem;
-    padding: var(--triage-space-0-5) var(--triage-space-3)
-      var(--triage-space-0-5) var(--triage-space-2);
+    --gw-badge-scale: calc(0.89 / var(--gw-control-scale, 1));
   }
 
-  .badge.dense > .icon {
-    width: 1em;
-    height: 1em;
-  }
-
-  .badge.dense .badge-label {
-    font-size: var(--triage-font-size-2xs);
-  }
-
-  .badge.dense .badge-content {
-    font-size: var(--triage-font-size-xs);
-  }
-
+  /* Each state's own color, which none of the kit's tones fits */
   .state.new {
-    --badge-color: var(--triage-new);
+    --gw-tone: var(--triage-new);
   }
 
   .state.regressed {
-    --badge-color: var(--triage-regressed);
+    --gw-tone: var(--triage-regressed);
   }
 
   .state.ongoing {
-    --badge-color: var(--triage-ongoing);
+    --gw-tone: var(--triage-ongoing);
   }
 
   .state.quiet {
-    --badge-color: var(--triage-quiet);
+    --gw-tone: var(--triage-quiet);
   }
 
   .state.resolved {
-    --badge-color: var(--triage-resolved);
+    --gw-tone: var(--triage-resolved);
   }
 
   .state.muted {
-    --badge-color: var(--triage-muted-state);
+    --gw-tone: var(--triage-muted-state);
   }
 
   .muted-text {

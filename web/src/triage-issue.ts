@@ -48,7 +48,7 @@ import { marked } from "marked";
 import { AtomController, registry } from "./AtomController.js";
 import { parts, t } from "./i18n.js";
 import { shared } from "./styles.js";
-import "./triage-skeleton.js";
+import "@timmo001/groundwork-ui/gw-skeleton.ts";
 import {
   addNote,
   homeHref,
@@ -282,13 +282,13 @@ export class TriageIssue extends LitElement {
       .badge-skeleton {
         flex: none;
         height: 2rem;
-        --triage-skeleton-radius: var(--triage-border-radius-pill);
+        --gw-skeleton-radius: var(--triage-border-radius-pill);
       }
 
       .details-skeleton {
         height: 2.25rem;
         margin-top: var(--triage-space-3);
-        --triage-skeleton-radius: var(--triage-border-radius-sm);
+        --gw-skeleton-radius: var(--triage-border-radius-sm);
       }
 
       .cards > li > header {
@@ -300,7 +300,7 @@ export class TriageIssue extends LitElement {
         color: var(--triage-muted);
       }
 
-      .cards .badge {
+      .cards .badge::part(badge) {
         background: var(--triage-bg);
       }
 
@@ -308,20 +308,20 @@ export class TriageIssue extends LitElement {
       .severity.alert,
       .severity.crit,
       .severity.err {
-        --badge-color: var(--triage-regressed);
+        --severity-color: var(--triage-regressed);
       }
 
       .severity.warning {
-        --badge-color: var(--triage-ongoing);
+        --severity-color: var(--triage-ongoing);
       }
 
       .severity.notice,
       .severity.info {
-        --badge-color: var(--triage-new);
+        --severity-color: var(--triage-new);
       }
 
       .severity.debug {
-        --badge-color: var(--triage-muted);
+        --severity-color: var(--triage-muted);
       }
 
       pre {
@@ -484,7 +484,7 @@ export class TriageIssue extends LitElement {
         gap: var(--triage-space-1);
         font-size: var(--triage-font-size-s);
         font-weight: var(--triage-font-weight-semibold);
-        color: var(--badge-color);
+        color: var(--severity-color);
       }
 
       .event-message {
@@ -1340,32 +1340,28 @@ const skeletonBadgeWidths = ["6rem", "5rem", "6rem", "9rem", "6rem", "8rem"];
 const skeletonEvent = (index: number) => html`
   <li class="skeleton" aria-hidden="true">
     <div class="event-severity">
-      <triage-skeleton-text
-        style="--triage-skeleton-text-width: 4rem"
-      ></triage-skeleton-text>
+      <gw-skeleton-text style="--gw-skeleton-width: 4rem"></gw-skeleton-text>
     </div>
     <div class="event-message">
-      <triage-skeleton-text
-        style="--triage-skeleton-text-width: ${
+      <gw-skeleton-text
+        style="--gw-skeleton-width: ${
           skeletonTitleWidths[index % skeletonTitleWidths.length]
         }%"
-      ></triage-skeleton-text>
+      ></gw-skeleton-text>
     </div>
     <div class="event-time">
-      <triage-skeleton-text
-        style="--triage-skeleton-text-width: 6rem"
-      ></triage-skeleton-text>
+      <gw-skeleton-text style="--gw-skeleton-width: 6rem"></gw-skeleton-text>
     </div>
     <div class="event-fields">
       ${skeletonBadgeWidths.map(
         (width) =>
-          html`<triage-skeleton
+          html`<gw-skeleton
             class="badge-skeleton"
             style="width: ${width}"
-          ></triage-skeleton>`,
+          ></gw-skeleton>`,
       )}
     </div>
-    <triage-skeleton class="details-skeleton"></triage-skeleton>
+    <gw-skeleton class="details-skeleton"></gw-skeleton>
   </li>
 `;
 
@@ -1380,9 +1376,7 @@ const renderEventSkeletons = (count: number) => html`
 const renderIssueSkeleton = () => html`
   <div aria-busy="true" aria-label=${t("issue.loading")}>
     <h1>
-      <triage-skeleton-text
-        style="--triage-skeleton-text-width: 60%"
-      ></triage-skeleton-text>
+      <gw-skeleton-text style="--gw-skeleton-width: 60%"></gw-skeleton-text>
     </h1>
     <dl aria-hidden="true">
       ${(
@@ -1398,9 +1392,9 @@ const renderIssueSkeleton = () => html`
         (label) => html`
           <dt>${t(label)}</dt>
           <dd>
-            <triage-skeleton-text
-              style="--triage-skeleton-text-width: 6rem"
-            ></triage-skeleton-text>
+            <gw-skeleton-text
+              style="--gw-skeleton-width: 6rem"
+            ></gw-skeleton-text>
           </dd>
         `,
       )}

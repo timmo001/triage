@@ -9,10 +9,11 @@ import {
   mdiStarFourPointsOutline,
 } from "@mdi/js";
 import { Predicate } from "effect";
-import { html, nothing, svg } from "lit";
+import { html, svg } from "lit";
 import { registry } from "./AtomController.js";
 import { language, t } from "./i18n.js";
 import "./triage-sign-in.js";
+import "@timmo001/groundwork-ui/gw-badge.ts";
 import { resolveTokens, token } from "./triage.js";
 
 /** A Material Design icon, from one of `@mdi/js`'s paths. */
@@ -77,9 +78,9 @@ export const dragScroll = (event: PointerEvent) => {
 };
 
 /**
- * A pill with an icon and a value, with an optional small label above the
- * value, after Home Assistant's badges. `kind` adds classes that set
- * `--badge-color`, or the `small` and `dense` size variants.
+ * A `gw-badge`: a pill with an icon and a value, with an optional small label
+ * above the value. `kind` adds classes: a state, which sets the icon's
+ * `--gw-tone`, and `small` or `dense` for Triage's two smaller sizes.
  */
 export const badge = ({
   path,
@@ -92,17 +93,9 @@ export const badge = ({
   readonly label?: string;
   readonly kind?: string;
 }) =>
-  html`<span class="badge ${kind}">
-    ${icon(path)}
-    <span class="badge-info">
-      ${
-        label === undefined
-          ? nothing
-          : html`<span class="badge-label">${label}</span>`
-      }
-      <span class="badge-content">${content}</span>
-    </span>
-  </span>`;
+  html`<gw-badge class="badge ${kind}" icon=${path} label=${label ?? ""}
+    >${content}</gw-badge
+  >`;
 
 const stateIcons: Record<Issue.State, string> = {
   regressed: mdiAlertDecagramOutline,

@@ -69,7 +69,7 @@ import {
   tokenValues,
 } from "./triage.js";
 import "./triage-filter.js";
-import "./triage-skeleton.js";
+import "@timmo001/groundwork-ui/gw-skeleton.ts";
 import "@timmo001/groundwork-ui/gw-button.ts";
 import "@timmo001/groundwork-ui/gw-menu-button.ts";
 import {
@@ -281,19 +281,19 @@ const skeletonRow = (index: number, height: number) => html`
     ${shownColumns.map(
       (id) => html`
         <div class=${cellClasses.get(id) ?? ""} role="cell">
-          <triage-skeleton-text
-            style="--triage-skeleton-text-width: ${
+          <gw-skeleton-text
+            style="--gw-skeleton-width: ${
               id === "title"
                 ? `${skeletonTitleWidths[index % skeletonTitleWidths.length]}%`
                 : (skeletonWidths.get(id) ?? "4rem")
             }"
-          ></triage-skeleton-text>
+          ></gw-skeleton-text>
           ${
             id === "title"
               ? html`<div class="secondary small">
-                  <triage-skeleton-text
-                    style="--triage-skeleton-text-width: 60%"
-                  ></triage-skeleton-text>
+                  <gw-skeleton-text
+                    style="--gw-skeleton-width: 60%"
+                  ></gw-skeleton-text>
                 </div>`
               : nothing
           }
