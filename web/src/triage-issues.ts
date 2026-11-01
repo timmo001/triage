@@ -2,7 +2,6 @@ import {
   mdiAlertCircleOutline,
   mdiBellOffOutline,
   mdiCallMerge,
-  mdiCheck,
   mdiCheckCircleOutline,
   mdiChevronDown,
   mdiChevronLeft,
@@ -71,6 +70,8 @@ import {
 } from "./triage.js";
 import "./triage-filter.js";
 import "./triage-skeleton.js";
+import "@timmo001/groundwork-ui/gw-button.ts";
+import "@timmo001/groundwork-ui/gw-menu-button.ts";
 import {
   ago,
   formatPercent,
@@ -438,58 +439,51 @@ export class TriageIssues extends LitElement {
       .bar .toolbar {
         flex-wrap: nowrap;
         margin: 0;
+        /* The kit's controls at 36px, the bar's height, before density */
+        --gw-button-scale: 0.9;
+        --gw-menu-button-scale: 0.9;
       }
 
-      .bar .toolbar > button,
       .search {
         box-sizing: border-box;
-        height: 2.25rem;
-      }
-
-      .search {
         min-width: 0;
+        height: calc(2.5rem * 0.9 * var(--gw-control-scale, 1));
       }
 
-      .bar .toolbar > button {
+      .bar .toolbar > * {
         flex: none;
       }
 
+      .bar .toolbar > .search {
+        flex: 1 1 14rem;
+      }
+
       @container bar (width < 46rem) {
-        .search {
+        .bar .toolbar > .search {
           flex-basis: 6rem;
-        }
-
-        .bar .toolbar > button {
-          width: 2.25rem;
-          padding: 0;
-          justify-content: center;
-          gap: 0;
-        }
-
-        .button-label {
-          display: none;
-        }
-
-        .bar .toolbar > button {
-          position: relative;
-        }
-
-        .bar .toolbar > button > .count {
-          position: absolute;
-          top: calc(-1 * var(--triage-space-1-5));
-          right: calc(-1 * var(--triage-space-1-5));
-          min-width: 1rem;
-          padding: 0 var(--triage-space-1);
-          font-size: var(--triage-font-size-xs);
-          line-height: 1rem;
-          color: var(--triage-bg);
-          background: var(--triage-accent);
         }
       }
 
-      .bar .toolbar > button.icon-only {
-        width: 2.25rem;
-        justify-content: center;
+      /* Filters that are on tint the button and count them in its corner */
+      .filters {
+        position: relative;
+        display: inline-flex;
+      }
+
+      .filters > gw-button.active {
+        --gw-button-tone: var(--gw-color-accent);
+      }
+
+      .filters > .count {
+        position: absolute;
+        top: calc(-1 * var(--triage-space-1-5));
+        right: calc(-1 * var(--triage-space-1-5));
+        min-width: 1rem;
+        padding: 0 var(--triage-space-1);
+        line-height: 1rem;
+        color: var(--triage-bg);
+        background: var(--triage-accent);
+        pointer-events: none;
       }
 
       .bar .selection {
@@ -507,8 +501,7 @@ export class TriageIssues extends LitElement {
         gap: var(--triage-space-3);
       }
 
-      .options:popover-open,
-      .menu:popover-open {
+      .options:popover-open {
         box-sizing: border-box;
         margin: 0;
         overflow-y: auto;
@@ -528,8 +521,7 @@ export class TriageIssues extends LitElement {
         --triage-filter-inset: var(--triage-space-4);
       }
 
-      .options::backdrop,
-      .menu::backdrop {
+      .options::backdrop {
         background: var(--triage-scrim);
       }
 
@@ -553,57 +545,9 @@ export class TriageIssues extends LitElement {
         color: var(--triage-text);
       }
 
-      .menu:popover-open {
-        min-width: 15rem;
-        padding: var(--triage-space-1-5);
-        border-radius: var(--triage-border-radius-md);
-        box-shadow: var(--triage-shadow);
-      }
-
-      #sort-menu {
-        position-anchor: --sort;
-      }
-
-      #group-menu {
-        position-anchor: --group;
-      }
-
-      .menu {
-        inset: auto;
-        top: calc(anchor(bottom) + var(--triage-space-1));
-        left: anchor(left);
-        position-try-fallbacks: flip-inline;
-      }
-
-      .menu hr {
-        margin: var(--triage-space-1) 0;
-        border: 0;
-        border-top: var(--triage-border-width) solid var(--triage-border);
-      }
-
-      .menu-item {
-        display: flex;
-        width: 100%;
-        min-height: 2.5rem;
-        gap: var(--triage-space-2);
-        padding: var(--triage-space-2) var(--triage-space-3);
-        background: none;
-        border: 0;
-        text-align: start;
-      }
-
-      .menu-item:hover {
-        background: var(--triage-border);
-      }
-
-      .tick,
       .wide-only,
       .narrow-only {
         display: inline-flex;
-      }
-
-      .tick {
-        width: 1.15em;
       }
 
       .options h2 {
@@ -659,19 +603,8 @@ export class TriageIssues extends LitElement {
         }
       }
 
-      button[aria-busy="true"] .icon {
-        animation: spin 1s linear infinite;
-      }
-
-      @keyframes spin {
-        to {
-          rotate: 1turn;
-        }
-      }
-
       @media (prefers-reduced-motion: reduce) {
-        .skeleton,
-        button[aria-busy="true"] .icon {
+        .skeleton {
           animation: none;
         }
       }
@@ -760,16 +693,6 @@ export class TriageIssues extends LitElement {
 
         .wide-only {
           display: none;
-        }
-
-        .menu:popover-open {
-          inset: auto 0 0;
-          width: 100%;
-          max-height: 85vh;
-          padding-block: var(--triage-space-3)
-            calc(var(--triage-space-3) + env(safe-area-inset-bottom));
-          border-radius: var(--triage-border-radius-lg)
-            var(--triage-border-radius-lg) 0 0;
         }
       }
 
@@ -882,9 +805,8 @@ export class TriageIssues extends LitElement {
   /** The skeleton filling the window while a fresh list loads. */
   @query(".list.skeleton") accessor skeleton: HTMLElement | null = null;
 
-  @query("#sort-menu") accessor sortMenu: HTMLElement | null = null;
-
-  @query("#group-menu") accessor groupMenu: HTMLElement | null = null;
+  /** The filters sheet, opened from the toolbar. */
+  @query("#options") accessor options: HTMLElement | null = null;
 
   /** The rows, whose offset tells the virtualiser where the list starts. */
   @query('[role="rowgroup"]') accessor rowGroup: HTMLElement | null = null;
@@ -1040,20 +962,22 @@ export class TriageIssues extends LitElement {
 
     return html`
       <div class="toolbar">
-        <button
-          popovertarget="options"
-          aria-label=${t("filters")}
-          title=${t("filters")}
-          aria-pressed=${filtering > 0}
-        >
-          ${icon(mdiFilterVariant)}<span class="button-label"
-            >${t("filters")}</span
+        <span class="filters">
+          <gw-button
+            variant="neutral"
+            appearance="outlined"
+            labels="auto"
+            icon=${mdiFilterVariant}
+            label=${filtering === 0 ? t("filters") : `${t("filters")} (${filtering})`}
+            class=${filtering === 0 ? "" : "active"}
+            @click=${() => this.options?.showPopover()}
+            >${t("filters")}</gw-button
           >${
             filtering === 0
               ? nothing
-              : html`<span class="count">${filtering}</span>`
+              : html`<span class="count" aria-hidden="true">${filtering}</span>`
           }
-        </button>
+        </span>
         <label class="search">
           ${icon(mdiMagnify)}
           <input
@@ -1076,39 +1000,67 @@ export class TriageIssues extends LitElement {
             }}
           />
         </label>
-        <button
-          popovertarget="group-menu"
-          aria-label=${t("group.by")}
-          title=${t("group.by")}
-          aria-pressed=${settings.group !== undefined}
-          style="anchor-name: --group"
-        >
-          ${icon(mdiFormatListGroup)}<span class="button-label"
-            >${settings.group === undefined ? t("group.button") : groupTitles[settings.group]}</span
-          >
-        </button>
-        <button
-          popovertarget="sort-menu"
-          aria-label=${t("sort.by")}
-          title=${t("sort.by")}
-          style="anchor-name: --sort"
-        >
-          ${icon(settings.order === "asc" ? mdiSortAscending : mdiSortDescending)}<span
-            class="button-label"
-            >${sortTitles[settings.sort]}</span
-          >
-        </button>
-        <button
-          class="icon-only"
-          aria-label=${t("refresh")}
-          title=${t("refresh")}
-          aria-busy=${this.#issues.value.waiting}
+        <gw-menu-button
+          labels="auto"
+          heading=${t("group.by")}
+          icon=${mdiFormatListGroup}
+          label=${
+            settings.group === undefined
+              ? t("group.button")
+              : groupTitles[settings.group]
+          }
+          ?active=${settings.group !== undefined}
+          .items=${[
+            ["", t("group.nothing")] as const,
+            ...Object.entries(groupTitles),
+          ].map(([value, label]) => ({
+            value,
+            label,
+            checked: value === (settings.group ?? ""),
+          }))}
+          @select=${(event: CustomEvent<{ readonly value: string }>) =>
+            this.#update({ group: event.detail.value })}
+        ></gw-menu-button>
+        <gw-menu-button
+          labels="auto"
+          heading=${t("sort.by")}
+          icon=${settings.order === "asc" ? mdiSortAscending : mdiSortDescending}
+          label=${sortTitles[settings.sort]}
+          .items=${[
+            ...Object.entries(sortTitles).map(([sort, label]) => ({
+              value: `sort:${sort}`,
+              label,
+              checked: sort === settings.sort,
+            })),
+            {
+              value: "order:asc",
+              label: t("sort.ascending"),
+              checked: settings.order === "asc",
+              separator: true,
+            },
+            {
+              value: "order:desc",
+              label: t("sort.descending"),
+              checked: settings.order !== "asc",
+            },
+          ]}
+          @select=${(event: CustomEvent<{ readonly value: string }>) => {
+            const [key, value] = event.detail.value.split(":");
+
+            this.#update(key === "order" ? { order: value } : { sort: value });
+          }}
+        ></gw-menu-button>
+        <gw-button
+          variant="neutral"
+          appearance="outlined"
+          labels="hide"
+          icon=${mdiRefresh}
+          ?loading=${this.#issues.value.waiting}
           @click=${() => this.#refresh()}
+          >${t("refresh")}</gw-button
         >
-          ${icon(mdiRefresh)}
-        </button>
       </div>
-      ${this.#renderMenus()} ${this.#renderSelection(selected)}
+      ${this.#renderSelection(selected)}
     `;
   }
 
@@ -1207,57 +1159,6 @@ export class TriageIssues extends LitElement {
           @filter-change=${(event: CustomEvent<ReadonlyArray<string>>) =>
             this.#update({ label: event.detail })}
         ></triage-filter>
-      </div>
-    `;
-  }
-
-  #renderMenus() {
-    const settings = this.#settings.value;
-
-    const item = (
-      menu: "sortMenu" | "groupMenu",
-      title: string,
-      checked: boolean,
-      change: () => void,
-    ) => html`
-      <button
-        class="menu-item"
-        role="menuitemradio"
-        aria-checked=${checked}
-        @click=${() => {
-          change();
-          this[menu]?.hidePopover();
-        }}
-      >
-        <span class="tick">${checked ? icon(mdiCheck) : nothing}</span>
-        ${title}
-      </button>
-    `;
-
-    return html`
-      <div id="sort-menu" class="menu" role="menu" popover>
-        ${Object.entries(sortTitles).map(([sort, title]) =>
-          item("sortMenu", title, sort === settings.sort, () =>
-            this.#update({ sort }),
-          ),
-        )}
-        <hr />
-        ${item("sortMenu", t("sort.ascending"), settings.order === "asc", () =>
-          this.#update({ order: "asc" }),
-        )}
-        ${item("sortMenu", t("sort.descending"), settings.order !== "asc", () =>
-          this.#update({ order: "desc" }),
-        )}
-      </div>
-      <div id="group-menu" class="menu" role="menu" popover>
-        ${[
-          ["", t("group.nothing")] as const,
-          ...Object.entries(groupTitles),
-        ].map(([group, title]) =>
-          item("groupMenu", title, group === (settings.group ?? ""), () =>
-            this.#update({ group }),
-          ),
-        )}
       </div>
     `;
   }
