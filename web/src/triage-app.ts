@@ -1,11 +1,14 @@
 import { mdiLogout } from "@mdi/js";
 import { css, html, LitElement } from "lit";
-import { customElement } from "lit/decorators.js";
+import { customElement, query } from "lit/decorators.js";
 import { AtomController, registry } from "./AtomController.js";
 import { t } from "./i18n.js";
 import { shared } from "./styles.js";
 import { homeHref, Route, route, token } from "./triage.js";
+import { bindThemePicker } from "./theme/picker.js";
 import { icon } from "./ui.js";
+import "@timmo001/groundwork-ui/gw-theme-picker.ts";
+import type { GwThemePicker } from "@timmo001/groundwork-ui/gw-theme-picker.ts";
 import "./triage-issue.js";
 import "./triage-issues.js";
 import "./triage-sign-in.js";
@@ -48,7 +51,7 @@ export class TriageApp extends LitElement {
         height: 1.75rem;
       }
 
-      header button {
+      header gw-theme-picker {
         margin-left: auto;
       }
 
@@ -89,6 +92,7 @@ export class TriageApp extends LitElement {
           </svg>
           Triage
         </a>
+        <gw-theme-picker gallery label=${t("theme")}></gw-theme-picker>
         ${
           this.#token.value === ""
             ? null
@@ -104,6 +108,21 @@ export class TriageApp extends LitElement {
         })}
       </main>
     `;
+  }
+
+  @query("gw-theme-picker") accessor picker: GwThemePicker | null = null;
+
+  #unbindTheme: (() => void) | undefined;
+
+  override firstUpdated() {
+    if (this.picker !== null) {
+      this.#unbindTheme = bindThemePicker(this.picker);
+    }
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.#unbindTheme?.();
   }
 
   readonly #signOut = () => registry.set(token, "");

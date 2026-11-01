@@ -8,6 +8,7 @@ export type Key =
   | "close"
   | "unknown"
   | "signOut"
+  | "theme"
   | "events"
   | "signIn.title"
   | "signIn.token"

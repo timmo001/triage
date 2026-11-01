@@ -8,6 +8,7 @@
     "types": [],
     "strict": true,
     "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true,
     "paths": {
       "@timmo001/effect-triage": ["../packages/effect-triage/src/index.ts"]

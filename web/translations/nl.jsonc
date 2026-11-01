@@ -16,6 +16,7 @@
   // for a decision.
   "unknown": "onbekend",
   "signOut": "Afmelden",
+  "theme": "Thema",
   // An issue's number of events, also filled into other messages as {events}.
   "events": {
     "one": "{count} gebeurtenis",

@@ -17,6 +17,8 @@
   // for a decision.
   "unknown": "unknown",
   "signOut": "Sign out",
+  // The header's button for the colour theme and light or dark mode.
+  "theme": "Theme",
   // An issue's number of events, also filled into other messages as {events}.
   "events": { "one": "{count} event", "other": "{count} events" },
 

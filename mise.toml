@@ -71,8 +71,18 @@ depends = ["install"]
 run = "bun run format:check"
 
 [tasks.check]
-description = "Lint, type-check, verify formatting, check the generated design docs and check the translations"
-depends = ["lint", "lint:lit", "typecheck", "format:check", "docs:check", "translations:check"]
+description = "Lint, type-check, verify formatting, check the generated theme and design docs and check the translations"
+depends = ["lint", "lint:lit", "typecheck", "format:check", "theme:check", "docs:check", "translations:check"]
+
+[tasks."theme:gen"]
+description = "Solve the web UI's Groundwork theme and the issue states' tones into CSS, and write the theme boot script"
+depends = ["install"]
+run = "bun scripts/generate-theme.ts"
+
+[tasks."theme:check"]
+description = "Check the web UI's generated theme CSS and boot script are up to date"
+depends = ["install"]
+run = "bun scripts/generate-theme.ts --check"
 
 [tasks."translations:check"]
 description = "Check every translation has English's keys, placeholders and the plural forms its language needs"

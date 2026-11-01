@@ -1,3 +1,5 @@
+@import "@timmo001/groundwork-tokens/themes.css";
+@import "./theme/themes.generated.css";
 @import "./design.css";
 
 :root {

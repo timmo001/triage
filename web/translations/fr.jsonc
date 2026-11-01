@@ -16,6 +16,7 @@
   // for a decision.
   "unknown": "inconnu",
   "signOut": "Se déconnecter",
+  "theme": "Thème",
   // An issue's number of events, also filled into other messages as {events}.
   "events": {
     "one": "{count} événement",

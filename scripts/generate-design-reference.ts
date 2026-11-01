@@ -1,10 +1,14 @@
 // Fills the generated regions of the docs design pages from the tokens in
-// web/src/design.css, so the docs always show the values the web UI uses.
-// With --check it writes nothing and fails if any region is out of date.
+// web/src/design.css, with the colours resolved through the Triage theme in
+// web/src/theme/themes.generated.css, so the docs always show the values the
+// web UI uses. With --check it writes nothing and fails if any region is out
+// of date.
 import { BunRuntime, BunServices } from "@effect/platform-bun";
 import { Effect, FileSystem, Schema } from "effect";
 
 const designFile = "web/src/design.css";
+
+const themeCssFile = "web/src/theme/themes.generated.css";
 
 const tokensPage = "docs/src/content/docs/design/index.md";
 
@@ -21,12 +25,7 @@ class DesignReferenceError extends Schema.TaggedError<DesignReferenceError>()(
 
 type Tokens = ReadonlyMap<string, string>;
 
-const media = {
-  dark: "(prefers-color-scheme: dark)",
-  p3: "(color-gamut: p3)",
-  p3Dark: "(color-gamut: p3) and (prefers-color-scheme: dark)",
-  reducedMotion: "(prefers-reduced-motion: reduce)",
-} as const;
+const reducedMotion = "(prefers-reduced-motion: reduce)";
 
 const normalise = (value: string) =>
   value.replace(/\s+/g, " ").replace(/\(\s/g, "(").replace(/\s\)/g, ")").trim();
@@ -56,39 +55,64 @@ const parseDesign = (css: string) =>
       ),
     );
 
-    const block = (query: string) =>
-      Effect.fromNullishOr(blocks.get(query)).pipe(
-        Effect.mapError(
-          () =>
-            new DesignReferenceError({
-              message: `No @media ${query} :root block in ${designFile}`,
-            }),
-        ),
-      );
+    const motion = yield* Effect.fromNullishOr(blocks.get(reducedMotion)).pipe(
+      Effect.mapError(
+        () =>
+          new DesignReferenceError({
+            message: `No @media ${reducedMotion} :root block in ${designFile}`,
+          }),
+      ),
+    );
 
-    return {
-      root: declarations(root),
-      dark: yield* block(media.dark),
-      p3: yield* block(media.p3),
-      p3Dark: yield* block(media.p3Dark),
-      reducedMotion: yield* block(media.reducedMotion),
-    };
+    return { root: declarations(root), reducedMotion: motion };
   });
 
 type Design = Effect.Success<ReturnType<typeof parseDesign>>;
 
-const merge = (...layers: ReadonlyArray<Tokens>): Tokens =>
-  new Map(layers.flatMap((layer) => [...layer]));
+// The Triage theme's roles and tones in one mode, by their full property name.
+type Theme = ReadonlyMap<string, string>;
 
-const resolve = (tokens: Tokens, value: string): string =>
-  value.replace(/var\(--triage-([\w-]+)\)/g, (match, name: string) => {
-    const referenced = tokens.get(name);
+const parseTheme = (css: string) =>
+  Effect.gen(function* () {
+    const mode = (selector: string): Theme =>
+      new Map(
+        [...css.matchAll(/^(.+?) \{([\s\S]*?)^\}/gm)]
+          .filter(([, found]) => found === selector)
+          .flatMap(([, , block = ""]) => [
+            ...block.matchAll(/(--(?:gw|app)-[\w-]+):\s*([^;]+);/g),
+          ])
+          .map(([, name = "", value = ""]) => [name, normalise(value)]),
+      );
 
-    return referenced === undefined ? match : resolve(tokens, referenced);
+    const light = mode('[data-gw-theme="triage"]');
+    const dark = mode('[data-gw-theme="triage"][data-gw-mode="dark"]');
+
+    if (light.size === 0 || dark.size === 0) {
+      return yield* new DesignReferenceError({
+        message: `No Triage theme in ${themeCssFile}. Run \`mise run theme:gen\`.`,
+      });
+    }
+
+    return { light, dark };
   });
 
-const isColour = (value: string) =>
-  /^(oklch|color-mix)\(/.test(value) && !value.includes(" / ");
+const resolve = (tokens: Tokens, theme: Theme, value: string): string =>
+  value
+    .replace(/var\(--triage-([\w-]+)\)/g, (match, name: string) => {
+      const referenced = tokens.get(name);
+
+      return referenced === undefined
+        ? match
+        : resolve(tokens, theme, referenced);
+    })
+    .replace(
+      /var\((--(?:gw|app)-[\w-]+)\)/g,
+      (match, name: string) => theme.get(name) ?? match,
+    );
+
+// What a colour token points at in the theme: a role or a state's tone.
+const source = (value: string) =>
+  /^var\(--((?:gw-color|app-tone)-[\w-]+)\)$/.exec(value)?.[1];
 
 const code = (value: string) => `\`${value}\``;
 
@@ -284,59 +308,56 @@ const tokenRegions = (design: Design) => {
   return regions;
 };
 
-const colourRegions = (design: Design) => {
-  const light = merge(design.root);
-  const lightP3 = merge(light, design.p3);
-  const dark = merge(design.root, design.dark);
-  const darkP3 = merge(dark, design.p3, design.p3Dark);
-
+const colourRegions = (
+  design: Design,
+  theme: { readonly light: Theme; readonly dark: Theme },
+) => {
   const colours = [...design.root].flatMap(([name, value]) =>
-    isColour(value) ? [name] : [],
+    source(value) === undefined ? [] : [name],
   );
 
-  // Neutrals come before the first colour that's more vivid in wide gamut.
-  const firstVivid = colours.findIndex((name) => design.p3.has(name));
-  const neutrals = colours.slice(0, firstVivid);
-  const vivid = colours.slice(firstVivid);
+  // Neutrals and the accent come from the theme's roles, the states from
+  // their tones.
+  const neutrals = colours.filter((name) =>
+    source(design.root.get(name) ?? "")?.startsWith("gw-"),
+  );
 
-  const swatches = (names: ReadonlyArray<string>, srgb: Tokens, p3: Tokens) => {
-    const chips = names.map((name) => {
-      const base = resolve(srgb, srgb.get(name) ?? "");
-      const wide = resolve(p3, p3.get(name) ?? "");
+  const states = colours.filter((name) => !neutrals.includes(name));
 
-      const spans = (base === wide ? [base] : [base, wide])
-        .map((value) => `<span style={{ background: "${value}" }} />`)
-        .join("");
+  const value = (mode: Theme, name: string) =>
+    resolve(design.root, mode, design.root.get(name) ?? "");
 
-      return `    <div className="swatch"><div className="chip">${spans}</div><span className="name">${name}</span></div>`;
-    });
+  const swatches = (names: ReadonlyArray<string>, mode: Theme) => [
+    '  <div className="swatches">',
+    ...names.map(
+      (name) =>
+        `    <div className="swatch"><div className="chip"><span style={{ background: "${value(mode, name)}" }} /></div><span className="name">${name}</span></div>`,
+    ),
+    "  </div>",
+  ];
 
-    return ['  <div className="swatches">', ...chips, "  </div>"];
-  };
-
-  const palette = (theme: string, srgb: Tokens, p3: Tokens) => [
-    `<div className="palette ${theme}">`,
-    ...swatches(neutrals, srgb, p3),
-    ...swatches(vivid, srgb, p3),
+  const palette = (name: string, mode: Theme) => [
+    `<div className="palette ${name}">`,
+    ...swatches(neutrals, mode),
+    ...swatches(states, mode),
     "</div>",
   ];
 
-  const values = (srgb: Tokens, p3: Tokens) =>
+  const values = (mode: Theme) =>
     table(
-      ["Token", "sRGB", "Wide gamut"],
-      colours.map((name) => {
-        const base = srgb.get(name) ?? "";
-        const wide = p3.get(name) ?? "";
-
-        return [token(name), code(base), base === wide ? "" : code(wide)];
-      }),
+      ["Token", "From", "Value"],
+      colours.map((name) => [
+        token(name),
+        code(`--${source(design.root.get(name) ?? "") ?? ""}`),
+        code(value(mode, name)),
+      ]),
     );
 
   const regions: ReadonlyArray<Region> = [
-    { name: "palette-light", render: () => palette("light", light, lightP3) },
-    { name: "values-light", render: () => values(light, lightP3) },
-    { name: "palette-dark", render: () => palette("dark", dark, darkP3) },
-    { name: "values-dark", render: () => values(dark, darkP3) },
+    { name: "palette-light", render: () => palette("light", theme.light) },
+    { name: "values-light", render: () => values(theme.light) },
+    { name: "palette-dark", render: () => palette("dark", theme.dark) },
+    { name: "values-dark", render: () => values(theme.dark) },
   ];
 
   const themes: Region = {
@@ -344,15 +365,16 @@ const colourRegions = (design: Design) => {
     render: () =>
       (
         [
-          ["light", light],
-          ["dark", dark],
+          ["light", theme.light],
+          ["dark", theme.dark],
         ] as const
-      ).flatMap(([theme, tokens], index) => [
+      ).flatMap(([name, mode], index) => [
         ...(index === 0 ? [] : [""]),
-        `.palette.${theme} {`,
-        ...neutrals.map(
-          (name) =>
-            `  --palette-${name}: ${resolve(tokens, tokens.get(name) ?? "")};`,
+        `.palette.${name} {`,
+        ...neutrals.flatMap((neutral) =>
+          neutral === "accent"
+            ? []
+            : [`  --palette-${neutral}: ${value(mode, neutral)};`],
         ),
         "}",
       ]),
@@ -364,9 +386,10 @@ const colourRegions = (design: Design) => {
 const program = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
   const design = yield* parseDesign(yield* fs.readFileString(designFile));
+  const theme = yield* parseTheme(yield* fs.readFileString(themeCssFile));
 
   const tokens = tokenRegions(design);
-  const colours = colourRegions(design);
+  const colours = colourRegions(design, theme);
 
   // A token none of the tables cover would be missing from the docs.
   const inProse = new Set(["font-size-scale"]);

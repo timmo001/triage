@@ -16,19 +16,19 @@
 /* generated:palette-themes */
 
 .palette.light {
-  --palette-bg: oklch(98.5% 0 0);
-  --palette-surface: oklch(100% 0 0);
-  --palette-text: oklch(21% 0.006 286);
-  --palette-muted: oklch(55.2% 0.014 286);
-  --palette-border: oklch(92% 0.004 287);
+  --palette-bg: oklch(97.5% 0.0024 285.98);
+  --palette-surface: oklch(99.5% 0.0012 285.98);
+  --palette-text: oklch(31.95% 0.0016 285.98);
+  --palette-muted: oklch(52.64% 0.0016 285.98);
+  --palette-border: oklch(89.5% 0.0024 285.98);
 }
 
 .palette.dark {
-  --palette-bg: oklch(17.9% 0.004 286);
-  --palette-surface: oklch(22.8% 0.006 286);
-  --palette-text: oklch(96.7% 0.001 288);
-  --palette-muted: oklch(71.2% 0.013 286);
-  --palette-border: oklch(30.3% 0.009 286);
+  --palette-bg: oklch(14.85% 0.0041 285.98);
+  --palette-surface: oklch(19.85% 0.0041 285.98);
+  --palette-text: oklch(86.81% 0.0016 285.98);
+  --palette-muted: oklch(62.54% 0.0016 285.98);
+  --palette-border: oklch(28.85% 0.0041 285.98);
 }
 
 /* /generated:palette-themes */

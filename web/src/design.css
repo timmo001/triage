@@ -5,26 +5,22 @@
  */
 :root {
   /*
-   * Colours, in OKLCH. The base values match the sRGB palette. Wide gamut
-   * displays, HDR ones included, get more vivid accent and state colours
-   * below.
+   * Colours, from the Groundwork theme in use: its roles for the neutrals
+   * and accent, and the issue states' tones solved against it, so every
+   * colour follows the theme and mode the visitor picks.
    */
-  --triage-bg: oklch(98.5% 0 0);
-  --triage-surface: oklch(100% 0 0);
-  --triage-text: oklch(21% 0.006 286);
-  --triage-muted: oklch(55.2% 0.014 286);
-  --triage-border: oklch(92% 0.004 287);
-  --triage-accent: oklch(56.1% 0.113 67);
-  --triage-new: oklch(54.6% 0.215 263);
-  --triage-regressed: oklch(57.7% 0.215 27);
-  --triage-ongoing: oklch(66.6% 0.157 58);
-  --triage-quiet: color-mix(
-    in oklch,
-    var(--triage-ongoing) 20%,
-    var(--triage-muted)
-  );
-  --triage-resolved: oklch(62.7% 0.17 149);
-  --triage-muted-state: oklch(55.2% 0.014 286);
+  --triage-bg: var(--gw-color-surface-default);
+  --triage-surface: var(--gw-color-surface-raised);
+  --triage-text: var(--gw-color-text-strong);
+  --triage-muted: var(--gw-color-text-secondary);
+  --triage-border: var(--gw-color-border-normal);
+  --triage-accent: var(--gw-color-accent);
+  --triage-new: var(--app-tone-new);
+  --triage-regressed: var(--app-tone-regressed);
+  --triage-ongoing: var(--app-tone-ongoing);
+  --triage-quiet: var(--app-tone-quiet);
+  --triage-resolved: var(--app-tone-resolved);
+  --triage-muted-state: var(--app-tone-muted);
   --triage-scrim: oklch(0% 0 0 / 40%);
   --triage-shadow: 0 0.5rem 1.5rem oklch(0% 0 0 / 40%);
 
@@ -77,42 +73,6 @@
   /* Motion */
   --triage-duration-fast: 150ms;
   --triage-duration-normal: 250ms;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --triage-bg: oklch(17.9% 0.004 286);
-    --triage-surface: oklch(22.8% 0.006 286);
-    --triage-text: oklch(96.7% 0.001 288);
-    --triage-muted: oklch(71.2% 0.013 286);
-    --triage-border: oklch(30.3% 0.009 286);
-    --triage-accent: oklch(78.4% 0.124 76);
-    --triage-new: oklch(71.4% 0.143 255);
-    --triage-regressed: oklch(71.1% 0.166 22);
-    --triage-ongoing: oklch(83.7% 0.164 84);
-    --triage-resolved: oklch(80% 0.182 152);
-    --triage-muted-state: oklch(71.2% 0.013 286);
-  }
-}
-
-@media (color-gamut: p3) {
-  :root {
-    --triage-accent: oklch(56.1% 0.13 67);
-    --triage-new: oklch(54.6% 0.245 263);
-    --triage-regressed: oklch(57.7% 0.245 27);
-    --triage-ongoing: oklch(66.6% 0.179 58);
-    --triage-resolved: oklch(62.7% 0.194 149);
-  }
-}
-
-@media (color-gamut: p3) and (prefers-color-scheme: dark) {
-  :root {
-    --triage-accent: oklch(78.4% 0.145 76);
-    --triage-new: oklch(70.7% 0.165 255);
-    --triage-regressed: oklch(70.4% 0.191 22);
-    --triage-ongoing: oklch(82.8% 0.189 84);
-    --triage-resolved: oklch(79.2% 0.209 152);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -16,6 +16,7 @@
   // for a decision.
   "unknown": "不明",
   "signOut": "サインアウト",
+  "theme": "テーマ",
   // An issue's number of events, also filled into other messages as {events}.
   "events": { "other": "{count} 件のイベント" },
 
