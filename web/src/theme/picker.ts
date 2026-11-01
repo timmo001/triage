@@ -3,6 +3,7 @@
 import type { GwThemePicker } from "@timmo001/groundwork-ui/gw-theme-picker.ts";
 import { on } from "@timmo001/groundwork-ui/on.ts";
 import { pageTheme, type ThemeMode } from "@timmo001/groundwork-tokens/page";
+import { Predicate } from "effect";
 import { themeChoices, themeOptions } from "./options.js";
 import { stateTones } from "./tones.js";
 
@@ -10,6 +11,21 @@ const page = pageTheme({
   ...themeOptions,
   themes: themeChoices,
   tones: stateTones,
+  // For the WebMCP theme tools, so an agent can pick Triage's own theme too
+  documents: async () => {
+    const [triage, { coreThemes }, { parseTheme }] = await Promise.all([
+      import("./triage.json", { with: { type: "json" } }),
+      import("@timmo001/groundwork-tokens/webmcp"),
+      import("@timmo001/groundwork-tokens/runtime"),
+    ]);
+
+    // Decoded by the kit, whose Effect may differ from the app's
+    const own = parseTheme(JSON.stringify(triage.default));
+
+    return Predicate.isTagged(own, "Success")
+      ? [own.success, ...coreThemes]
+      : coreThemes;
+  },
 });
 
 const modes: ReadonlyArray<ThemeMode> = ["auto", "light", "dark", "darker"];
