@@ -4,8 +4,6 @@ min_version = "2025.1.0"
 node = "26.13.0"
 bun = "1.4.4"
 pitchfork = "2.33.0"
-# Approved for aube's package-age check while the package is under 30 days old.
-"npm:@timmo001/tooling-drift" = { version = "0.1.5", allow_low_downloads = true }
 
 [tasks.install]
 description = "Install dependencies"
@@ -207,18 +205,3 @@ description = "Remove an admin from the background local server"
 usage = 'arg "<name>" help="The admin name"'
 run = 'env -u TRIAGE_SERVER -u TRIAGE_ADMIN_TOKEN TRIAGE_SERVER_DB="${XDG_STATE_HOME:-$HOME/.local/state}/triage/dev-server.db" bun run src/index.ts admins remove "${usage_name?}"'
 
-[tasks."tooling:status"]
-description = "Compare the reviewed Supervisor release in tooling.yml with the latest"
-run = "tooling-drift status"
-
-[tasks."tooling:update"]
-description = "Record a tool release as reviewed in tooling.yml after reviewing it"
-usage = '''
-arg "<repo>" help="Tool repository, e.g. home-assistant/supervisor"
-arg "<tag>" help="Release tag, e.g. 2026.10.1"
-'''
-run = "tooling-drift update $usage_repo $usage_tag"
-
-[tasks."tooling:publish"]
-description = "Open or refresh a review pull request when a newer Supervisor release is out"
-run = "tooling-drift publish"
