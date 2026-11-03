@@ -18,7 +18,7 @@
       "devDependencies": {
         "@effect/tsgo": "0.63.0",
         "@oxlint/plugins": "1.90.0",
-        "@timmo001/groundwork-tokens": "0.9.31",
+        "@timmo001/groundwork-tokens": "0.9.33",
         "@timmo001/oxlint-rules": "0.6.3",
         "@types/bun": "1.4.4",
         "@types/culori": "4.0.1",
@@ -62,7 +62,7 @@
         "@tanstack/lit-table": "9.3.1",
         "@tanstack/lit-virtual": "3.15.2",
         "@timmo001/effect-triage": "workspace:*",
-        "@timmo001/groundwork-tokens": "0.9.31",
+        "@timmo001/groundwork-tokens": "0.9.33",
         "@timmo001/groundwork-ui": "0.9.33",
         "dompurify": "3.4.17",
         "effect": "4.0.5",
@@ -188,7 +188,7 @@
 
     "@timmo001/effect-triage-client": ["@timmo001/effect-triage-client@workspace:packages/client"],
 
-    "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.9.31", "", { "dependencies": { "@types/culori": "4.0.1", "culori": "4.0.2", "effect": "4.1.1" } }, "sha512-9aZiGRY6lNuFOhpi9y5f2aM+uPxbjD6tg2xwkr4aLwId6uwTRPkJgbSH8NyRC6kmDjwH6CJhfw7AYm0bkgib1Q=="],
+    "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.9.33", "", { "dependencies": { "@types/culori": "4.0.1", "culori": "4.0.2", "effect": "4.1.2" } }, "sha512-ooruER7dfIgzfkDTmM2sar/X4diIsntt3sZ2hRFq2VgcThZpFFjCOA3BCsreuxEf2PSKnHREeHLDH7qrebt9pA=="],
 
     "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.9.33", "", {}, "sha512-lWClwPvA9kZsHOVK8kV+Ce6D68E36CwyPB3CuSlCYrMpUUBP1PCp3U1DhH12Q4CUSM2VtFN1gdv7wLVu3/r6Lg=="],
 
@@ -374,7 +374,7 @@
 
     "yargs-parser": ["yargs-parser@21.1.1", "", {}, "sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw=="],
 
-    "@timmo001/groundwork-tokens/effect": ["effect@4.1.1", "", {}, "sha512-XYu65BrcmNqu5i7PPvP4dqL+R5ma37zIsfuSPjcn78mog+6e5PkilNg7Xo+pBpjXJYlWEIpH4j91tMrfW05CMw=="],
+    "@timmo001/groundwork-tokens/effect": ["effect@4.1.2", "", {}, "sha512-d3Oah1WyKxFLFh19yWheS5IXIVaITzxZ71JkE1rkUozq/6EcJSU5nPk5bF2QrSygZ3SQoiNQB8TsxFriyMeMaQ=="],
 
     "web-component-analyzer/typescript": ["typescript@5.2.2", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-mI4WrpHsbCIcwT9cF4FZvr80QUeKvsUsUvKDoR+X/7XHQH98xYD8YHZg7ANtz2GtZt/CBq2QJ0thkGJMHfqc1w=="],
 
