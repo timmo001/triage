@@ -1,14 +1,7 @@
 import { Api } from "@timmo001/effect-triage";
-import {
-  Config,
-  Context,
-  Crypto,
-  Effect,
-  Layer,
-  Option,
-  Redacted,
-} from "effect";
-import { Base64Url, Hex } from "effect/encoding";
+import { Config, Context, Effect, Layer, Option, Redacted } from "effect";
+import { Digest, SecureRandom } from "effect/crypto";
+import { Base64Url } from "effect/encoding";
 import { Store, StoreError, Token, TokenScope } from "../store/Store.js";
 
 export const TokenName = Api.TokenName;
@@ -57,12 +50,14 @@ export class Tokens extends Context.Service<
     Tokens,
     Effect.gen(function* () {
       const store = yield* Store;
-      const crypto = yield* Crypto.Crypto;
+      const digest = yield* Digest.Digest;
+      const random = yield* SecureRandom.SecureRandom;
 
       const hash = (token: Redacted.Redacted) =>
-        crypto
-          .digest("SHA-256", new TextEncoder().encode(Redacted.value(token)))
-          .pipe(Effect.map(Hex.encode), Effect.orDie);
+        digest.digestHex(
+          Digest.sha256,
+          new TextEncoder().encode(Redacted.value(token)),
+        );
 
       const settingsToken = yield* Config.option(
         Config.Redacted("TRIAGE_SERVER_ADMIN_TOKEN"),
@@ -87,7 +82,7 @@ export class Tokens extends Context.Service<
         scope: TokenScope,
         name: string,
       ) {
-        const bytes = yield* crypto.randomBytes(32).pipe(Effect.orDie);
+        const bytes = yield* random.randomBytes(32);
         const token = Redacted.make(Base64Url.encode(bytes));
         const added = yield* store.addToken(scope, name, yield* hash(token));
 
@@ -129,5 +124,9 @@ export class Tokens extends Context.Service<
         revoke,
       });
     }),
+  ).pipe(
+    Layer.provide(
+      Layer.mergeAll(Digest.layerWebCrypto, SecureRandom.layerWebCrypto),
+    ),
   );
 }

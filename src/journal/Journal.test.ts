@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Effect, Layer, Stream } from "effect";
+import { Effect, Layer, Redacted, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { Journal } from "./Journal.js";
 
@@ -78,6 +78,10 @@ describe("Journal", () => {
     expect(command.args).toContain("--merge");
     expect(command.args).toContain("SYSLOG_IDENTIFIER=homeassistant");
     expect(command.args).toContain("SYSLOG_IDENTIFIER=addon_example");
-    expect(command.args.some((arg) => arg.startsWith("PRIORITY="))).toBe(false);
+    expect(
+      command.args.some(
+        (arg) => !Redacted.isRedacted(arg) && arg.startsWith("PRIORITY="),
+      ),
+    ).toBe(false);
   });
 });

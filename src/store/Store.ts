@@ -7,6 +7,7 @@ import {
   Warning,
 } from "@timmo001/effect-triage";
 import {
+  Array as Arr,
   Clock,
   Config,
   Context,
@@ -1427,7 +1428,7 @@ export class Store extends Context.Service<
 
     const remember = Effect.fn("Store.remember")(
       function* (redactions: ReadonlyArray<Redaction>) {
-        if (redactions.length === 0) {
+        if (!Arr.isReadonlyArrayNonEmpty(redactions)) {
           return 0;
         }
 
@@ -1435,7 +1436,7 @@ export class Store extends Context.Service<
 
         const added = yield* sql<{ token: string }>`
           INSERT OR IGNORE INTO redactions ${sql.insert(
-            redactions.map(({ token, kind, value }) => ({
+            Arr.map(redactions, ({ token, kind, value }) => ({
               token,
               kind,
               value,
@@ -1490,13 +1491,13 @@ export class Store extends Context.Service<
 
     const redactionsUploaded = Effect.fn("Store.redactionsUploaded")(
       function* (target: string, tokens: ReadonlyArray<string>) {
-        if (tokens.length === 0) {
+        if (!Arr.isReadonlyArrayNonEmpty(tokens)) {
           return;
         }
 
         yield* sql`
           INSERT OR IGNORE INTO redaction_uploads ${sql.insert(
-            tokens.map((token) => ({ target, token })),
+            Arr.map(tokens, (token) => ({ target, token })),
           )}
         `;
       },
@@ -1592,9 +1593,7 @@ export class Store extends Context.Service<
     const chunkRows = 500;
 
     const chunks = <A>(items: ReadonlyArray<A>) =>
-      Array.from({ length: Math.ceil(items.length / chunkRows) }, (_, index) =>
-        items.slice(index * chunkRows, (index + 1) * chunkRows),
-      );
+      Arr.chunksOf(items, chunkRows);
 
     /** What's known of the issue a fingerprint belongs to. */
     interface Owner {
@@ -1669,7 +1668,7 @@ export class Store extends Context.Service<
       for (const batch of chunks([...started.values()])) {
         yield* sql`
           INSERT INTO issues ${sql.insert(
-            batch.map((issue) => ({
+            Arr.map(batch, (issue) => ({
               id: issue.id,
               fingerprint: issue.fingerprint,
               kind: issue.kind,
@@ -1684,7 +1683,7 @@ export class Store extends Context.Service<
 
         yield* sql`
           INSERT INTO issue_fingerprints ${sql.insert(
-            batch.map((issue) => ({
+            Arr.map(batch, (issue) => ({
               fingerprint: issue.fingerprint,
               issue_id: issue.id,
             })),
@@ -1718,24 +1717,28 @@ export class Store extends Context.Service<
       let total = 0;
 
       for (const batch of chunks(pairs)) {
+        const values = yield* Effect.forEach(batch, ({ event, issue }) =>
+          Effect.map(encodeEvent(event), (data) => ({
+            host: event.host,
+            id: event.id,
+            issue_id: ownerOf(issue).issueId,
+            fingerprint: issue.fingerprint,
+            timestamp: event.timestamp,
+            data,
+          })),
+        );
+
+        if (!Arr.isReadonlyArrayNonEmpty(values)) {
+          continue;
+        }
+
         const rows = yield* sql<{
           host: string;
           id: string;
           issue_id: string;
           timestamp: number;
         }>`
-          INSERT INTO events ${sql.insert(
-            yield* Effect.forEach(batch, ({ event, issue }) =>
-              Effect.map(encodeEvent(event), (data) => ({
-                host: event.host,
-                id: event.id,
-                issue_id: ownerOf(issue).issueId,
-                fingerprint: issue.fingerprint,
-                timestamp: event.timestamp,
-                data,
-              })),
-            ),
-          )}
+          INSERT INTO events ${sql.insert(values)}
           ON CONFLICT (host, id) DO NOTHING
           RETURNING host, id, issue_id, timestamp
         `;

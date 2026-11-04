@@ -1290,16 +1290,18 @@ const eventFields = (event: Event.Event, values: TokenValues) => {
             values,
           ),
     ],
-    ...Event.Event.match<ReadonlyArray<Field>>(event, {
-      Crash: (crash) => [
+    ...Event.Event.match(event, {
+      Crash: (crash): ReadonlyArray<Field> => [
         [t("field.executable"), mdiFileCogOutline, crash.executable],
         [t("field.signal"), mdiLightningBolt, crash.signal],
       ],
-      UnitFailure: (failure) => [
+      UnitFailure: (failure): ReadonlyArray<Field> => [
         [t("field.result"), mdiExitToApp, failure.result],
       ],
-      OutOfMemory: (oom) => [[t("field.killed"), mdiSkullOutline, oom.process]],
-      LogError: () => [],
+      OutOfMemory: (oom): ReadonlyArray<Field> => [
+        [t("field.killed"), mdiSkullOutline, oom.process],
+      ],
+      LogError: (): ReadonlyArray<Field> => [],
     }),
     [
       t("field.package"),

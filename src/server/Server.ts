@@ -676,8 +676,13 @@ export const layer = (options: ServeOptions) =>
         mcpRoutes.pipe(Layer.provide(McpAdminAuthorization)),
         web({ ingress: false }),
       ),
+      // The proxy is the only way in, so every peer is one
       options.trustProxy
-        ? { middleware: HttpMiddleware.xForwardedHeaders }
+        ? {
+            middleware: HttpMiddleware.xForwardedHeaders({
+              trustedProxies: () => true,
+            }),
+          }
         : {},
     ).pipe(
       Layer.provide(
