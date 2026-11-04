@@ -148,6 +148,29 @@ describe("Supervisor records", () => {
     expect(event?.integration).toBeUndefined();
     expect(event?.message).toBe("Example app crashed at <ip>");
   });
+
+  test("read with the UTC offset the Supervisor adds from 2026.10.5", () => {
+    const records = recordsOf([
+      line(
+        "2026-10-10 12:00:00.123+01:00 ERROR (MainThread) [supervisor.apps.app] Example app crashed",
+      ),
+      line("Traceback (most recent call last):"),
+      line(
+        "2026-10-10 12:00:01.000-05:30 WARNING (MainThread) [supervisor.store] Slow reload",
+      ),
+    ]);
+
+    expect(
+      records.map((record) => [record.severity, record.logger, record.lines]),
+    ).toEqual([
+      [
+        "err",
+        "supervisor.apps.app",
+        ["Example app crashed", "Traceback (most recent call last):"],
+      ],
+      ["warning", "supervisor.store", ["Slow reload"]],
+    ]);
+  });
 });
 
 describe("apps' records", () => {

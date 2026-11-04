@@ -85,9 +85,11 @@ const colours = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 /**
  * The start of a Core log record, in Core's own format:
  * `2026-10-10 12:00:00.123 ERROR (MainThread) [homeassistant.core] Message`.
+ * The Supervisor adds the UTC offset to its timestamps from 2026.10.5:
+ * `2026-10-10 12:00:00.123+01:00`.
  */
 const recordStart =
-  /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)? (?<level>[A-Z]+) \(.*?\) \[(?<logger>[^\]]+)\] (?<message>.*)$/s;
+  /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}(?::\d{2})?)? (?<level>[A-Z]+) \(.*?\) \[(?<logger>[^\]]+)\] (?<message>.*)$/s;
 
 /** A level below warning, which starts a record that triage leaves out. */
 const below = "below";
