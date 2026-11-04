@@ -34,7 +34,7 @@
     "effect": "4.0.5"
   },
   "devDependencies": {
-    "@effect/tsgo": "0.64.1",
+    "@effect/tsgo": "0.67.0",
     "@oxlint/plugins": "1.90.0",
     "@timmo001/groundwork-tokens": "0.9.33",
     "@timmo001/oxlint-rules": "0.6.3",
