@@ -12,7 +12,7 @@
     "@effect/platform-browser": "4.1.2",
     "@mdi/js": "7.4.47",
     "@tanstack/lit-table": "9.3.1",
-    "@tanstack/lit-virtual": "3.15.2",
+    "@tanstack/lit-virtual": "3.15.3",
     "@timmo001/effect-triage": "workspace:*",
     "@timmo001/groundwork-tokens": "0.9.35",
     "@timmo001/groundwork-ui": "0.9.35",
