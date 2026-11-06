@@ -43,7 +43,7 @@
     "@typescript/native": "npm:typescript@7.0.2",
     "lit-analyzer": "2.0.3",
     "oxlint": "1.91.0",
-    "oxlint-tsgolint": "7.0.2005",
+    "oxlint-tsgolint": "7.0.2006",
     "prettier": "3.9.10",
     "typescript": "6.0.3"
   },
