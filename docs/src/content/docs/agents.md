@@ -42,6 +42,18 @@ The release tarballs also carry the skill beside the binary, in `skills/triage-r
 
 Agents ask you before merging issues too, since a wrong merge mixes their events and statuses. `merge_issues` is marked destructive, so clients that check for that ask you to approve it as well.
 
+## OpenCode plugin
+
+The OpenCode plugin in `opencode-plugin/` gives OpenCode the same tools as a `triage` Code Mode namespace, so an agent can chain them in one script. Load it from the repository:
+
+```json
+{
+  "plugins": ["github:timmo001/triage#main::path:opencode-plugin"]
+}
+```
+
+It reads the tools from `triage agent tools --json` and runs each with `triage agent call`, on the server at `TRIAGE_SERVER` as the admin in `TRIAGE_ADMIN_TOKEN`, so they always match the `triage` on your `PATH`, and notes are redacted on your machine before they're sent. It leaves the namespace out when either isn't set. Tools that change something ask first. "Always allow" on `set_issue_status`, `add_issue_note` or `label_issue` covers one issue, and `merge_issues` asks every time.
+
 ## Over stdio
 
 `triage mcp` serves the tools to an agent that starts it. It reads the server at `TRIAGE_SERVER` as the admin in `TRIAGE_ADMIN_TOKEN`, or the server database on this machine when `TRIAGE_SERVER` isn't set. For OpenCode:

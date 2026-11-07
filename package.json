@@ -12,9 +12,9 @@
     "build": "bun build src/index.ts --compile --minify --bytecode --format=esm --keep-names --no-compile-autoload-dotenv --no-compile-autoload-bunfig --outfile dist/triage",
     "test": "bun test --pass-with-no-tests",
     "lint": "oxlint .",
-    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit && node node_modules/@typescript/native/bin/tsc --noEmit -p web",
-    "format": "prettier --write \"src/**/*.ts\" \"packages/*/src/**/*.ts\" \"scripts/**/*.ts\" \"web/src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"packages/*/src/**/*.ts\" \"scripts/**/*.ts\" \"web/src/**/*.ts\"",
+    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit && node node_modules/@typescript/native/bin/tsc --noEmit -p web && node node_modules/@typescript/native/bin/tsc -p opencode-plugin",
+    "format": "prettier --write \"src/**/*.ts\" \"packages/*/src/**/*.ts\" \"scripts/**/*.ts\" \"web/src/**/*.ts\" \"opencode-plugin/src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"packages/*/src/**/*.ts\" \"scripts/**/*.ts\" \"web/src/**/*.ts\" \"opencode-plugin/src/**/*.ts\"",
     "check": "bun run lint && bun run typecheck && bun run lint:lit && bun run format:check && bun run docs:check && bun run translations:check",
     "docs:check": "bun scripts/generate-design-reference.ts --check",
     "translations:check": "bun scripts/check-translations.ts",
@@ -49,6 +49,7 @@
   },
   "workspaces": [
     "packages/*",
-    "web"
+    "web",
+    "opencode-plugin"
   ]
 }

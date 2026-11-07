@@ -12,6 +12,7 @@
 ## Rules
 
 - Keep source under `src/`. Keep the CLI tree in `src/index.ts` so help and completions come from one place.
+- The OpenCode plugin in `opencode-plugin/` registers the `triage` Code Mode namespace from `triage agent tools --json` (the MCP server's `IssueTools`, through `src/mcp/Agent.ts`) and runs each with `triage agent call`, so a new tool there needs no plugin change. It pins OpenCode's `@opencode/plugin` and Effect versions, and isn't published.
 - Published libraries live under `packages/`: `@timmo001/effect-triage` (shared schemas and protocol) and `@timmo001/effect-triage-client` (the client). One version covers the CLI and both libraries.
 - Pin dependencies to exact versions (`bun add -E`).
 - Run project tasks through mise. Scripts complex enough to need logic are written in Effect and exposed as mise tasks.
