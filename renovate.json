@@ -12,6 +12,12 @@
       "description": "lit-analyzer needs the TypeScript JS API, which TypeScript 7 doesn't have. Type-checking uses @typescript/native.",
       "matchDepNames": ["typescript"],
       "allowedVersions": "<7"
+    },
+    {
+      "description": "The OpenCode plugin runs on OpenCode's own Effect, so it stays on the version @opencode/plugin pins. Bumping it alone gives the type-check two Effect versions.",
+      "matchFileNames": ["opencode-plugin/package.json"],
+      "matchDepNames": ["effect"],
+      "enabled": false
     }
   ]
 }
