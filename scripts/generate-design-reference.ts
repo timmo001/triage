@@ -74,11 +74,13 @@ type Theme = ReadonlyMap<string, string>;
 
 const parseTheme = (css: string) =>
   Effect.gen(function* () {
+    // Rule blocks at any depth, skipping at-rules such as the
+    // `@layer groundwork.tokens` wrapper so the rules inside them still match.
     const mode = (selector: string): Theme =>
       new Map(
-        [...css.matchAll(/^(.+?) \{([\s\S]*?)^\}/gm)]
-          .filter(([, found]) => found === selector)
-          .flatMap(([, , block = ""]) => [
+        [...css.matchAll(/^( *)([^@\s].*?) \{([\s\S]*?)^\1\}/gm)]
+          .filter(([, , found]) => found === selector)
+          .flatMap(([, , , block = ""]) => [
             ...block.matchAll(/(--(?:gw|app)-[\w-]+):\s*([^;]+);/g),
           ])
           .map(([, name = "", value = ""]) => [name, normalise(value)]),
