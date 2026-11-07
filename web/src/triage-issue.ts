@@ -47,7 +47,7 @@ import { marked } from "marked";
 import { AtomController, registry } from "./AtomController.js";
 import { parts, t } from "./i18n.js";
 import { shared } from "./styles.js";
-import "@timmo001/groundwork-ui/gw-skeleton.ts";
+import "@timmo001/groundwork-ui/define/gw-skeleton.ts";
 import {
   addNote,
   homeHref,

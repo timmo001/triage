@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "rm -rf dist && bun build index.html --outdir dist --minify --conditions=bun",
-    "lint:lit": "lit-analyzer \"src/**/*.ts\" --strict"
+    "lint:lit": "lit-analyzer \"src/**/*.ts\" --strict --maxNodeModuleImportDepth 3"
   },
   "dependencies": {
     "@effect/platform-browser": "4.1.2",
@@ -14,8 +14,8 @@
     "@tanstack/lit-table": "9.3.1",
     "@tanstack/lit-virtual": "3.15.3",
     "@timmo001/effect-triage": "workspace:*",
-    "@timmo001/groundwork-tokens": "0.10.14",
-    "@timmo001/groundwork-ui": "0.10.14",
+    "@timmo001/groundwork-tokens": "0.11.0",
+    "@timmo001/groundwork-ui": "0.11.0",
     "dompurify": "3.4.17",
     "effect": "4.1.2",
     "lit": "3.3.3",

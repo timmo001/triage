@@ -14,10 +14,10 @@ import { html, svg } from "lit";
 import { registry } from "./AtomController.js";
 import { language, t } from "./i18n.js";
 import "./triage-sign-in.js";
-import "@timmo001/groundwork-ui/gw-alert.ts";
-import "@timmo001/groundwork-ui/gw-badge.ts";
-import "@timmo001/groundwork-ui/gw-button.ts";
-import "@timmo001/groundwork-ui/gw-empty-state.ts";
+import "@timmo001/groundwork-ui/define/gw-alert.ts";
+import "@timmo001/groundwork-ui/define/gw-badge.ts";
+import "@timmo001/groundwork-ui/define/gw-button.ts";
+import "@timmo001/groundwork-ui/define/gw-empty-state.ts";
 import { resolveTokens, token } from "./triage.js";
 
 /** A Material Design icon, from one of `@mdi/js`'s paths. */

@@ -7,7 +7,7 @@ import { shared } from "./styles.js";
 import { homeHref, Route, route, token } from "./triage.js";
 import { bindThemePicker } from "./theme/picker.js";
 import { icon } from "./ui.js";
-import "@timmo001/groundwork-ui/gw-theme-picker.ts";
+import "@timmo001/groundwork-ui/define/gw-theme-picker.ts";
 import type { GwThemePicker } from "@timmo001/groundwork-ui/gw-theme-picker.ts";
 import "./triage-issue.js";
 import "./triage-issues.js";

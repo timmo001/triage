@@ -36,7 +36,7 @@
   "devDependencies": {
     "@effect/tsgo": "0.67.5",
     "@oxlint/plugins": "1.92.0",
-    "@timmo001/groundwork-tokens": "0.10.14",
+    "@timmo001/groundwork-tokens": "0.11.0",
     "@timmo001/oxlint-rules": "0.6.4",
     "@types/bun": "1.4.4",
     "@types/culori": "4.0.1",

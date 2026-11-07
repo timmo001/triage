@@ -10,7 +10,7 @@ import { customElement, property, query } from "lit/decorators.js";
 import { t } from "./i18n.js";
 import { shared } from "./styles.js";
 import { badge, icon } from "./ui.js";
-import "@timmo001/groundwork-ui/gw-skeleton.ts";
+import "@timmo001/groundwork-ui/define/gw-skeleton.ts";
 
 export interface FilterOption {
   readonly value: string;

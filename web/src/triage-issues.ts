@@ -68,11 +68,11 @@ import {
   tokenValues,
 } from "./triage.js";
 import "./triage-filter.js";
-import "@timmo001/groundwork-ui/gw-skeleton.ts";
-import "@timmo001/groundwork-ui/gw-button.ts";
-import "@timmo001/groundwork-ui/gw-input.ts";
-import "@timmo001/groundwork-ui/gw-menu-button.ts";
-import "@timmo001/groundwork-ui/gw-sheet.ts";
+import "@timmo001/groundwork-ui/define/gw-skeleton.ts";
+import "@timmo001/groundwork-ui/define/gw-button.ts";
+import "@timmo001/groundwork-ui/define/gw-input.ts";
+import "@timmo001/groundwork-ui/define/gw-menu-button.ts";
+import "@timmo001/groundwork-ui/define/gw-sheet.ts";
 import type { GwSheet } from "@timmo001/groundwork-ui/gw-sheet.ts";
 import {
   ago,

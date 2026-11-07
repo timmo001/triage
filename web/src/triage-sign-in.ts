@@ -4,8 +4,8 @@ import { registry } from "./AtomController.js";
 import { parts, t } from "./i18n.js";
 import { shared } from "./styles.js";
 import { token } from "./triage.js";
-import "@timmo001/groundwork-ui/gw-button.ts";
-import "@timmo001/groundwork-ui/gw-input.ts";
+import "@timmo001/groundwork-ui/define/gw-button.ts";
+import "@timmo001/groundwork-ui/define/gw-input.ts";
 
 @customElement("triage-sign-in")
 export class TriageSignIn extends LitElement {
