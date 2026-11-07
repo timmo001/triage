@@ -31,6 +31,7 @@ Each command has its own page with its help, as `triage <command> --help` prints
 | [`unmerge`](/commands/unmerge) | None |
 | [`agreement`](/commands/agreement) | None |
 | [`mcp`](/commands/mcp) | None |
+| [`agent`](/commands/agent) | None |
 
 ## Global flags
 
@@ -71,4 +72,5 @@ SUBCOMMANDS
   unmerge      Move a fingerprint's events out of a merged issue into an issue of their own, or list its fingerprints
   agreement    Compare each decision model with the hand labels: how often it's sure enough to act on, and how often it's right when it is
   mcp          Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed, and resolve, mute, label or note on them
+  agent        The Code Mode tools the OpenCode plugin registers, from the MCP server's issue tools
 ```

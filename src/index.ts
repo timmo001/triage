@@ -11,6 +11,8 @@ import {
   Option,
   Redacted,
   Runtime,
+  Stdio,
+  Stream,
 } from "effect";
 import { McpServer } from "effect/ai";
 import { Argument, CliError, Command, Flag } from "effect/cli";
@@ -22,6 +24,7 @@ import { HomeAssistantConfig } from "./homeassistant/Config.js";
 import { CollectionStatus } from "./homeassistant/Status.js";
 import { Journal } from "./journal/Journal.js";
 import { formatLine } from "./logger.js";
+import * as Agent from "./mcp/Agent.js";
 import {
   issueId,
   IssueTools,
@@ -992,6 +995,86 @@ const mcp = Command.make(
   ),
 );
 
+// Stdout carries the JSON, so logs go to stderr.
+const agentLogger = Logger.layer([Logger.withConsoleError(formatLine)]);
+
+const agentTools = Command.make(
+  "tools",
+  {
+    json: Flag.Boolean("json").pipe(
+      Flag.withDescription("Print JSON (the only format)"),
+      Flag.withDefault(true),
+    ),
+  },
+  Effect.fn(function* () {
+    const server = yield* Config.option(Config.String("TRIAGE_SERVER"));
+    const token = yield* Config.option(Config.String("TRIAGE_ADMIN_TOKEN"));
+
+    yield* Console.log(
+      JSON.stringify(
+        Agent.manifest(Option.isSome(server) && Option.isSome(token)),
+        null,
+        2,
+      ),
+    );
+  }),
+).pipe(
+  Command.withDescription(
+    "Print the Code Mode tools as JSON, and whether $TRIAGE_SERVER and $TRIAGE_ADMIN_TOKEN are set to call them with",
+  ),
+);
+
+const agentCall = Command.make(
+  "call",
+  {
+    tool: Argument.Literals("tool", Agent.toolNames).pipe(
+      Argument.withDescription("The tool to run, from triage agent tools"),
+    ),
+    server: serverFlag(
+      "Act on the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of the server database on this machine",
+    ),
+  },
+  Effect.fn(
+    function* (input) {
+      const stdio = yield* Stdio.Stdio;
+
+      const text = yield* stdio.stdin.pipe(
+        Stream.decodeText(),
+        Stream.mkString,
+      );
+
+      const output = yield* withIssueAdmin(
+        input.server,
+        Agent.call(input.tool, text).pipe(Effect.provide(IssueToolsLayer)),
+      );
+
+      yield* Console.log(output);
+    },
+    // The plugin shows the end of stderr, so a failure is one line, not a trace.
+    Effect.catchTag("AgentError", (error) =>
+      Console.error(`triage: ${error.message}`).pipe(
+        Effect.andThen(
+          Effect.sync(() => {
+            process.exitCode = 1;
+          }),
+        ),
+      ),
+    ),
+    Effect.provide(Layer.mergeAll(BunStdio.layer, agentLogger)),
+  ),
+).pipe(
+  Command.withDescription(
+    "Run a Code Mode tool with its input as JSON on stdin and print its result as JSON",
+  ),
+);
+
+const agent = Command.make("agent").pipe(
+  Command.withDescription(
+    "The Code Mode tools the OpenCode plugin registers, from the MCP server's issue tools",
+  ),
+  Command.withSubcommands([agentTools, agentCall]),
+);
+
 /** Whether and how this device decides on issues and suggests fixes. */
 const processFlags = {
   decide: Flag.Boolean("decide").pipe(
@@ -1419,6 +1502,7 @@ const triage = Command.make("triage").pipe(
     unmerge,
     agreementCommand,
     mcp,
+    agent,
   ]),
 );
 
