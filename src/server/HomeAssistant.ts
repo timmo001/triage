@@ -13,8 +13,10 @@ const SelfInfo = Schema.Struct({
 /**
  * Announces the MCP server on the ingress port to Home Assistant through the
  * Supervisor, which asks the user to add it. Does nothing outside a Home
- * Assistant app, where there's no `$SUPERVISOR_TOKEN`. The Supervisor ignores
- * a repeated announcement, so it's sent on every start.
+ * Assistant app, where there's no `$SUPERVISOR_TOKEN`. It's sent on every
+ * start: the Supervisor drops a repeat while the app keeps running, and from
+ * 2026.11.0 passes the first one after each start on to Home Assistant, which
+ * stops there once the MCP server is added.
  */
 export const layerDiscovery = (options: {
   readonly port: number;
