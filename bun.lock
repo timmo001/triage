@@ -19,7 +19,7 @@
         "@effect/tsgo": "0.67.5",
         "@oxlint/plugins": "1.92.0",
         "@timmo001/groundwork-tokens": "0.20.2",
-        "@timmo001/oxlint-rules": "0.6.4",
+        "@timmo001/oxlint-rules": "0.6.5",
         "@types/bun": "1.4.4",
         "@types/culori": "4.0.1",
         "@typescript/native": "npm:typescript@7.0.2",
@@ -401,7 +401,7 @@
 
     "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.20.2", "", { "dependencies": { "@codemirror/lang-json": "6.0.2", "@codemirror/language": "6.13.1", "@codemirror/search": "6.7.2", "@codemirror/state": "6.7.6", "@codemirror/view": "6.43.15", "@lezer/highlight": "1.2.5", "@tanstack/table-core": "9.3.1", "@tanstack/virtual-core": "3.19.11", "micromark": "4.0.3", "micromark-extension-gfm": "3.0.0" } }, "sha512-WoGGe5MSN6XE34lPb010GxlPZ6yuGEXLn3aVDj0PC5TWTt+NyjF6d5L3+LT7C8kXgQw703gHunaQ4bianAY69A=="],
 
-    "@timmo001/oxlint-rules": ["@timmo001/oxlint-rules@0.6.4", "", { "peerDependencies": { "@oxlint/plugins": "^1.91.0", "oxlint": "^1.91.0" }, "bin": { "oxlint-rules": "dist/cli.js" } }, "sha512-FHVvFrgyhw8JuE+eL+1/ABEWTynttmornkOU5a2WutAZeAkNQK38olP//u0OGOEKgtmHORTbUWD9jq9CmeJXmA=="],
+    "@timmo001/oxlint-rules": ["@timmo001/oxlint-rules@0.6.5", "", { "peerDependencies": { "@oxlint/plugins": "^1.91.0", "oxlint": "^1.91.0" }, "bin": { "oxlint-rules": "dist/cli.js" } }, "sha512-BFDZ+yFyzT0jQA3A5Cgb533e5BwJBS4wWG4Z7JNQ+yjyZJspzssMLRRdoFk1bx7g1mWWvSFgl920vmtTXJJGZQ=="],
 
     "@triage/opencode": ["@triage/opencode@workspace:opencode-plugin"],
 
