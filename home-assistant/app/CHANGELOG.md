@@ -1,29 +1,21 @@
-The web UI moves onto Groundwork, with a theme picker, and agents can filter and open issues in it through WebMCP.
-
-## Web UI
-
-- **Groundwork themes**: the web UI is themed with Groundwork, and a theme picker lets you choose another theme. Triage's own theme is still offered.
-- The search, filters, issue list toolbar, sort and group menus, sign-in form, badges, loading skeletons and messages use Groundwork's components, and its scrollbars replace Triage's own.
+OpenCode can use triage's issue tools as a `triage` Code Mode namespace, through the new `triage agent` commands and an OpenCode plugin.
 
 ## Agents
 
-- **WebMCP tools**: `filter-issues` filters the issue list and `open-issue` opens an issue. `set-theme` offers Triage's theme.
+- **`triage agent tools`** prints the MCP server's issue tools as Code Mode tools in JSON, and whether `$TRIAGE_SERVER` and `$TRIAGE_ADMIN_TOKEN` are set to call them with. **`triage agent call <tool>`** runs one with its input as JSON on stdin and prints its result as JSON, on the server in `$TRIAGE_SERVER` or `--server`, or the server database on this machine.
+- **OpenCode plugin**: `opencode-plugin/` registers those tools as a `triage` Code Mode namespace, so an agent can chain them in one script. Load it with `github:timmo001/triage#main::path:opencode-plugin`; it needs triage 0.22.0 or later on your `PATH`. Tools that change something ask first: "Always allow" on `set_issue_status`, `add_issue_note` or `label_issue` covers one issue, and `merge_issues` asks every time. See [Agents](https://triage.timmo.dev/agents).
 
 ## Home Assistant
 
-- Supervisor log records with a UTC offset in their timestamp are read correctly. Reviewed against Supervisor 2026.10.5.
+- Reviewed against Supervisor 2026.11.0, with no changes needed.
 
-## Libraries
+## Server
 
-- `@timmo001/effect-triage` and `@timmo001/effect-triage-client` accept any Effect 4 release from 4.1.2 as their `effect` peer, instead of exactly 4.1.2.
-
-## Docs
-
-- The docs use Groundwork's Snag theme.
+- The Caddy compose file uses the latest `caddy:2` image.
 
 ## Dependencies
 
-- Effect 4.1.2, cloudflared 2026.10.7 in the Cloudflare Tunnel compose file, and development dependency updates.
+- Groundwork 0.20.0 for the web UI, and development dependency updates.
 
-**Full Changelog**: https://github.com/timmo001/triage/compare/0.20.1...0.21.0
+**Full Changelog**: https://github.com/timmo001/triage/compare/0.21.0...0.22.0
 
