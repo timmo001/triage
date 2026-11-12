@@ -44,7 +44,7 @@
     "lit-analyzer": "2.0.3",
     "oxlint": "1.93.0",
     "oxlint-tsgolint": "7.0.2006",
-    "prettier": "3.9.10",
+    "prettier": "3.10.0",
     "typescript": "6.0.3"
   },
   "workspaces": [
