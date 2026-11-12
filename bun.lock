@@ -72,7 +72,7 @@
         "@tanstack/lit-virtual": "3.15.3",
         "@timmo001/effect-triage": "workspace:*",
         "@timmo001/groundwork-tokens": "0.24.0",
-        "@timmo001/groundwork-ui": "0.23.0",
+        "@timmo001/groundwork-ui": "0.24.0",
         "dompurify": "3.4.17",
         "effect": "4.1.4",
         "lit": "3.3.3",
@@ -399,7 +399,7 @@
 
     "@timmo001/groundwork-tokens": ["@timmo001/groundwork-tokens@0.24.0", "", { "dependencies": { "@effect/platform-node": "4.1.4", "@types/culori": "4.0.1", "culori": "4.0.2", "effect": "4.1.4" }, "bin": { "groundwork-tokens": "src/bin.ts" } }, "sha512-1AHXaiNi+5qwNxtvL0HxCTeBVlF0cqP8wZpWx2L15X81T3ATPMbutYN31M0dB60JXe28s6CJa73IV23iSc9DuQ=="],
 
-    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.23.0", "", { "dependencies": { "@codemirror/lang-json": "6.0.2", "@codemirror/language": "6.13.1", "@codemirror/search": "6.7.2", "@codemirror/state": "6.7.6", "@codemirror/view": "6.43.15", "@lezer/highlight": "1.2.5", "@tanstack/table-core": "9.3.1", "@tanstack/virtual-core": "3.19.11", "micromark": "4.0.3", "micromark-extension-gfm": "3.0.0" } }, "sha512-5ui5ZEmJZXuex2gijjBudqhfqgOACgMJZ3a5wa0z1sSGV4HLt+EqGr/CVnVMbAOOZ6roRTUvdvKkyOAxh/eW+A=="],
+    "@timmo001/groundwork-ui": ["@timmo001/groundwork-ui@0.24.0", "", { "dependencies": { "@codemirror/lang-json": "6.0.2", "@codemirror/language": "6.13.1", "@codemirror/search": "6.7.2", "@codemirror/state": "6.7.6", "@codemirror/view": "6.43.15", "@lezer/highlight": "1.2.5", "@tanstack/table-core": "9.3.1", "@tanstack/virtual-core": "3.19.11", "micromark": "4.0.3", "micromark-extension-gfm": "3.0.0" } }, "sha512-MUB5yUItAeu25uW4zfYb3kWOU3DFjO1iuMc8kdzo34aF8OrUH5Z7mGlVJ/bKEm1cn5ItDoLowKlgJXYoc0NlaQ=="],
 
     "@timmo001/oxlint-rules": ["@timmo001/oxlint-rules@0.6.5", "", { "peerDependencies": { "@oxlint/plugins": "^1.91.0", "oxlint": "^1.91.0" }, "bin": { "oxlint-rules": "dist/cli.js" } }, "sha512-BFDZ+yFyzT0jQA3A5Cgb533e5BwJBS4wWG4Z7JNQ+yjyZJspzssMLRRdoFk1bx7g1mWWvSFgl920vmtTXJJGZQ=="],
 
