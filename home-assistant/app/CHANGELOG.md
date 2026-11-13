@@ -1,21 +1,16 @@
-OpenCode can use triage's issue tools as a `triage` Code Mode namespace, through the new `triage agent` commands and an OpenCode plugin.
-
-## Agents
-
-- **`triage agent tools`** prints the MCP server's issue tools as Code Mode tools in JSON, and whether `$TRIAGE_SERVER` and `$TRIAGE_ADMIN_TOKEN` are set to call them with. **`triage agent call <tool>`** runs one with its input as JSON on stdin and prints its result as JSON, on the server in `$TRIAGE_SERVER` or `--server`, or the server database on this machine.
-- **OpenCode plugin**: `opencode-plugin/` registers those tools as a `triage` Code Mode namespace, so an agent can chain them in one script. Load it with `github:timmo001/triage#main::path:opencode-plugin`; it needs triage 0.22.0 or later on your `PATH`. Tools that change something ask first: "Always allow" on `set_issue_status`, `add_issue_note` or `label_issue` covers one issue, and `merge_issues` asks every time. See [Agents](https://triage.timmo.dev/agents).
+The Home Assistant app's page can take the whole screen, as the OpenCode app's does.
 
 ## Home Assistant
 
-- Reviewed against Supervisor 2026.11.0, with no changes needed.
+- **hide_sidebar**: a new option, on by default, hides Home Assistant's sidebar and header around the web UI. The menu button at the start of the header opens the sidebar over the page when you need it. On a phone, Home Assistant keeps its own header and menu. Turn it off to keep the sidebar.
 
 ## Server
 
-- The Caddy compose file uses the latest `caddy:2` image.
+- **`--hide-sidebar`** (`TRIAGE_HIDE_SIDEBAR`) does the same for the ingress port outside the app. See [Configuration](https://triage.timmo.dev/configuration#server).
 
 ## Dependencies
 
-- Groundwork 0.20.0 for the web UI, and development dependency updates.
+- Groundwork 0.27.0 for the web UI, Effect 4.1.4, the latest `caddy:2` image, and development dependency updates.
 
-**Full Changelog**: https://github.com/timmo001/triage/compare/0.21.0...0.22.0
+**Full Changelog**: https://github.com/timmo001/triage/compare/0.22.0...0.23.0
 
