@@ -1,6 +1,7 @@
-import { mdiLogout } from "@mdi/js";
-import { css, html, LitElement } from "lit";
-import { customElement, query } from "lit/decorators.js";
+import { mdiLogout, mdiMenu } from "@mdi/js";
+import { Schema } from "effect";
+import { css, html, LitElement, nothing } from "lit";
+import { customElement, query, state } from "lit/decorators.js";
 import { AtomController, registry } from "./AtomController.js";
 import { t } from "./i18n.js";
 import { shared } from "./styles.js";
@@ -12,6 +13,25 @@ import type { GwThemePicker } from "@timmo001/groundwork-ui/gw-theme-picker.ts";
 import "./triage-issue.js";
 import "./triage-issues.js";
 import "./triage-sign-in.js";
+
+/**
+ * Set by the server under Home Assistant ingress: `true` when the app's
+ * `hide_sidebar` option is on, `false` when it's off.
+ */
+const hideSidebar = document.documentElement.dataset["hideSidebar"];
+
+/** What Home Assistant sends a page that subscribes to its properties. */
+const isHomeAssistantProperties = Schema.is(
+  Schema.Struct({
+    type: Schema.Literal("home-assistant/properties"),
+    narrow: Schema.Boolean,
+  }),
+);
+
+const postToHomeAssistant = (message: {
+  readonly type: string;
+  readonly kioskMode?: boolean;
+}) => window.parent.postMessage(message, "*");
 
 @customElement("triage-app")
 export class TriageApp extends LitElement {
@@ -51,6 +71,11 @@ export class TriageApp extends LitElement {
         height: 1.75rem;
       }
 
+      header .sidebar {
+        border-color: transparent;
+        background: none;
+      }
+
       header gw-theme-picker {
         margin-left: auto;
       }
@@ -67,9 +92,28 @@ export class TriageApp extends LitElement {
 
   readonly #route = new AtomController(this, () => route);
 
+  /**
+   * Whether Home Assistant's sidebar is hidden around the page, so the header
+   * offers a button to show it.
+   */
+  @state() accessor sidebarHidden = false;
+
   override render() {
     return html`
       <header>
+        ${
+          this.sidebarHidden
+            ? html`<button
+                class="sidebar icon-only"
+                aria-label=${t("homeAssistantSidebar")}
+                title=${t("homeAssistantSidebar")}
+                @click=${() =>
+                  postToHomeAssistant({ type: "home-assistant/toggle-menu" })}
+              >
+                ${icon(mdiMenu)}
+              </button>`
+            : nothing
+        }
         <a href=${homeHref}>
           <svg viewBox="0 0 128 128" aria-hidden="true">
             <path
@@ -114,6 +158,62 @@ export class TriageApp extends LitElement {
 
   #unbindTheme: (() => void) | undefined;
 
+  /** Whether the page last asked Home Assistant for kiosk mode, once it has. */
+  #kioskMode: boolean | undefined;
+
+  /**
+   * Home Assistant's kiosk mode hides its sidebar and header around the page,
+   * and its sidebar then opens over the page as it does on a phone. On a phone
+   * the page leaves kiosk mode, so Home Assistant's own header and menu stay.
+   * Home Assistant only turns kiosk mode on when the page subscribes, and off
+   * when it unsubscribes, so changing it takes both.
+   */
+  readonly #onHomeAssistantMessage = (event: MessageEvent) => {
+    if (
+      event.source !== window.parent ||
+      !isHomeAssistantProperties(event.data)
+    ) {
+      return;
+    }
+
+    const kioskMode = !event.data.narrow;
+
+    if (kioskMode === this.#kioskMode) {
+      return;
+    }
+
+    this.#kioskMode = kioskMode;
+    this.sidebarHidden = kioskMode;
+
+    if (!kioskMode) {
+      postToHomeAssistant({ type: "home-assistant/unsubscribe-properties" });
+    }
+
+    postToHomeAssistant({
+      type: "home-assistant/subscribe-properties",
+      kioskMode,
+    });
+  };
+
+  override connectedCallback() {
+    super.connectedCallback();
+
+    if (window.parent === window) {
+      return;
+    }
+
+    // Home Assistant keeps kiosk mode across a reload of the page, so with
+    // the option off the page leaves it. The button only shows once Home
+    // Assistant answers, so an older one that ignores kiosk mode keeps its
+    // own header and doesn't get two.
+    if (hideSidebar === "false") {
+      postToHomeAssistant({ type: "home-assistant/unsubscribe-properties" });
+    } else if (hideSidebar === "true") {
+      window.addEventListener("message", this.#onHomeAssistantMessage);
+      postToHomeAssistant({ type: "home-assistant/subscribe-properties" });
+    }
+  }
+
   override firstUpdated() {
     if (this.picker !== null) {
       this.#unbindTheme = bindThemePicker(this.picker);
@@ -123,6 +223,7 @@ export class TriageApp extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.#unbindTheme?.();
+    window.removeEventListener("message", this.#onHomeAssistantMessage);
   }
 
   readonly #signOut = () => registry.set(token, "");

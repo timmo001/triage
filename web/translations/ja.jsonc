@@ -17,6 +17,7 @@
   "unknown": "不明",
   "signOut": "サインアウト",
   "theme": "テーマ",
+  "homeAssistantSidebar": "Home Assistant のサイドバー",
   // An issue's number of events, also filled into other messages as {events}.
   "events": { "other": "{count} 件のイベント" },
 

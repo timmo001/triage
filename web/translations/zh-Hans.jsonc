@@ -17,6 +17,7 @@
   "unknown": "未知",
   "signOut": "退出登录",
   "theme": "主题",
+  "homeAssistantSidebar": "Home Assistant 侧边栏",
   // An issue's number of events, also filled into other messages as {events}.
   "events": { "other": "{count} 个事件" },
 

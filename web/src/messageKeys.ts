@@ -9,6 +9,7 @@ export type Key =
   | "unknown"
   | "signOut"
   | "theme"
+  | "homeAssistantSidebar"
   | "events"
   | "signIn.title"
   | "signIn.token"

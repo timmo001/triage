@@ -17,6 +17,7 @@
   "unknown": "desconocido",
   "signOut": "Cerrar sesión",
   "theme": "Tema",
+  "homeAssistantSidebar": "Barra lateral de Home Assistant",
   // An issue's number of events, also filled into other messages as {events}.
   "events": {
     "one": "{count} evento",

@@ -19,6 +19,9 @@
   "signOut": "Sign out",
   // The header's button for the colour theme and light or dark mode.
   "theme": "Theme",
+  // The header's button that shows Home Assistant's sidebar, when the web UI
+  // is open in Home Assistant with its sidebar hidden.
+  "homeAssistantSidebar": "Home Assistant sidebar",
   // An issue's number of events, also filled into other messages as {events}.
   "events": { "one": "{count} event", "other": "{count} events" },
 
