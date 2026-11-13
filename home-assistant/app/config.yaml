@@ -48,6 +48,7 @@ options:
   collect_host: true
   collect_plugins: false
   collect_apps: true
+  hide_sidebar: true
 schema:
   server_admin_token: password?
   trust_proxy: bool
@@ -61,3 +62,4 @@ schema:
   collect_host: bool
   collect_plugins: bool
   collect_apps: bool
+  hide_sidebar: bool

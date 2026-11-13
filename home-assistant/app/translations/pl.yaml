@@ -81,3 +81,9 @@ configuration:
     description: >-
       Zbieraj błędy i ostrzeżenia twoich pozostałych aplikacji z dziennika
       hosta, jako host home-assistant. Czytane są tylko wiersze z poziomem.
+  hide_sidebar:
+    name: Ukryj pasek boczny Home Assistant
+    description: >-
+      Daj interfejsowi webowemu cały ekran, z przyciskiem menu w nagłówku,
+      który w razie potrzeby pokazuje pasek boczny Home Assistant. Na
+      telefonie Home Assistant zachowuje swój własny nagłówek i menu.

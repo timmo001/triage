@@ -1183,6 +1183,13 @@ const serve = Command.make(
       Flag.withFallbackConfig(Config.String("TRIAGE_INGRESS_MCP_FROM")),
       Flag.withDefault("172.30.32.1"),
     ),
+    hideSidebar: Flag.Boolean("hide-sidebar").pipe(
+      Flag.withDescription(
+        "Hide Home Assistant's sidebar and header around the web UI on the ingress port, with a button in the UI's header to show the sidebar. Off unless set",
+      ),
+      Flag.withFallbackConfig(Config.Boolean("TRIAGE_HIDE_SIDEBAR")),
+      Flag.withDefault(false),
+    ),
     decideDaily: Flag.Int("decide-daily").pipe(
       Flag.withDescription(
         "The most issues each decision model may decide on in any 24 hours, here with --decide or by workers",

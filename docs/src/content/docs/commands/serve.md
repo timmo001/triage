@@ -25,6 +25,7 @@ FLAGS
   --ingress-port integer       A second port for Home Assistant ingress, which only answers --ingress-from, and --ingress-mcp-from on /mcp, and needs no admin token
   --ingress-from string        The only address the ingress port answers, Home Assistant's Supervisor
   --ingress-mcp-from string    The address Home Assistant Core reaches the ingress port from, which may use /mcp there without a token
+  --hide-sidebar               Hide Home Assistant's sidebar and header around the web UI on the ingress port, with a button in the UI's header to show the sidebar. Off unless set
   --decide-daily integer       The most issues each decision model may decide on in any 24 hours, here with --decide or by workers
   --suggest-daily integer      The most suggestions each language model may make in any 24 hours, here with --suggest or by workers
   --language string            The web UI's language: de, en, es, fr, it, ja, nl, pl, pt-BR, zh-Hans

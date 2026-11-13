@@ -79,3 +79,9 @@ configuration:
     description: >-
       Collect your other apps' errors and warnings from the host journal, as
       the host home-assistant. Only lines that give a level are read.
+  hide_sidebar:
+    name: Hide the Home Assistant sidebar
+    description: >-
+      Give the web UI the whole screen, with a menu button in its header to
+      show Home Assistant's sidebar when you need it. On a phone, Home
+      Assistant keeps its own header and menu.

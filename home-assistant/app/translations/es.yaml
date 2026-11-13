@@ -86,3 +86,10 @@ configuration:
       Recoger los errores y avisos de tus otras apps del journal del host,
       como el host home-assistant. Solo se leen las líneas que indican un
       nivel.
+  hide_sidebar:
+    name: Ocultar la barra lateral de Home Assistant
+    description: >-
+      Dar a la interfaz web toda la pantalla, con un botón de menú en su
+      cabecera para mostrar la barra lateral de Home Assistant cuando la
+      necesites. En el móvil, Home Assistant mantiene su propia cabecera y
+      menú.

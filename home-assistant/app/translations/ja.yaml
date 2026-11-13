@@ -73,3 +73,9 @@ configuration:
     description: >-
       ほかのアプリのエラーと警告をホストのジャーナルから、ホスト home-assistant
       として収集します。レベルが書かれた行だけを読み取ります。
+  hide_sidebar:
+    name: Home Assistant のサイドバーを隠す
+    description: >-
+      Web UI に画面全体を使わせ、必要なときはヘッダーのメニューボタンで Home
+      Assistant のサイドバーを表示します。スマートフォンでは Home Assistant
+      のヘッダーとメニューがそのまま残ります。

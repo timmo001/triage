@@ -86,3 +86,9 @@ configuration:
       Fouten en waarschuwingen van je andere apps uit het journal van de host
       verzamelen, als de host home-assistant. Alleen regels met een niveau
       worden gelezen.
+  hide_sidebar:
+    name: De zijbalk van Home Assistant verbergen
+    description: >-
+      De webinterface het hele scherm geven, met een menuknop in de kop om de
+      zijbalk van Home Assistant te tonen wanneer je die nodig hebt. Op een
+      telefoon houdt Home Assistant zijn eigen kop en menu.

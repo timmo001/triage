@@ -19,6 +19,8 @@ The full documentation is at [triage.timmo.dev](https://triage.timmo.dev), inclu
 
 Open **Triage** in the sidebar to browse issues and resolve or mute them. It's for Home Assistant's admins, and needs no admin token.
 
+The page takes the whole screen: Home Assistant hides its sidebar while it's open. Select the menu button at the start of the page's header to show the sidebar again. On a phone, Home Assistant keeps its own header, with its menu button. To keep the sidebar, turn off **hide_sidebar**.
+
 The server speaks plain HTTP on port 7171, so tokens are only as private as your network. To reach it from outside, put it behind a reverse proxy or a Cloudflare tunnel for HTTPS, and turn on **trust_proxy** only if that's the only way in.
 
 ## Assist
@@ -36,6 +38,7 @@ These match the server's [settings](https://triage.timmo.dev/configuration#serve
 - **new_hours**: how long an issue stays new after it's first seen.
 - **quiet_hours**: how long an issue goes without events before it's quiet, and how long it stays regressed.
 - **language**: the web UI's language, English unless you pick another. See [Languages](https://triage.timmo.dev/languages).
+- **hide_sidebar**: gives the web UI the whole screen, without Home Assistant's sidebar and header around it. The menu button at the start of the page's header shows the sidebar over the page when you need it. On a phone, Home Assistant keeps its own header and menu. On unless you turn it off.
 - **collect_core**: collect Home Assistant Core's own errors and warnings, with their tracebacks, as the host `home-assistant`. On unless you turn it off. They're read from the host journal, which the app can read but not change, and redacted like every other host's events. The app also reads Home Assistant's config directory, read only, for the names of devices, entities, areas, floors, people and your home, which it redacts from Core's messages, and for the versions of Core and custom integrations. It only reads the registries in `.storage`, `.HA_VERSION` and custom integrations' manifests, never `secrets.yaml` or anything else.
 - **collect_supervisor**: collect the Supervisor's own errors and warnings, such as an app that failed to start or an update that failed, the same way and as the same host. On unless you turn it off.
 - **collect_host**: collect the host's own crashes, failed services, out-of-memory kills and errors from its journal, the way the agent does on a Linux host, as the same host. On unless you turn it off. Containers' output is left out, since Core's, the Supervisor's, its plugins' and apps' logs are collected on their own, so nothing is collected twice.

@@ -37,6 +37,7 @@ Environment variables win over the file. The Home Assistant app uses this for it
 | `TRIAGE_INGRESS_PORT` | none (`8099` in the Home Assistant app) | A second port for Home Assistant ingress, which treats every request as an admin's and only answers `TRIAGE_INGRESS_FROM`, and `TRIAGE_INGRESS_MCP_FROM` on `/mcp` |
 | `TRIAGE_INGRESS_FROM` | `172.30.32.2`, Home Assistant's Supervisor | The address the ingress port answers |
 | `TRIAGE_INGRESS_MCP_FROM` | `172.30.32.1`, Home Assistant Core | The address that may use the ingress port's [MCP server](/agents) at `/mcp` without a token |
+| `TRIAGE_HIDE_SIDEBAR` | `false` (`true` in the Home Assistant app) | Hide Home Assistant's sidebar and header around the web UI on the ingress port, with a menu button in the UI's header to show the sidebar. On a phone, Home Assistant keeps its own header and menu |
 | `TRIAGE_DECIDE_DAILY` | `100` | The most issues each decision model may decide on in any 24 hours, by the server and its workers together |
 | `TRIAGE_SUGGEST_DAILY` | `5` | The most suggestions each language model may make in any 24 hours, by the server and its workers together |
 | `TRIAGE_NEW_HOURS` | `24` | How long an issue stays [new](/issues#states) after it's first seen |

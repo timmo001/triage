@@ -84,3 +84,10 @@ configuration:
       Fehler und Warnungen deiner anderen Apps aus dem Journal des Hosts
       sammeln, als Host home-assistant. Nur Zeilen mit einer Stufe werden
       gelesen.
+  hide_sidebar:
+    name: Seitenleiste von Home Assistant ausblenden
+    description: >-
+      Der Weboberfläche den ganzen Bildschirm geben, mit einer Menütaste in
+      ihrer Kopfzeile, die bei Bedarf die Seitenleiste von Home Assistant
+      zeigt. Auf dem Handy behält Home Assistant seine eigene Kopfzeile und
+      sein Menü.

@@ -90,3 +90,9 @@ configuration:
       Collecter les erreurs et avertissements de vos autres apps depuis le
       journal de l’hôte, comme l’hôte home-assistant. Seules les lignes qui
       indiquent un niveau sont lues.
+  hide_sidebar:
+    name: Masquer la barre latérale de Home Assistant
+    description: >-
+      Donner tout l’écran à l’interface web, avec un bouton de menu dans son
+      en-tête pour afficher la barre latérale de Home Assistant au besoin. Sur
+      un téléphone, Home Assistant garde son propre en-tête et son menu.

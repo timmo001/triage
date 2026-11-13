@@ -591,10 +591,17 @@ const acceptsGzip = (request: HttpServerRequest.HttpServerRequest) =>
 
 const notFound = HttpServerResponse.empty({ status: 404 });
 
-/** The page, with its base set to `base` so links and assets resolve under it. */
-const page = (base: string) =>
+/**
+ * The page, with its base set to `base` so links and assets resolve under it.
+ * Under ingress, `data-hide-sidebar` tells it whether to hide Home Assistant's
+ * sidebar.
+ */
+const page = (base: string, hideSidebar?: boolean) =>
   HttpServerResponse.text(
-    indexHtml.replace('<base href="/"', `<base href="${base}"`),
+    (hideSidebar === undefined
+      ? indexHtml
+      : indexHtml.replace("<html ", `<html data-hide-sidebar="${hideSidebar}" `)
+    ).replace('<base href="/"', `<base href="${base}"`),
     {
       contentType: contentTypes.get("html"),
       headers: { "cache-control": "no-cache" },
@@ -611,7 +618,11 @@ const ingressPath = /^\/api\/hassio_ingress\/[\w-]+$/;
  * the API gets the page, which routes in the browser. Under ingress the page's
  * base is the path Home Assistant serves it from.
  */
-const web = (options: { readonly ingress: boolean }) =>
+const web = (
+  options:
+    | { readonly ingress: false }
+    | { readonly ingress: true; readonly hideSidebar: boolean },
+) =>
   HttpRouter.add("GET", "/*", (request) => {
     const path = new URL(request.url, "http://triage").pathname.slice(1);
     const file = webFiles.get(path);
@@ -633,7 +644,7 @@ const web = (options: { readonly ingress: boolean }) =>
 
     return Effect.succeed(
       options.ingress && prefix !== undefined && ingressPath.test(prefix)
-        ? page(`${prefix}/`)
+        ? page(`${prefix}/`, options.hideSidebar)
         : rootPage,
     );
   });
@@ -660,6 +671,11 @@ export interface ServeOptions {
    * use `/mcp` there.
    */
   readonly ingressMcpFrom: string;
+  /**
+   * Hide Home Assistant's sidebar and header around the web UI under ingress,
+   * with a button in the UI's header to show the sidebar.
+   */
+  readonly hideSidebar: boolean;
   /** The web UI's language, one of the bundled translations. */
   readonly language: string;
 }
@@ -699,7 +715,7 @@ export const layer = (options: ServeOptions) =>
                 resolveTokens: true,
               }),
               mcpRoutes,
-              web({ ingress: true }),
+              web({ ingress: true, hideSidebar: options.hideSidebar }),
             ),
             {
               middleware: ingressGuard({

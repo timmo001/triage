@@ -71,3 +71,8 @@ configuration:
     description: >-
       从主机日志中收集你的其他应用的错误和警告，主机名为
       home-assistant。只读取标明级别的行。
+  hide_sidebar:
+    name: 隐藏 Home Assistant 侧边栏
+    description: >-
+      让网页界面占满整个屏幕，需要时可用其标题栏中的菜单按钮显示 Home
+      Assistant 的侧边栏。在手机上，Home Assistant 保留自己的标题栏和菜单。
