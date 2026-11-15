@@ -1,5 +1,5 @@
 import { BunHttpServer } from "@effect/platform-bun";
-import { Api } from "@timmo001/effect-triage";
+import { Api, Version } from "@timmo001/effect-triage";
 import { Effect, Layer, Option, Redacted } from "effect";
 import {
   HttpMiddleware,
@@ -9,6 +9,7 @@ import {
 } from "effect/http";
 import { HttpApiBuilder } from "effect/http-api";
 import { McpServer } from "effect/ai";
+import packageJson from "../../package.json" with { type: "json" };
 import { CollectionStatus } from "../homeassistant/Status.js";
 import { isKind } from "../redact.js";
 import { IssueTools, IssueToolsLayer, mcpOptions } from "../mcp/IssueTools.js";
@@ -423,6 +424,41 @@ const RedactionsHandlers = (resolve: boolean) =>
     }),
   );
 
+/** The paths open to any version, so a page can always load its text. */
+const anyVersion = new Set(["/api/health", "/api/translations"]);
+
+/**
+ * Refuses a web UI call from another version than the server's, such as a
+ * page the browser kept from before the server was updated, so it reloads onto
+ * the new one. Only a client that says its version is held to it: hosts,
+ * agents and the event streams don't send one.
+ */
+const VersionGuard = HttpRouter.middleware(
+  Effect.succeed((httpEffect) =>
+    Effect.gen(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest;
+      const client = request.headers[Version.header];
+
+      if (
+        client === undefined ||
+        client === packageJson.version ||
+        anyVersion.has(new URL(request.url, "http://triage").pathname)
+      ) {
+        return yield* httpEffect;
+      }
+
+      return HttpServerResponse.jsonUnsafe(
+        {
+          message: `This page is triage ${client} and the server runs ${packageJson.version}. Reload to use the new version.`,
+          server: packageJson.version,
+          client,
+        },
+        { status: 426 },
+      );
+    }),
+  ),
+).layer;
+
 const apiRoutes = (
   adminAuthorization: Layer.Layer<Api.AdminAuthorization, never, Tokens>,
   options: { readonly resolveTokens: boolean },
@@ -445,6 +481,7 @@ const apiRoutes = (
       adminAuthorization,
       WorkerAuthorizationLayer,
     ]),
+    Layer.provide(VersionGuard),
   );
 
 /**
@@ -541,30 +578,49 @@ const contentTypes = new Map([
   ["js", "text/javascript; charset=utf-8"],
   ["css", "text/css; charset=utf-8"],
   ["svg", "image/svg+xml"],
+  ["png", "image/png"],
+  ["webmanifest", "application/manifest+json"],
 ]);
 
-const { "index.html": indexHtml = "", ...assets } = bundleWeb();
+const { "index.html": indexWeb, ...assets } = bundleWeb();
+
+const indexHtml = indexWeb?.body ?? "";
 
 /** Assets at least this big are also kept gzipped, for browsers that take it. */
 const compressFrom = 1024;
 
-const assetHeaders = {
+const hashedHeaders = {
   "cache-control": "public, max-age=31536000, immutable",
   vary: "accept-encoding",
 };
 
+/** For the files that keep their names, which the browser must recheck. */
+const unhashedHeaders = {
+  "cache-control": "no-cache",
+  vary: "accept-encoding",
+};
+
+/** A file whose name carries a content hash, such as `index-r20khhep.js`. */
+const isHashed = (name: string) => /-[a-z0-9]{8}\.\w+$/.test(name);
+
 /**
- * The web UI's assets, built into the binary. Their names carry a content
- * hash, so they never change. The bigger ones are compressed once here, so
- * the page's script, a few hundred kilobytes, isn't sent whole on every load.
+ * The web UI's assets, built into the binary. Those with a content hash in
+ * their name never change. The service worker, manifest and icons keep their
+ * names, so they're rechecked. The bigger ones are compressed once here, so the
+ * page's script, a few hundred kilobytes, isn't sent whole on every load.
  */
 const webFiles = new Map(
-  Object.entries(assets).map(([name, body]) => {
+  Object.entries(assets).map(([name, file]) => {
     const contentType = contentTypes.get(name.split(".").pop() ?? "");
+    const headers = isHashed(name) ? hashedHeaders : unhashedHeaders;
 
-    const plain = HttpServerResponse.text(body, {
+    const bytes = file.base64
+      ? Buffer.from(file.body, "base64")
+      : new TextEncoder().encode(file.body);
+
+    const plain = HttpServerResponse.uint8Array(bytes, {
       contentType,
-      headers: assetHeaders,
+      headers,
     });
 
     return [
@@ -572,15 +628,12 @@ const webFiles = new Map(
       {
         plain,
         gzipped:
-          body.length < compressFrom
+          file.base64 || bytes.length < compressFrom
             ? plain
-            : HttpServerResponse.uint8Array(
-                Bun.gzipSync(new TextEncoder().encode(body)),
-                {
-                  contentType,
-                  headers: { ...assetHeaders, "content-encoding": "gzip" },
-                },
-              ),
+            : HttpServerResponse.uint8Array(Bun.gzipSync(bytes), {
+                contentType,
+                headers: { ...headers, "content-encoding": "gzip" },
+              }),
       },
     ];
   }),

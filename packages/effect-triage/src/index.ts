@@ -8,4 +8,6 @@ export * as Issue from "./Issue.js";
 
 export * as Severity from "./Severity.js";
 
+export * as Version from "./Version.js";
+
 export * as Warning from "./Warning.js";
