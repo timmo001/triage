@@ -8,7 +8,7 @@
 
 services:
   triage:
-    image: ghcr.io/timmo001/triage:latest@sha256:fc1cfc104a85a44cd1c6631f50a256408a9f25bc2e2a876ac95e6a138e4c09e1
+    image: ghcr.io/timmo001/triage:latest@sha256:e9f9af8415ee0b06f24afcef34e9de8827673c8d192368ab389f6c9ea23dddfc
     restart: unless-stopped
     ports:
       - ${TRIAGE_PORT:-7171}:7171
