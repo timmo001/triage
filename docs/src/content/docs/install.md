@@ -98,6 +98,12 @@ mise run build
 
 The binary is written to `dist/triage`.
 
+## Install the web UI as an app
+
+Behind HTTPS, such as through Caddy or Cloudflare, or on the same machine at `localhost`, your browser offers to install the web UI as an app, with a banner and an Install button in its header. Its page also loads offline. Over plain HTTP on a network address the browsers don't allow either, so it stays a normal page.
+
+After the server is updated, an open page reloads itself onto the new version. If that doesn't work, a banner offers a Reload button.
+
 ## Next steps
 
 - [Run a server](/setup/server).
