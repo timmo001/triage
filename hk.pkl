@@ -1,0 +1,23 @@
+// Pre-push checks: the shared base from timmo001/workflows, which runs the
+// Markdown, YAML, Actions, shell and Oxlint checks CI runs. Tests, types and
+// generated files are left to CI and `mise run check`. Run them by hand with
+// `hk check`.
+amends "package://github.com/timmo001/workflows/releases/download/20261114.0/hk-base@20261114.0.0#/base.pkl"
+
+// The Arch PKGBUILDs are makepkg templates, not shell scripts.
+hooks {
+  ["pre-push"] {
+    steps {
+      ["shellcheck"] {
+        exclude = "**/PKGBUILD*"
+      }
+    }
+  }
+  ["check"] {
+    steps {
+      ["shellcheck"] {
+        exclude = "**/PKGBUILD*"
+      }
+    }
+  }
+}
