@@ -7,6 +7,8 @@
 !packages/*/src/**
 !src/**
 !web/package.json
+!web/build.ts
+!web/pwa.config.ts
 !web/index.html
 !web/favicon.svg
 !web/src/**
