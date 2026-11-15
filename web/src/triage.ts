@@ -1,5 +1,5 @@
 import { BrowserKeyValueStore } from "@effect/platform-browser";
-import { Api, Issue } from "@timmo001/effect-triage";
+import { Api, Issue, Version } from "@timmo001/effect-triage";
 import {
   Data,
   Effect,
@@ -18,6 +18,7 @@ import {
 } from "effect/http";
 import { HttpApiMiddleware } from "effect/http-api";
 import { Atom, AtomHttpApi, Reactivity } from "effect/reactivity";
+import { mismatched, version } from "./update.js";
 
 const storage = Atom.runtime(BrowserKeyValueStore.layerLocalStorage);
 
@@ -53,11 +54,25 @@ export class TriageApi extends AtomHttpApi.Service<TriageApi>()(
       );
     },
     baseUrl: new URL(".", document.baseURI).href.replace(/\/$/, ""),
-    // Covers the server restarting, so a page doesn't fail mid-scroll.
-    transformClient: HttpClient.retryTransient({
-      schedule: Schedule.exponential("250 millis"),
-      times: 5,
-    }),
+    // Says the page's version, which the server must share, and covers the
+    // server restarting, so a page doesn't fail mid-scroll.
+    transformClient: (http) =>
+      http.pipe(
+        HttpClient.mapRequest(
+          HttpClientRequest.setHeader(Version.header, version),
+        ),
+        HttpClient.tap((response) =>
+          Effect.sync(() => {
+            if (response.status === 426) {
+              mismatched();
+            }
+          }),
+        ),
+        HttpClient.retryTransient({
+          schedule: Schedule.exponential("250 millis"),
+          times: 5,
+        }),
+      ),
   },
 ) {}
 

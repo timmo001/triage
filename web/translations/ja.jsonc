@@ -18,6 +18,11 @@
   "signOut": "サインアウト",
   "theme": "テーマ",
   "homeAssistantSidebar": "Home Assistant のサイドバー",
+  "install.message": "Triage をインストールすると、ほかのアプリのように専用のウィンドウで開けます。",
+  "install.accept": "インストール",
+  "install.dismiss": "今はしない",
+  "update.message": "サーバーの Triage が更新されました。再読み込みして新しいバージョンを使用してください。",
+  "update.reload": "再読み込み",
   // An issue's number of events, also filled into other messages as {events}.
   "events": { "other": "{count} 件のイベント" },
 

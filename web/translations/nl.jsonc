@@ -18,6 +18,11 @@
   "signOut": "Afmelden",
   "theme": "Thema",
   "homeAssistantSidebar": "Zijbalk van Home Assistant",
+  "install.message": "Installeer Triage om het in een eigen venster te openen, zoals elke andere app.",
+  "install.accept": "Installeren",
+  "install.dismiss": "Niet nu",
+  "update.message": "Triage is bijgewerkt op de server. Laad opnieuw om de nieuwe versie te gebruiken.",
+  "update.reload": "Opnieuw laden",
   // An issue's number of events, also filled into other messages as {events}.
   "events": {
     "one": "{count} gebeurtenis",

@@ -18,6 +18,11 @@
   "signOut": "退出登录",
   "theme": "主题",
   "homeAssistantSidebar": "Home Assistant 侧边栏",
+  "install.message": "安装 Triage，即可像其他应用一样在独立窗口中打开。",
+  "install.accept": "安装",
+  "install.dismiss": "暂不",
+  "update.message": "服务器上的 Triage 已更新。请重新加载以使用新版本。",
+  "update.reload": "重新加载",
   // An issue's number of events, also filled into other messages as {events}.
   "events": { "other": "{count} 个事件" },
 

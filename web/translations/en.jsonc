@@ -22,6 +22,15 @@
   // The header's button that shows Home Assistant's sidebar, when the web UI
   // is open in Home Assistant with its sidebar hidden.
   "homeAssistantSidebar": "Home Assistant sidebar",
+  // The banner offering to install the web UI as an app, and the header's
+  // button that does it once the banner is dismissed.
+  "install.message": "Install Triage to open it in its own window, like any other app.",
+  "install.accept": "Install",
+  "install.dismiss": "Not now",
+  // The banner shown when the server was updated and the page couldn't move
+  // onto the new version by itself.
+  "update.message": "Triage was updated on the server. Reload to use the new version.",
+  "update.reload": "Reload",
   // An issue's number of events, also filled into other messages as {events}.
   "events": { "one": "{count} event", "other": "{count} events" },
 

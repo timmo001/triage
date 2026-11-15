@@ -18,6 +18,11 @@
   "signOut": "Se déconnecter",
   "theme": "Thème",
   "homeAssistantSidebar": "Barre latérale de Home Assistant",
+  "install.message": "Installez Triage pour l'ouvrir dans sa propre fenêtre, comme n'importe quelle autre application.",
+  "install.accept": "Installer",
+  "install.dismiss": "Pas maintenant",
+  "update.message": "Triage a été mis à jour sur le serveur. Rechargez pour utiliser la nouvelle version.",
+  "update.reload": "Recharger",
   // An issue's number of events, also filled into other messages as {events}.
   "events": {
     "one": "{count} événement",

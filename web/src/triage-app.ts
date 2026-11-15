@@ -1,13 +1,23 @@
-import { mdiLogout, mdiMenu } from "@mdi/js";
+import { mdiDownload, mdiLogout, mdiMenu } from "@mdi/js";
 import { Schema } from "effect";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { AtomController, registry } from "./AtomController.js";
 import { t } from "./i18n.js";
+import {
+  canInstall,
+  dismissed,
+  install,
+  onInstallChange,
+  turnDown,
+} from "./install.js";
 import { shared } from "./styles.js";
 import { homeHref, Route, route, token } from "./triage.js";
 import { bindThemePicker } from "./theme/picker.js";
 import { icon } from "./ui.js";
+import { onStale } from "./update.js";
+import "@timmo001/groundwork-ui/define/gw-banner.ts";
+import "@timmo001/groundwork-ui/define/gw-button.ts";
 import "@timmo001/groundwork-ui/define/gw-theme-picker.ts";
 import type { GwThemePicker } from "@timmo001/groundwork-ui/gw-theme-picker.ts";
 import "./triage-issue.js";
@@ -98,8 +108,37 @@ export class TriageApp extends LitElement {
    */
   @state() accessor sidebarHidden = false;
 
+  /** Whether the browser can install the page as an app. */
+  @state() accessor installable = canInstall();
+
+  /** Whether the install banner has been turned down. */
+  @state() accessor installDismissed = dismissed();
+
+  /** Whether the server runs another version and reloading by itself didn't help. */
+  @state() accessor stale = false;
+
   override render() {
     return html`
+      <gw-banner tone="warning" urgent ?open=${this.stale}>
+        ${t("update.message")}
+        <gw-button slot="actions" size="small" @click=${() => location.reload()}
+          >${t("update.reload")}</gw-button
+        >
+      </gw-banner>
+      <gw-banner ?open=${this.installable && !this.installDismissed}>
+        ${t("install.message")}
+        <gw-button slot="actions" size="small" @click=${this.#install}
+          >${t("install.accept")}</gw-button
+        >
+        <gw-button
+          slot="actions"
+          size="small"
+          appearance="plain"
+          variant="neutral"
+          @click=${this.#turnDown}
+          >${t("install.dismiss")}</gw-button
+        >
+      </gw-banner>
       <header>
         ${
           this.sidebarHidden
@@ -137,6 +176,13 @@ export class TriageApp extends LitElement {
           Triage
         </a>
         <gw-theme-picker gallery label=${t("theme")}></gw-theme-picker>
+        ${
+          this.installable
+            ? html`<button @click=${this.#install}>
+                ${icon(mdiDownload)} ${t("install.accept")}
+              </button>`
+            : nothing
+        }
         ${
           this.#token.value === ""
             ? null
@@ -198,6 +244,13 @@ export class TriageApp extends LitElement {
   override connectedCallback() {
     super.connectedCallback();
 
+    this.#stopInstallWatch = onInstallChange(() => {
+      this.installable = canInstall();
+    });
+    onStale(() => {
+      this.stale = true;
+    });
+
     if (window.parent === window) {
       return;
     }
@@ -222,11 +275,26 @@ export class TriageApp extends LitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    this.#stopInstallWatch?.();
     this.#unbindTheme?.();
     window.removeEventListener("message", this.#onHomeAssistantMessage);
   }
 
   readonly #signOut = () => registry.set(token, "");
+
+  #stopInstallWatch: (() => void) | undefined;
+
+  readonly #install = () => void install().then(() => this.#showInstall());
+
+  readonly #turnDown = () => {
+    turnDown();
+    this.#showInstall();
+  };
+
+  #showInstall() {
+    this.installable = canInstall();
+    this.installDismissed = dismissed();
+  }
 }
 
 declare global {
