@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
+import { BunServices } from "@effect/platform-bun";
+import { SqliteClient } from "@effect/sql-sqlite-bun";
 import { Event, Issue } from "@timmo001/effect-triage";
-import { ConfigProvider, Effect, Layer, Option } from "effect";
+import { ConfigProvider, Effect, FileSystem, Layer, Option } from "effect";
 import {
   FingerprintNotFound,
   IssueNotFound,
   type ListOptions,
+  mergeBursts,
   NothingToMerge,
   NothingToUnmerge,
   Store,
@@ -516,7 +519,8 @@ describe("Store", () => {
       yield* store.add([
         event("laptop", "connect failed", 1000),
         event("desktop", "connect failed", 2000),
-        event("desktop", "disconnected", 2000),
+        // Apart enough not to be one burst.
+        event("desktop", "disconnected", 10_000),
         event("server", "timed out", 500),
         Event.Event.cases.LogError.make({
           id: "other",
@@ -641,8 +645,9 @@ describe("Store", () => {
           frames: [{ function: top }],
         });
 
+      // Too long before the crashes for the rules to join it to one.
       yield* store.add([
-        failure("f1", 5000),
+        failure("f1", 60_000),
         crash("c1", 4000, "a"),
         crash("c2", 3000, "b"),
         crash("c3", 2000, "b"),
@@ -773,6 +778,224 @@ describe("Store", () => {
     expect(result.notes).toEqual(Option.some([`Unmerged from ${a.id}`]));
     expect(result.last).toBeInstanceOf(NothingToUnmerge);
     expect(result.other).toBeInstanceOf(FingerprintNotFound);
+  });
+
+  describe("rules", () => {
+    const now = Date.now();
+
+    const crash = (id: string, timestamp: number, host = "desktop") =>
+      Event.Event.cases.Crash.make({
+        id,
+        host,
+        source: "journal",
+        timestamp,
+        severity: "crit",
+        unit: "bluetooth.service",
+        scope: "system",
+        message: "dumped core",
+        executable: "/usr/lib/bluetooth/bluetoothd",
+        signal: "SIGSEGV",
+        frames: [{ function: "a" }],
+      });
+
+    const failure = (id: string, timestamp: number, host = "desktop") =>
+      Event.Event.cases.UnitFailure.make({
+        id,
+        host,
+        source: "journal",
+        timestamp,
+        severity: "err",
+        unit: "bluetooth.service",
+        scope: "system",
+        result: "core-dump",
+        message: "failed",
+      });
+
+    const crashIssue = Issue.fromEvent(crash("x", 0));
+    const unitIssue = Issue.fromEvent(failure("x", 0));
+
+    const counts = Effect.gen(function* () {
+      const store = yield* Store;
+
+      return Object.fromEntries(
+        (yield* store.issues({ limit: 20 })).map((issue) => [
+          issue.id,
+          issue.count,
+        ]),
+      );
+    });
+
+    test("joins a unit failure to the crash behind it, whichever arrives first", async () => {
+      const result = await Effect.gen(function* () {
+        const store = yield* Store;
+
+        // Together, the failure after; then the failure a batch before.
+        yield* store.add([crash("c1", now - 9000), failure("f1", now - 8990)]);
+        yield* store.add([failure("f2", now - 30_000)]);
+        yield* store.add([crash("c2", now - 30_020)]);
+        // Too long after a crash, and on another host.
+        yield* store.add([failure("f3", now - 60_000)]);
+        yield* store.add([failure("f4", now - 8990, "laptop")]);
+
+        return {
+          counts: yield* counts,
+          fingerprints: Option.map(
+            yield* store.review(crashIssue.id, 10),
+            (review) => review.fingerprints,
+          ),
+        };
+      }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+      expect(result.counts).toEqual({
+        [crashIssue.id]: 4,
+        [unitIssue.id]: 2,
+      });
+      expect(result.fingerprints).toEqual(
+        Option.some([
+          { fingerprint: crashIssue.fingerprint, count: 2 },
+          { fingerprint: unitIssue.fingerprint, count: 2, rule: "cause" },
+        ]),
+      );
+    });
+
+    test("unmerging a joined failure sends it back, and it doesn't join that issue again", async () => {
+      const result = await Effect.gen(function* () {
+        const store = yield* Store;
+
+        yield* store.add([crash("c1", now - 9000), failure("f1", now - 8990)]);
+
+        const unmerged = yield* store.unmerge(
+          crashIssue.id,
+          unitIssue.fingerprint,
+          "cli",
+        );
+
+        yield* store.add([crash("c2", now - 5000), failure("f2", now - 4990)]);
+
+        return { unmerged, counts: yield* counts };
+      }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+      expect(result.unmerged).toBe(unitIssue.id);
+      expect(result.counts).toEqual({
+        [crashIssue.id]: 2,
+        [unitIssue.id]: 2,
+      });
+    });
+
+    const kernel = (id: string, timestamp: number, message: string) =>
+      Event.Event.cases.LogError.make({
+        id,
+        host: "laptop",
+        source: "journal",
+        timestamp,
+        severity: "err",
+        identifier: "kernel",
+        message,
+      });
+
+    test("puts a log burst's new lines in the issue of its first line", async () => {
+      const opener = "iwlwifi: Microcode SW error detected";
+      const stuck = "iwlwifi: Queue is stuck";
+
+      const result = await Effect.gen(function* () {
+        const store = yield* Store;
+
+        yield* store.add([kernel("k0", now - 60_000, stuck)]);
+        yield* store.add([
+          kernel("k1", now - 3000, opener),
+          kernel("k2", now - 3000, "iwlwifi: Start IWL Error Log Dump"),
+          kernel("k3", now - 2500, stuck),
+          kernel("k4", now - 2500, "ACPI Error: Aborting method"),
+        ]);
+        // A long dump carries on through the lines already joined.
+        yield* store.add([
+          kernel("k5", now - 1000, "iwlwifi: Loaded firmware version"),
+        ]);
+
+        return (yield* store.issues({ limit: 20 })).map((issue) => ({
+          title: issue.title,
+          count: issue.count,
+        }));
+      }).pipe(Effect.provide(Store.layerFile(":memory:")), Effect.runPromise);
+
+      expect(result).toHaveLength(3);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          { title: Issue.fromEvent(kernel("t", 0, opener)).title, count: 3 },
+          { title: Issue.fromEvent(kernel("t", 0, stuck)).title, count: 2 },
+          {
+            title: Issue.fromEvent(
+              kernel("t", 0, "ACPI Error: Aborting method"),
+            ).title,
+            count: 1,
+          },
+        ]),
+      );
+    });
+
+    test("merges stored issues that only ever happen in another's bursts", async () => {
+      const line = (id: string, timestamp: number, message: string) =>
+        Event.Event.cases.LogError.make({
+          id,
+          host: "desktop",
+          source: "journal",
+          timestamp,
+          severity: "err",
+          identifier: "pipewire",
+          message,
+        });
+
+      const opener = Issue.fromEvent(line("t", 0, "negotiation failed"));
+      const inBurst = Issue.fromEvent(line("t", 0, "format: S16LE"));
+      const alone = Issue.fromEvent(line("t", 0, "property: rate"));
+
+      // Sent out of order, so ingest can't see the bursts and the migration
+      // has to: the later lines arrive before the first.
+      const { merged, result } = await Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const filename = `${yield* fs.makeTempDirectoryScoped()}/triage.db`;
+
+        yield* Effect.gen(function* () {
+          const store = yield* Store;
+
+          yield* store.add([line("a1", now - 1000, "property: rate")]);
+          yield* store.add([
+            line("b1", now - 9500, "format: S16LE"),
+            line("a2", now - 9400, "property: rate"),
+          ]);
+          yield* store.add([line("o1", now - 10_000, "negotiation failed")]);
+        }).pipe(Effect.provide(Store.layerFile(filename)));
+
+        const merged = yield* mergeBursts().pipe(
+          Effect.provide(SqliteClient.layer({ filename })),
+        );
+
+        const result = yield* Effect.gen(function* () {
+          const store = yield* Store;
+
+          return {
+            counts: yield* counts,
+            redirected: Option.map(
+              yield* store.review(inBurst.id, 1),
+              (review) => review.issue.id,
+            ),
+          };
+        }).pipe(Effect.provide(Store.layerFile(filename)));
+
+        return { merged, result };
+      }).pipe(
+        Effect.scoped,
+        Effect.provide(BunServices.layer),
+        Effect.runPromise,
+      );
+
+      expect(merged).toBe(1);
+      expect(result.counts).toEqual({
+        [opener.id]: 2,
+        [alone.id]: 2,
+      });
+      expect(result.redirected).toEqual(Option.some(opener.id));
+    });
   });
 
   const warning = (identifier: string, lastSeen: number) => ({

@@ -27,6 +27,7 @@ import {
   redactDashedIps,
   redactGeneric,
 } from "../redact.js";
+import * as Rules from "./rules.js";
 
 export class StoreError extends Schema.TaggedError<StoreError>()("StoreError", {
   cause: Schema.Defect(),
@@ -432,6 +433,436 @@ const mergeGroups = Effect.fnUntraced(function* (
       group.map((issue) => issue.id),
     );
   }
+});
+
+/**
+ * Merge one issue into another: its fingerprints, notes and redirects, then
+ * its events, decisions, label and suggestions, leaving its ID leading to the
+ * one it joined. The caller counts the kept issue again.
+ */
+const absorb = Effect.fnUntraced(function* (from: string, to: string) {
+  const sql = yield* SqlClient.SqlClient;
+
+  yield* sql`UPDATE issue_fingerprints SET issue_id = ${to} WHERE issue_id = ${from}`;
+  yield* sql`UPDATE notes SET issue_id = ${to} WHERE issue_id = ${from}`;
+  yield* sql`UPDATE issue_redirects SET issue_id = ${to} WHERE issue_id = ${from}`;
+  yield* moveIssue(from, to);
+  yield* sql`INSERT INTO issue_redirects ${sql.insert({ id: from, issue_id: to })}`;
+});
+
+/** Count an issue's events again, after some moved in or out. */
+const recountIssue = Effect.fnUntraced(function* (id: string) {
+  const sql = yield* SqlClient.SqlClient;
+
+  yield* sql`
+    UPDATE issues SET
+      first_seen = coalesce((SELECT MIN(timestamp) FROM events WHERE issue_id = ${id}), first_seen),
+      last_seen = coalesce((SELECT MAX(timestamp) FROM events WHERE issue_id = ${id}), last_seen),
+      count = (SELECT COUNT(*) FROM events WHERE issue_id = ${id})
+    WHERE id = ${id}
+  `;
+});
+
+const decodeEvent = Schema.decodeUnknownEffect(EventJson);
+
+const isEventRule = (rule: string | null): rule is Rules.EventRule =>
+  rule === "cause" || rule === "systemd";
+
+/** Stored events, leaving out any that no longer decode. */
+const toStored = Effect.fnUntraced(function* (
+  rows: ReadonlyArray<{
+    host: string;
+    id: string;
+    issue_id: string;
+    fingerprint: string;
+    rule: string | null;
+    data: string;
+  }>,
+) {
+  const stored: Array<Rules.Stored> = [];
+
+  for (const row of rows) {
+    const event = yield* Effect.option(decodeEvent(row.data));
+
+    if (Option.isSome(event)) {
+      stored.push({
+        host: row.host,
+        id: row.id,
+        issueId: row.issue_id,
+        fingerprint: row.fingerprint,
+        rule: isEventRule(row.rule) ? row.rule : null,
+        event: event.value,
+      });
+    }
+  }
+
+  return stored;
+});
+
+/** A host's events from `millis` before `timestamp` to `millis` after, oldest first. */
+const eventsAround = Effect.fnUntraced(function* (
+  host: string,
+  timestamp: number,
+  before: number,
+  after: number,
+) {
+  const sql = yield* SqlClient.SqlClient;
+
+  return yield* toStored(
+    yield* sql<{
+      host: string;
+      id: string;
+      issue_id: string;
+      fingerprint: string;
+      rule: string | null;
+      data: string;
+    }>`
+      SELECT host, id, issue_id, fingerprint, rule, data FROM events
+      WHERE host = ${host}
+        AND timestamp BETWEEN ${timestamp - before} AND ${timestamp + after}
+      ORDER BY timestamp, rowid
+    `,
+  );
+});
+
+type StoredFailure = Rules.Stored & {
+  readonly event: Extract<Event.Event, { readonly _tag: "UnitFailure" }>;
+};
+
+const isFailure = (stored: Rules.Stored): stored is StoredFailure =>
+  Event.Event.guards.UnitFailure(stored.event);
+
+/** What the rules moved: each event's new issue, and the issues to count again. */
+interface Moves {
+  /** Each moved event's issue, by host and event ID. */
+  readonly moved: Map<string, string>;
+  readonly touched: Set<string>;
+}
+
+const eventKey = (host: string, id: string) => `${host}\u0000${id}`;
+
+/**
+ * Move an event into an issue by a rule, unless it's there already or a person
+ * split its fingerprint out of that issue before.
+ */
+const moveByRule = Effect.fnUntraced(function* (
+  stored: Rules.Stored,
+  issueId: string,
+  rule: Rules.EventRule,
+  moves: Moves,
+) {
+  const sql = yield* SqlClient.SqlClient;
+
+  if (stored.issueId === issueId) {
+    return stored;
+  }
+
+  const split = yield* sql`
+    SELECT 1 FROM rule_splits
+    WHERE fingerprint = ${stored.fingerprint} AND issue_id = ${issueId}
+  `;
+
+  if (split.length > 0) {
+    return stored;
+  }
+
+  yield* sql`
+    UPDATE events SET issue_id = ${issueId}, rule = ${rule}
+    WHERE host = ${stored.host} AND id = ${stored.id}
+  `;
+
+  moves.touched.add(stored.issueId).add(issueId);
+  moves.moved.set(eventKey(stored.host, stored.id), issueId);
+
+  return { ...stored, issueId, rule };
+});
+
+/**
+ * Put a unit failure in the issue of the crash or OOM kill behind it, and
+ * systemd's own errors about the unit around then in whichever issue the
+ * failure is in.
+ */
+const settleFailure = Effect.fnUntraced(function* (
+  failure: StoredFailure,
+  moves: Moves,
+) {
+  const near = yield* eventsAround(
+    failure.host,
+    failure.event.timestamp,
+    Rules.causeWindowMillis,
+    Rules.causeWindowMillis,
+  );
+
+  // Read back where it is now, since an earlier rule may have moved it.
+  const current = near.find((stored) => stored.id === failure.id) ?? failure;
+
+  const cause =
+    current.rule === null ? Rules.causeOf(failure.event, near) : undefined;
+
+  const settled =
+    cause === undefined
+      ? current
+      : yield* moveByRule(current, cause.issueId, "cause", moves);
+
+  for (const stored of near) {
+    if (Rules.isSystemdAbout(stored.event, failure.event)) {
+      yield* moveByRule(stored, settled.issueId, "systemd", moves);
+    }
+  }
+});
+
+/**
+ * Apply the rules for new events: a unit failure joins the crash or OOM kill
+ * that caused it, whichever arrived first, and systemd's errors about the unit
+ * follow the failure. Returns what moved.
+ */
+const applyEventRules = Effect.fnUntraced(function* (
+  added: ReadonlyArray<Rules.Stored>,
+) {
+  const failures = new Map<string, StoredFailure>();
+
+  for (const stored of added) {
+    if (isFailure(stored)) {
+      failures.set(stored.id, stored);
+      continue;
+    }
+
+    const { event } = stored;
+
+    const isCause =
+      (Event.Event.guards.Crash(event) ||
+        Event.Event.guards.OutOfMemory(event)) &&
+      event.unit !== undefined;
+
+    const isSystemd =
+      Event.Event.guards.LogError(event) &&
+      event.identifier === "systemd" &&
+      event.unit !== undefined;
+
+    if (!isCause && !isSystemd) {
+      continue;
+    }
+
+    const near = yield* eventsAround(
+      stored.host,
+      event.timestamp,
+      Rules.causeWindowMillis,
+      Rules.causeWindowMillis,
+    );
+
+    for (const other of near) {
+      if (
+        isFailure(other) &&
+        (isCause
+          ? other.rule === null && Rules.isCauseOf(event, other.event)
+          : Rules.isSystemdAbout(event, other.event))
+      ) {
+        failures.set(other.id, other);
+      }
+    }
+  }
+
+  const moves: Moves = { moved: new Map(), touched: new Set() };
+
+  for (const failure of failures.values()) {
+    yield* settleFailure(failure, moves);
+  }
+
+  return moves;
+});
+
+/**
+ * The issue a new log error's fingerprint joins as part of a burst: that of
+ * the earliest line from the same host and program in the burst window before
+ * it, among the batch's earlier lines and those already stored. Undefined
+ * when it opens a burst, or isn't a log error.
+ */
+const burstIssue = Effect.fnUntraced(function* (
+  event: Event.Event,
+  earlier: ReadonlyArray<{
+    readonly event: Event.Event;
+    readonly issueId: string;
+  }>,
+) {
+  const program = Rules.burstProgram(event);
+
+  if (program === undefined) {
+    return undefined;
+  }
+
+  const stored = yield* eventsAround(
+    event.host,
+    event.timestamp,
+    Rules.burstWindowMillis,
+    0,
+  );
+
+  // Stored lines first, so on a tie with the batch they count as earlier.
+  const [leader] = [
+    ...stored.map((line) => ({ event: line.event, issueId: line.issueId })),
+    ...earlier,
+  ]
+    .filter(
+      (line) =>
+        line.event.host === event.host &&
+        line.event.timestamp >= event.timestamp - Rules.burstWindowMillis &&
+        line.event.timestamp <= event.timestamp &&
+        Rules.burstProgram(line.event) === program,
+    )
+    .sort((a, b) => a.event.timestamp - b.event.timestamp);
+
+  return leader?.issueId;
+});
+
+/**
+ * Group stored log errors into bursts: lines from the same host and program,
+ * each within the burst window of the one before. Then merge each issue whose
+ * events all fall in bursts another issue's line opens into that issue, which
+ * keeps its title, the burst's first line. Returns how many were merged.
+ * Runs once, in the `0023_rules` migration, and is exported for its test.
+ */
+export const mergeBursts = Effect.fnUntraced(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  // Per issue: how many log errors it has, and how many of them sit in a
+  // burst opened by each other issue.
+  const totals = new Map<string, number>();
+  const ledBy = new Map<string, Map<string, number>>();
+
+  const hosts = yield* sql<{ host: string }>`SELECT DISTINCT host FROM events`;
+
+  for (const { host } of hosts) {
+    const open = new Map<string, { opener: string; last: number }>();
+    let after = Number.NEGATIVE_INFINITY;
+    let afterRow = 0;
+
+    while (true) {
+      const rows = yield* sql<{
+        rowid: number;
+        host: string;
+        id: string;
+        issue_id: string;
+        fingerprint: string;
+        rule: string | null;
+        timestamp: number;
+        data: string;
+      }>`
+        SELECT rowid, host, id, issue_id, fingerprint, rule, timestamp, data
+        FROM events
+        WHERE host = ${host}
+          AND json_extract(data, '$._tag') = 'LogError'
+          AND (timestamp > ${after} OR (timestamp = ${after} AND rowid > ${afterRow}))
+        ORDER BY timestamp, rowid
+        LIMIT 1000
+      `;
+
+      const last = rows.at(-1);
+
+      if (last === undefined) {
+        break;
+      }
+
+      after = last.timestamp;
+      afterRow = last.rowid;
+
+      for (const line of yield* toStored(rows)) {
+        const program = Rules.burstProgram(line.event);
+
+        if (program === undefined) {
+          continue;
+        }
+
+        totals.set(line.issueId, (totals.get(line.issueId) ?? 0) + 1);
+
+        const burst = open.get(program);
+
+        if (
+          burst === undefined ||
+          line.event.timestamp - burst.last > Rules.burstWindowMillis
+        ) {
+          open.set(program, {
+            opener: line.issueId,
+            last: line.event.timestamp,
+          });
+          continue;
+        }
+
+        burst.last = line.event.timestamp;
+
+        if (burst.opener !== line.issueId) {
+          const counts = ledBy.get(line.issueId) ?? new Map<string, number>();
+
+          counts.set(burst.opener, (counts.get(burst.opener) ?? 0) + 1);
+          ledBy.set(line.issueId, counts);
+        }
+      }
+    }
+  }
+
+  const counts = new Map(
+    (yield* sql<{
+      id: string;
+      count: number;
+    }>`SELECT id, count FROM issues`).map((row) => [row.id, row.count]),
+  );
+
+  // Only issues made of nothing but log errors, every one in the same
+  // opener's bursts.
+  const into = new Map<string, Array<string>>();
+
+  for (const [issueId, openers] of ledBy) {
+    const total = totals.get(issueId) ?? 0;
+
+    for (const [opener, inBursts] of openers) {
+      if (inBursts === total && counts.get(issueId) === total) {
+        into.set(opener, [...(into.get(opener) ?? []), issueId]);
+      }
+    }
+  }
+
+  let merged = 0;
+
+  for (const [kept, ids] of into) {
+    const statuses = yield* sql<{
+      status: string;
+      resolved_at: number | null;
+      regressed_at: number | null;
+    }>`
+      SELECT status, resolved_at, regressed_at FROM issues
+      WHERE id IN ${sql.in([kept, ...ids])}
+    `;
+
+    const status = mergedStatus(statuses);
+
+    for (const id of ids) {
+      yield* sql`
+        UPDATE issue_fingerprints SET rule = 'burst' WHERE issue_id = ${id}
+      `;
+      yield* absorb(id, kept);
+    }
+
+    yield* recountIssue(kept);
+    yield* sql`
+      UPDATE issues SET
+        status = ${status.status},
+        resolved_at = ${status.resolvedAt},
+        regressed_at = ${status.regressedAt}
+      WHERE id = ${kept}
+    `;
+    yield* sql`
+      INSERT INTO notes ${sql.insert({
+        issue_id: kept,
+        created_at: yield* Clock.currentTimeMillis,
+        created_by: "server",
+        status: null,
+        text: `Merged ${ids.join(", ")} by rule`,
+      })}
+    `;
+
+    merged += ids.length;
+  }
+
+  return merged;
 });
 
 const migrations = SqliteMigrator.fromRecord({
@@ -1034,6 +1465,62 @@ const migrations = SqliteMigrator.fromRecord({
 
     yield* sql`CREATE INDEX events_issue_host ON events (issue_id, host, timestamp)`;
   }),
+  // Events can join an issue by rule as well as by fingerprint: a unit
+  // failure the crash or OOM kill behind it, systemd's errors about the unit
+  // the failure, and the lines of a log burst the issue of its first line.
+  // A fingerprint split back out of an issue isn't joined to it again.
+  "0023_rules": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+
+    yield* sql`ALTER TABLE events ADD COLUMN rule TEXT`;
+    yield* sql`ALTER TABLE issue_fingerprints ADD COLUMN rule TEXT`;
+    yield* sql`
+      CREATE TABLE rule_splits (
+        fingerprint TEXT NOT NULL,
+        issue_id TEXT NOT NULL,
+        PRIMARY KEY (fingerprint, issue_id)
+      )
+    `;
+
+    const moves: Moves = { moved: new Map(), touched: new Set() };
+    let last = 0;
+
+    while (true) {
+      const rows = yield* sql<{
+        rowid: number;
+        host: string;
+        id: string;
+        issue_id: string;
+        fingerprint: string;
+        rule: string | null;
+        data: string;
+      }>`
+        SELECT rowid, host, id, issue_id, fingerprint, rule, data FROM events
+        WHERE rowid > ${last} AND json_extract(data, '$._tag') = 'UnitFailure'
+        ORDER BY rowid LIMIT 1000
+      `;
+
+      const end = rows.at(-1);
+
+      if (end === undefined) {
+        break;
+      }
+
+      last = end.rowid;
+
+      for (const stored of yield* toStored(rows)) {
+        if (isFailure(stored)) {
+          yield* settleFailure(stored, moves);
+        }
+      }
+    }
+
+    for (const id of moves.touched) {
+      yield* recountIssue(id);
+    }
+
+    yield* mergeBursts();
+  }),
 });
 
 /** How long a host keeps warning counts, sent or not. */
@@ -1345,7 +1832,10 @@ export class Store extends Context.Service<
      * Move a fingerprint's events out of an issue into an issue of their own,
      * which keeps the issue's status but none of its decisions, label or
      * suggestions. Returns the new issue's ID: the fingerprint's own, unless
-     * the issue already has it. `by` is the admin, or `cli` or `mcp`.
+     * the issue already has it. When a rule brought the fingerprint's events
+     * in without the issue owning it, they go back to the issue that does,
+     * and the rule won't join them to this one again. `by` is the admin, or
+     * `cli` or `mcp`.
      */
     unmerge(
       issueId: string,
@@ -1616,29 +2106,28 @@ export class Store extends Context.Service<
      * themselves, and an update per issue they add to, rather than three or
      * four statements for every event. Returns how many were new.
      */
-    const insertAll = Effect.fnUntraced(function* (
-      events: ReadonlyArray<Event.Event>,
-    ) {
-      if (events.length === 0) {
-        return 0;
-      }
+    const insertAll = Effect.fnUntraced(
+      function* (events: ReadonlyArray<Event.Event>) {
+        if (events.length === 0) {
+          return 0;
+        }
 
-      const pairs = events.map((event) => ({
-        event,
-        issue: Issue.fromEvent(event),
-      }));
+        const pairs = events.map((event) => ({
+          event,
+          issue: Issue.fromEvent(event),
+        }));
 
-      const owners = new Map<string, Owner>();
+        const owners = new Map<string, Owner>();
 
-      for (const keys of chunks([
-        ...new Set(pairs.map(({ issue }) => issue.fingerprint)),
-      ])) {
-        const rows = yield* sql<{
-          fingerprint: string;
-          issue_id: string;
-          status: string | null;
-          resolved_at: number | null;
-        }>`
+        for (const keys of chunks([
+          ...new Set(pairs.map(({ issue }) => issue.fingerprint)),
+        ])) {
+          const rows = yield* sql<{
+            fingerprint: string;
+            issue_id: string;
+            status: string | null;
+            resolved_at: number | null;
+          }>`
           SELECT issue_fingerprints.fingerprint, issue_fingerprints.issue_id,
             issues.status, issues.resolved_at
           FROM issue_fingerprints
@@ -1646,27 +2135,79 @@ export class Store extends Context.Service<
           WHERE ${sql.in("issue_fingerprints.fingerprint", keys)}
         `;
 
-        for (const row of rows) {
-          owners.set(row.fingerprint, {
-            issueId: row.issue_id,
-            status: row.status,
-            resolvedAt: row.resolved_at,
+          for (const row of rows) {
+            owners.set(row.fingerprint, {
+              issueId: row.issue_id,
+              status: row.status,
+              resolvedAt: row.resolved_at,
+            });
+          }
+        }
+
+        // The issues the batch starts, from the first event with each new
+        // fingerprint, and the new fingerprints a log burst brings into the
+        // issue of its first line. Lines go oldest first, so each looks back
+        // only at those before it.
+        const started = new Map<string, Issue.Issue>();
+        const joined = new Map<string, Owner>();
+
+        const issueOf = (fingerprint: string) =>
+          owners.get(fingerprint)?.issueId ??
+          joined.get(fingerprint)?.issueId ??
+          started.get(fingerprint)?.id;
+
+        const ordered = pairs
+          .map((pair, index) => ({ ...pair, index }))
+          .sort(
+            (a, b) =>
+              a.event.timestamp - b.event.timestamp || a.index - b.index,
+          );
+
+        for (const [position, { event, issue }] of ordered.entries()) {
+          if (issueOf(issue.fingerprint) !== undefined) {
+            continue;
+          }
+
+          const earlier: Array<{ event: Event.Event; issueId: string }> = [];
+
+          for (let back = position - 1; back >= 0; back--) {
+            const line = ordered[back];
+
+            if (
+              line === undefined ||
+              line.event.timestamp < event.timestamp - Rules.burstWindowMillis
+            ) {
+              break;
+            }
+
+            const issueId = issueOf(line.issue.fingerprint);
+
+            if (issueId !== undefined) {
+              earlier.push({ event: line.event, issueId });
+            }
+          }
+
+          const leader = yield* burstIssue(event, earlier);
+
+          if (leader === undefined) {
+            started.set(issue.fingerprint, issue);
+            continue;
+          }
+
+          const [status] = yield* sql<{
+            status: string;
+            resolved_at: number | null;
+          }>`SELECT status, resolved_at FROM issues WHERE id = ${leader}`;
+
+          joined.set(issue.fingerprint, {
+            issueId: leader,
+            status: status?.status ?? "open",
+            resolvedAt: status?.resolved_at ?? null,
           });
         }
-      }
 
-      // The issues the batch starts, from the first event with each new
-      // fingerprint.
-      const started = new Map<string, Issue.Issue>();
-
-      for (const { issue } of pairs) {
-        if (!owners.has(issue.fingerprint) && !started.has(issue.fingerprint)) {
-          started.set(issue.fingerprint, issue);
-        }
-      }
-
-      for (const batch of chunks([...started.values()])) {
-        yield* sql`
+        for (const batch of chunks([...started.values()])) {
+          yield* sql`
           INSERT INTO issues ${sql.insert(
             Arr.map(batch, (issue) => ({
               id: issue.id,
@@ -1681,7 +2222,7 @@ export class Store extends Context.Service<
           ON CONFLICT (id) DO NOTHING
         `;
 
-        yield* sql`
+          yield* sql`
           INSERT INTO issue_fingerprints ${sql.insert(
             Arr.map(batch, (issue) => ({
               fingerprint: issue.fingerprint,
@@ -1689,64 +2230,116 @@ export class Store extends Context.Service<
             })),
           )}
         `;
-      }
-
-      for (const issue of started.values()) {
-        owners.set(issue.fingerprint, {
-          issueId: issue.id,
-          status: "open",
-          resolvedAt: null,
-        });
-      }
-
-      const ownerOf = (issue: Issue.Issue): Owner => {
-        const owner = owners.get(issue.fingerprint);
-
-        if (owner === undefined) {
-          throw new Error("Every fingerprint has an issue by now");
         }
 
-        return owner;
-      };
-
-      const byIssue = new Map(
-        [...owners.values()].map((owner) => [owner.issueId, owner]),
-      );
-
-      const added = new Map<string, Added>();
-      let total = 0;
-
-      for (const batch of chunks(pairs)) {
-        const values = yield* Effect.forEach(batch, ({ event, issue }) =>
-          Effect.map(encodeEvent(event), (data) => ({
-            host: event.host,
-            id: event.id,
-            issue_id: ownerOf(issue).issueId,
-            fingerprint: issue.fingerprint,
-            timestamp: event.timestamp,
-            data,
+        for (const batch of chunks(
+          [...joined].map(([fingerprint, owner]) => ({
+            fingerprint,
+            issue_id: owner.issueId,
+            rule: "burst",
           })),
+        )) {
+          yield* sql`INSERT INTO issue_fingerprints ${sql.insert(batch)}`;
+        }
+
+        for (const issue of started.values()) {
+          owners.set(issue.fingerprint, {
+            issueId: issue.id,
+            status: "open",
+            resolvedAt: null,
+          });
+        }
+
+        for (const [fingerprint, owner] of joined) {
+          owners.set(fingerprint, owner);
+        }
+
+        const ownerOf = (issue: Issue.Issue): Owner => {
+          const owner = owners.get(issue.fingerprint);
+
+          if (owner === undefined) {
+            throw new Error("Every fingerprint has an issue by now");
+          }
+
+          return owner;
+        };
+
+        const byIssue = new Map(
+          [...owners.values()].map((owner) => [owner.issueId, owner]),
         );
 
-        if (!Arr.isReadonlyArrayNonEmpty(values)) {
-          continue;
-        }
-
-        const rows = yield* sql<{
+        const inserted: Array<{
           host: string;
           id: string;
           issue_id: string;
           timestamp: number;
-        }>`
+        }> = [];
+
+        for (const batch of chunks(pairs)) {
+          const values = yield* Effect.forEach(batch, ({ event, issue }) =>
+            Effect.map(encodeEvent(event), (data) => ({
+              host: event.host,
+              id: event.id,
+              issue_id: ownerOf(issue).issueId,
+              fingerprint: issue.fingerprint,
+              timestamp: event.timestamp,
+              data,
+            })),
+          );
+
+          if (!Arr.isReadonlyArrayNonEmpty(values)) {
+            continue;
+          }
+
+          const rows = yield* sql<{
+            host: string;
+            id: string;
+            issue_id: string;
+            timestamp: number;
+          }>`
           INSERT INTO events ${sql.insert(values)}
           ON CONFLICT (host, id) DO NOTHING
           RETURNING host, id, issue_id, timestamp
         `;
 
-        total += rows.length;
+          inserted.push(...rows);
+        }
 
-        for (const row of rows) {
-          const sum = added.get(row.issue_id) ?? {
+        // The rules run before the counts, so an event counts towards, and
+        // can reopen, the issue it ends up in.
+        const byKey = new Map(
+          pairs.map(({ event, issue }) => [
+            eventKey(event.host, event.id),
+            { event, fingerprint: issue.fingerprint },
+          ]),
+        );
+
+        const moves = yield* applyEventRules(
+          inserted.flatMap((row) => {
+            const found = byKey.get(eventKey(row.host, row.id));
+
+            return found === undefined
+              ? []
+              : [
+                  {
+                    host: row.host,
+                    id: row.id,
+                    issueId: row.issue_id,
+                    fingerprint: found.fingerprint,
+                    rule: null,
+                    event: found.event,
+                  },
+                ];
+          }),
+        );
+
+        const added = new Map<string, Added>();
+
+        for (const row of inserted) {
+          const issueId =
+            moves.moved.get(eventKey(row.host, row.id)) ?? row.issue_id;
+
+          const sum = added.get(issueId) ?? {
             count: 0,
             firstSeen: row.timestamp,
             lastSeen: row.timestamp,
@@ -1759,7 +2352,7 @@ export class Store extends Context.Service<
 
           // Events from before an issue was resolved, sent late, don't
           // reopen it. The first new one from after it does.
-          const owner = byIssue.get(row.issue_id);
+          const owner = byIssue.get(issueId);
 
           if (
             sum.regressedBy === undefined &&
@@ -1770,12 +2363,11 @@ export class Store extends Context.Service<
             sum.regressedBy = row.host;
           }
 
-          added.set(row.issue_id, sum);
+          added.set(issueId, sum);
         }
-      }
 
-      for (const [issueId, sum] of added) {
-        yield* sql`
+        for (const [issueId, sum] of added) {
+          yield* sql`
           UPDATE issues SET
             count = count + ${sum.count},
             first_seen = min(first_seen, ${sum.firstSeen}),
@@ -1783,13 +2375,13 @@ export class Store extends Context.Service<
           WHERE id = ${issueId}
         `;
 
-        if (sum.regressedBy === undefined) {
-          continue;
-        }
+          if (sum.regressedBy === undefined) {
+            continue;
+          }
 
-        const now = yield* Clock.currentTimeMillis;
+          const now = yield* Clock.currentTimeMillis;
 
-        const regressed = yield* sql`
+          const regressed = yield* sql`
           UPDATE issues SET
             status = 'open',
             resolved_at = NULL,
@@ -1800,8 +2392,8 @@ export class Store extends Context.Service<
           RETURNING id
         `;
 
-        if (regressed.length > 0) {
-          yield* sql`
+          if (regressed.length > 0) {
+            yield* sql`
             INSERT INTO notes ${sql.insert({
               issue_id: issueId,
               created_at: now,
@@ -1810,11 +2402,18 @@ export class Store extends Context.Service<
               text: "",
             })}
           `;
+          }
         }
-      }
 
-      return total;
-    });
+        // Events stored before this batch may have moved too.
+        for (const issueId of moves.touched) {
+          yield* recountIssue(issueId);
+        }
+
+        return inserted.length;
+      },
+      Effect.provideService(SqlClient.SqlClient, sql),
+    );
 
     const countWarnings = Effect.fnUntraced(function* (
       warnings: ReadonlyArray<Warning.Warning>,
@@ -2253,19 +2852,40 @@ export class Store extends Context.Service<
       `,
     });
 
-    const issueFingerprints = SqlSchema.findAll({
+    // The fingerprints an issue owns, then those of events a rule brought in.
+    const listFingerprints = SqlSchema.findAll({
       Request: Schema.String,
-      Result: Api.IssueFingerprint,
+      Result: Schema.Struct({
+        fingerprint: Schema.String,
+        count: Schema.Int,
+        rule: Schema.NullOr(Api.JoinRule),
+      }),
       execute: (id) => sql`
-        SELECT fingerprint, (
-          SELECT COUNT(*) FROM events
-          WHERE events.issue_id = ${id}
-            AND events.fingerprint = issue_fingerprints.fingerprint
-        ) AS count
-        FROM issue_fingerprints WHERE issue_id = ${id}
+        SELECT fingerprint, count, rule FROM (
+          SELECT fingerprint, (
+            SELECT COUNT(*) FROM events
+            WHERE events.issue_id = ${id}
+              AND events.fingerprint = issue_fingerprints.fingerprint
+          ) AS count, rule
+          FROM issue_fingerprints WHERE issue_id = ${id}
+          UNION ALL
+          SELECT fingerprint, COUNT(*) AS count, MIN(rule) AS rule FROM events
+          WHERE issue_id = ${id} AND rule IS NOT NULL
+            AND fingerprint NOT IN (
+              SELECT fingerprint FROM issue_fingerprints WHERE issue_id = ${id}
+            )
+          GROUP BY fingerprint
+        )
         ORDER BY count DESC, fingerprint
       `,
     });
+
+    const issueFingerprints = (id: string) =>
+      Effect.map(listFingerprints(id), (rows) =>
+        rows.map(({ fingerprint, count, rule }): Api.IssueFingerprint =>
+          rule === null ? { fingerprint, count } : { fingerprint, count, rule },
+        ),
+      );
 
     /**
      * Other issues with events on the same host within `Api.nearbyMillis` of
@@ -2732,19 +3352,7 @@ export class Store extends Context.Service<
         );
 
         for (const { id } of rest) {
-          yield* sql`
-            UPDATE issue_fingerprints SET issue_id = ${kept.id}
-            WHERE issue_id = ${id}
-          `;
-          yield* sql`UPDATE notes SET issue_id = ${kept.id} WHERE issue_id = ${id}`;
-          yield* sql`
-            UPDATE issue_redirects SET issue_id = ${kept.id}
-            WHERE issue_id = ${id}
-          `;
-          yield* moveIssue(id, kept.id);
-          yield* sql`
-            INSERT INTO issue_redirects ${sql.insert({ id, issue_id: kept.id })}
-          `;
+          yield* absorb(id, kept.id);
         }
 
         yield* sql`
@@ -2790,14 +3398,64 @@ export class Store extends Context.Service<
       `,
     });
 
-    /** Count an issue's events again, after some moved in or out. */
-    const recount = (id: string) => sql`
-      UPDATE issues SET
-        first_seen = coalesce((SELECT MIN(timestamp) FROM events WHERE issue_id = ${id}), first_seen),
-        last_seen = coalesce((SELECT MAX(timestamp) FROM events WHERE issue_id = ${id}), last_seen),
-        count = (SELECT COUNT(*) FROM events WHERE issue_id = ${id})
-      WHERE id = ${id}
-    `;
+    /**
+     * Send the events a rule joined to an issue, with this fingerprint, back
+     * to the fingerprint's own issue, and keep the rule from joining them to
+     * it again. Returns that issue's ID, or none when no rule joined any.
+     */
+    const unjoin = Effect.fnUntraced(function* (
+      source: typeof IssueRow.Type,
+      fingerprint: string,
+      by: string,
+    ) {
+      const [owner] = yield* sql<{ issue_id: string }>`
+        SELECT issue_id FROM issue_fingerprints WHERE fingerprint = ${fingerprint}
+      `;
+
+      if (owner === undefined || owner.issue_id === source.id) {
+        return Option.none<string>();
+      }
+
+      const moved = yield* sql`
+        UPDATE events SET issue_id = ${owner.issue_id}, rule = NULL
+        WHERE issue_id = ${source.id}
+          AND fingerprint = ${fingerprint}
+          AND rule IS NOT NULL
+        RETURNING id
+      `;
+
+      if (moved.length === 0) {
+        return Option.none<string>();
+      }
+
+      yield* sql`
+        INSERT OR IGNORE INTO rule_splits ${sql.insert({
+          fingerprint,
+          issue_id: source.id,
+        })}
+      `;
+      yield* recountIssue(owner.issue_id);
+      yield* recountIssue(source.id);
+
+      const now = yield* Clock.currentTimeMillis;
+
+      yield* insertNote({
+        issueId: source.id,
+        createdAt: now,
+        by,
+        status: null,
+        text: `Unmerged ${owner.issue_id}`,
+      });
+      yield* insertNote({
+        issueId: owner.issue_id,
+        createdAt: now,
+        by,
+        status: null,
+        text: `Unmerged from ${source.id}`,
+      });
+
+      return Option.some(owner.issue_id);
+    });
 
     const unmerge = Effect.fn("Store.unmerge")(
       function* (issueId: string, fingerprint: string, by: string) {
@@ -2819,6 +3477,12 @@ export class Store extends Context.Service<
         `;
 
         if (!owned.some((owner) => owner.fingerprint === fingerprint)) {
+          const unjoined = yield* unjoin(source, fingerprint, by);
+
+          if (Option.isSome(unjoined)) {
+            return unjoined.value;
+          }
+
           return yield* new FingerprintNotFound({
             issueId: source.id,
             fingerprint,
@@ -2871,16 +3535,16 @@ export class Store extends Context.Service<
           })}
         `;
         yield* sql`
-          UPDATE events SET issue_id = ${id}
+          UPDATE events SET issue_id = ${id}, rule = NULL
           WHERE issue_id = ${source.id} AND fingerprint = ${fingerprint}
         `;
         yield* sql`
-          UPDATE issue_fingerprints SET issue_id = ${id}
+          UPDATE issue_fingerprints SET issue_id = ${id}, rule = NULL
           WHERE fingerprint = ${fingerprint}
         `;
         yield* sql`DELETE FROM issue_redirects WHERE id = ${id}`;
-        yield* recount(id);
-        yield* recount(source.id);
+        yield* recountIssue(id);
+        yield* recountIssue(source.id);
 
         // The issue left behind takes the kind and title of its cause again.
         const remaining = yield* Effect.forEach(
@@ -2930,6 +3594,7 @@ export class Store extends Context.Service<
 
         return id;
       },
+      Effect.provideService(SqlClient.SqlClient, sql),
       sql.withTransaction,
       Effect.catchTag("SqlError", toStoreError),
       Effect.catchTag("SchemaError", (cause) =>

@@ -415,10 +415,25 @@ const notes = Schema.Array(IssueNote).pipe(
   Schema.withDecodingDefaultTypeKey(Effect.succeed([])),
 );
 
-/** A fingerprint an issue owns, and how many of its events have it. */
+/**
+ * How a fingerprint's events came into an issue by rule: `burst` for the
+ * lines of a log burst, joining the issue of its first line, `cause` for a
+ * unit failure joining the crash or OOM kill behind it, and `systemd` for
+ * systemd's errors about a failed unit, following the failure.
+ */
+export const JoinRule = Schema.Literals(["burst", "cause", "systemd"]);
+
+export type JoinRule = typeof JoinRule.Type;
+
+/**
+ * A fingerprint an issue owns, or has events of that a rule brought in, and
+ * how many of its events have it.
+ */
 export const IssueFingerprint = Schema.Struct({
   fingerprint: Schema.String,
   count: Schema.Int,
+  /** The rule that brought it in, when it wasn't by its own events or a merge. */
+  rule: Schema.optional(JoinRule),
 });
 
 export interface IssueFingerprint extends Schema.Schema.Type<
@@ -678,7 +693,10 @@ export class IssuesGroup extends HttpApiGroup.make("issues")
       success: Merged,
       error: [IssueNotFound, NothingToMerge],
     }),
-    /** Move a fingerprint's events out into an issue of their own, returning its ID. */
+    /**
+     * Move a fingerprint's events out into an issue of their own, or back to
+     * their own issue when a rule brought them in, returning its ID.
+     */
     HttpApiEndpoint.post("unmerge", "/:id/unmerge", {
       params: { id: Schema.String },
       payload: Schema.Struct({ fingerprint: Schema.String }),
