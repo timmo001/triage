@@ -194,8 +194,11 @@
   "issue.suggestions": "Sugerowane poprawki",
   "issue.eventList": "Zdarzenia",
   "issue.fingerprints": "Odciski",
-  "fingerprints.hint": "Problemy scalone z tym, według odcisku, który grupuje ich zdarzenia. Rozdziel przenosi zdarzenia odcisku z powrotem do osobnego problemu.",
+  "fingerprints.hint": "Problemy scalone z tym ręcznie lub przez regułę, według odcisku, który grupuje ich zdarzenia. Rozdziel przenosi zdarzenia odcisku z powrotem do osobnego problemu.",
   "fingerprints.unmerge": "Rozdziel",
+  "fingerprints.rule.burst": "Ta sama seria logów",
+  "fingerprints.rule.cause": "Awaria jednostki, którą spowodował",
+  "fingerprints.rule.systemd": "Błąd systemd o jednostce",
   "issue.warnings": "Ostrzeżenia",
   "warnings.hint": "Najczęstsze ostrzeżenia tego samego programu na tych hostach, liczone na każdym hoście i wysyłane, dopóki ma problem, który nie jest wyciszony.",
   "warnings.seen": {

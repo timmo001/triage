@@ -112,6 +112,13 @@ const kinds: Record<Issue.Kind, string> = {
   LogError: t("kind.LogError"),
 };
 
+/** What each rule that brings a fingerprint into an issue is shown as. */
+const rules: Record<Api.JoinRule, string> = {
+  burst: t("fingerprints.rule.burst"),
+  cause: t("fingerprints.rule.cause"),
+  systemd: t("fingerprints.rule.systemd"),
+};
+
 /** The causes decision models pick from, as `Triager` asks for them. */
 const causes = [
   "application",
@@ -665,7 +672,8 @@ export class TriageIssue extends LitElement {
             <pre><code>${agentMessage(value.issue)}</code></pre>
           </div>
           ${
-            value.fingerprints.length > 1
+            value.fingerprints.length > 1 ||
+            value.fingerprints.some(({ rule }) => rule !== undefined)
               ? this.#renderFingerprints(value)
               : nothing
           }
@@ -712,10 +720,15 @@ export class TriageIssue extends LitElement {
       <p class="muted-text">${t("fingerprints.hint")}</p>
       <ul class="fingerprints">
         ${review.fingerprints.map(
-          ({ fingerprint, count }) => html`
+          ({ fingerprint, count, rule }) => html`
             <li>
               <code>${fingerprint}</code>
               <span class="muted-text">${eventCount(count)}</span>
+              ${
+                rule === undefined
+                  ? nothing
+                  : html`<span class="muted-text">${rules[rule]}</span>`
+              }
               <button
                 ?disabled=${this.#unmerge.value.waiting}
                 @click=${() => this.#splitOut(review.issue.id, fingerprint)}

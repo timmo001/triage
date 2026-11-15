@@ -191,8 +191,11 @@
   "issue.suggestions": "Correzioni suggerite",
   "issue.eventList": "Eventi",
   "issue.fingerprints": "Impronte",
-  "fingerprints.hint": "Problemi uniti in questo, per l'impronta che ne raggruppa gli eventi. Separa sposta gli eventi di un'impronta in un problema a sé.",
+  "fingerprints.hint": "Problemi uniti in questo, a mano o da una regola, per l'impronta che ne raggruppa gli eventi. Separa sposta gli eventi di un'impronta in un problema a sé.",
   "fingerprints.unmerge": "Separa",
+  "fingerprints.rule.burst": "Stessa raffica di log",
+  "fingerprints.rule.cause": "Errore di unità che ha causato",
+  "fingerprints.rule.systemd": "Errore di systemd sull'unità",
   "issue.warnings": "Avvisi",
   "warnings.hint": "Gli avvisi più frequenti dello stesso programma su questi host, contati su ogni host e inviati finché ha un problema non silenziato.",
   "warnings.seen": {

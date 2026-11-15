@@ -191,8 +191,11 @@
   "issue.suggestions": "Corrections suggérées",
   "issue.eventList": "Événements",
   "issue.fingerprints": "Empreintes",
-  "fingerprints.hint": "Problèmes fusionnés dans celui-ci, par l'empreinte qui regroupe leurs événements. Séparer replace les événements d'une empreinte dans un problème à part.",
+  "fingerprints.hint": "Problèmes fusionnés dans celui-ci, à la main ou par une règle, par l'empreinte qui regroupe leurs événements. Séparer replace les événements d'une empreinte dans un problème à part.",
   "fingerprints.unmerge": "Séparer",
+  "fingerprints.rule.burst": "Même rafale de journal",
+  "fingerprints.rule.cause": "Échec d'unité qu'il a causé",
+  "fingerprints.rule.systemd": "Erreur systemd sur l'unité",
   "issue.warnings": "Avertissements",
   "warnings.hint": "Les avertissements les plus fréquents du même programme sur ces hôtes, comptés sur chaque hôte et envoyés tant qu'il a un problème qui n'est pas mis en sourdine.",
   "warnings.seen": {

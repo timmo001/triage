@@ -191,8 +191,11 @@
   "issue.suggestions": "Arreglos sugeridos",
   "issue.eventList": "Eventos",
   "issue.fingerprints": "Huellas",
-  "fingerprints.hint": "Incidencias fusionadas en esta, por la huella que agrupa sus eventos. Separar devuelve los eventos de una huella a una incidencia propia.",
+  "fingerprints.hint": "Incidencias fusionadas en esta, a mano o por una regla, por la huella que agrupa sus eventos. Separar devuelve los eventos de una huella a una incidencia propia.",
   "fingerprints.unmerge": "Separar",
+  "fingerprints.rule.burst": "Misma ráfaga de registros",
+  "fingerprints.rule.cause": "Fallo de unidad que causó",
+  "fingerprints.rule.systemd": "Error de systemd sobre la unidad",
   "issue.warnings": "Avisos",
   "warnings.hint": "Los avisos más frecuentes del mismo programa en estos equipos, contados en cada equipo y enviados mientras tenga una incidencia que no esté silenciada.",
   "warnings.seen": {

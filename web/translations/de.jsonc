@@ -182,8 +182,11 @@
   "issue.suggestions": "Vorgeschlagene Lösungen",
   "issue.eventList": "Ereignisse",
   "issue.fingerprints": "Fingerabdrücke",
-  "fingerprints.hint": "In dieses Problem zusammengeführte Probleme, nach dem Fingerabdruck, der ihre Ereignisse gruppiert. Trennen verschiebt die Ereignisse eines Fingerabdrucks zurück in ein eigenes Problem.",
+  "fingerprints.hint": "Von Hand oder per Regel in dieses Problem zusammengeführte Probleme, nach dem Fingerabdruck, der ihre Ereignisse gruppiert. Trennen verschiebt die Ereignisse eines Fingerabdrucks zurück in ein eigenes Problem.",
   "fingerprints.unmerge": "Trennen",
+  "fingerprints.rule.burst": "Gleicher Log-Schwall",
+  "fingerprints.rule.cause": "Dadurch verursachter Unit-Fehler",
+  "fingerprints.rule.systemd": "systemd-Fehler zur Unit",
   "issue.warnings": "Warnungen",
   "warnings.hint": "Wovor dasselbe Programm auf diesen Hosts am häufigsten gewarnt hat, auf jedem Host gezählt und gesendet, solange es ein Problem hat, das nicht stummgeschaltet ist.",
   "warnings.seen": {

@@ -190,8 +190,14 @@
   // The fingerprints of the issues merged into this one. A fingerprint is the
   // key that groups an issue's events.
   "issue.fingerprints": "Fingerprints",
-  "fingerprints.hint": "Issues merged into this one, by the fingerprint that groups their events. Unmerge moves a fingerprint's events back out into an issue of their own.",
+  "fingerprints.hint": "Issues merged into this one, by hand or by a rule, by the fingerprint that groups their events. Unmerge moves a fingerprint's events back out into an issue of their own.",
   "fingerprints.unmerge": "Unmerge",
+  // Next to a fingerprint a rule brought into the issue, saying which rule:
+  // the lines of one log burst, a unit failure the crash or memory kill
+  // caused, or systemd's own errors about that unit.
+  "fingerprints.rule.burst": "Same log burst",
+  "fingerprints.rule.cause": "Unit failure it caused",
+  "fingerprints.rule.systemd": "systemd error about the unit",
   // Warnings the program behind the issue logged, which aren't issues of their
   // own.
   "issue.warnings": "Warnings",
