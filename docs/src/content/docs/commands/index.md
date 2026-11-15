@@ -69,7 +69,7 @@ SUBCOMMANDS
   reopen       Reopen resolved or muted issues
   note         Add a note to one of the server's issues without changing its status
   merge        Merge issues that are the same problem into the one seen first. The others' IDs lead to it, and unmerge splits them apart again
-  unmerge      Move a fingerprint's events out of a merged issue into an issue of their own, or list its fingerprints
+  unmerge      Move a fingerprint's events out of a merged issue into an issue of their own, or back to their own issue when a rule brought them in, or list its fingerprints
   agreement    Compare each decision model with the hand labels: how often it's sure enough to act on, and how often it's right when it is
   mcp          Serve MCP over stdio, so agents can find and read issues, their events and how similar issues were fixed, and resolve, mute, label or note on them
   agent        The Code Mode tools the OpenCode plugin registers, from the MCP server's issue tools

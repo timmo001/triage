@@ -65,13 +65,23 @@ The issue seen first is kept, then the one with more events, then the lower ID. 
 
 Each issue it took in shows as a fingerprint, the key that groups an issue's events. Unmerging one moves its events back out into an issue of their own, with the same status but no decisions, label or suggestions, so they're decided on afresh. Both issues get a note saying what happened.
 
+### Merging by rule
+
+Some events belong together whenever they happen, so triage joins them as they arrive, without a merge. Each fingerprint a rule brought in shows on the issue with the rule that did it:
+
+- **Unit failure it caused.** A `core-dump` unit failure joins the crash behind it, and an `oom-kill` one the OOM kill, when they're for the same unit on the same host within 10 seconds, whichever arrives first.
+- **systemd error about the unit.** systemd's own errors about that unit within 10 seconds follow the unit failure, wherever it ended up.
+- **Same log burst.** Log errors from the same program on the same host, each within 2 seconds of the one before, such as a firmware error dump with one line per register, join the issue of the burst's first line. The kernel logs for every driver, so its errors are also grouped by the message's first word. Only new fingerprints join a burst; a fingerprint with an issue already stays where it is.
+
+Unmerge works on these too. Unmerging a fingerprint a rule joined sends its events back to the issue that owns the fingerprint, and the rule doesn't join them to that issue again. When the server's database is first updated to these rules, it also merges stored issues whose every event falls in the bursts another issue's first line opens, and notes it on the issue that's kept.
+
 ## In a browser
 
 The server has a web page at its own URL, such as `http://localhost:7171/`. It lists the server's issues with the hosts each happened on, loading more as you scroll. Search their titles, sort them by when they were last or first seen, how likely the latest decision says they're worth fixing, how many events they have or their title, and group them by state, kind or label. Groups collapse, and the page remembers which ones you collapsed.
 
 **Filters** opens a panel with lists of states, hosts, kinds and labels, with how many issues each has. States start with regressed, new and ongoing ticked, so quiet, resolved and muted issues stay out of the way; everything else starts ticked. Untick what you don't want to see, and each list's clear button goes back to how it started. The page remembers these choices in the browser.
 
-Tick issues, or a whole group, to resolve, mute, reopen or label them together, or tick two or more to [merge](#merging) them. To go through issues that have stopped happening, tick only **Quiet** in Filters and resolve or mute the ones you're done with. Each issue's page shows how often it happened on each host, its 20 latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, the warnings its program logged most often on those hosts, other issues that happened on the same hosts within a minute of its latest events, its notes, and buttons to resolve, mute, reopen or unmute it with an optional note, or to add a note on its own. A merged issue's page lists its fingerprints, each with an **Unmerge** button.
+Tick issues, or a whole group, to resolve, mute, reopen or label them together, or tick two or more to [merge](#merging) them. To go through issues that have stopped happening, tick only **Quiet** in Filters and resolve or mute the ones you're done with. Each issue's page shows how often it happened on each host, its 20 latest events with where each came from, what each decision model made of it and which worker asked, any suggested fixes, the warnings its program logged most often on those hosts, other issues that happened on the same hosts within a minute of its latest events, its notes, and buttons to resolve, mute, reopen or unmute it with an optional note, or to add a note on its own. A merged issue's page lists its fingerprints, each with an **Unmerge** button, and a tag saying which rule joined it, if one did.
 
 Sign in with an [admin token](/setup/server#tokens). It's kept in that browser until you sign out. In the [Home Assistant app](/setup/server#home-assistant), open **Triage** in Home Assistant's sidebar instead, with no token needed.
 

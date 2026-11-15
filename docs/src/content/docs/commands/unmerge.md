@@ -13,7 +13,7 @@ Every `triage unmerge` command and its help, as `--help` prints it. Each also ac
 
 ```text
 DESCRIPTION
-  Move a fingerprint's events out of a merged issue into an issue of their own, or list its fingerprints
+  Move a fingerprint's events out of a merged issue into an issue of their own, or back to their own issue when a rule brought them in, or list its fingerprints
 
 USAGE
   triage unmerge [flags] <issue> [<fingerprint>]

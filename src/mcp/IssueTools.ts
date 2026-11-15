@@ -81,7 +81,7 @@ const ListIssues = Tool.make("list_issues", {
   .annotate(Tool.OpenWorld, false);
 
 const GetIssue = Tool.make("get_issue", {
-  description: `Read a triage issue: its kind, state and counts, the hosts it happened on, what the decision models made of it, suggested fixes, its notes and status history, the fingerprints it owns, more than one once issues are merged into it, its latest ${Api.latestEvents} events, newest first, the warnings the same program logged most often on those hosts, and nearby: other issues on the same hosts within a minute of its latest events, which often share a cause such as a network or device going down. The notes say why it was resolved or muted before, and which host's event made it regress, so read them before fixing it again. Everything personal was redacted before it was stored. issue.count is how many events it has in all; read the rest with get_issue_events.`,
+  description: `Read a triage issue: its kind, state and counts, the hosts it happened on, what the decision models made of it, suggested fixes, its notes and status history, the fingerprints it owns, more than one once issues are merged into it, each with the rule that brought it in, if one did (burst for the lines of one log burst, cause for a unit failure joining the crash or OOM kill behind it, systemd for systemd's errors about that unit), its latest ${Api.latestEvents} events, newest first, the warnings the same program logged most often on those hosts, and nearby: other issues on the same hosts within a minute of its latest events, which often share a cause such as a network or device going down. The notes say why it was resolved or muted before, and which host's event made it regress, so read them before fixing it again. Everything personal was redacted before it was stored. issue.count is how many events it has in all; read the rest with get_issue_events.`,
   parameters: Schema.Struct({ issue: IssueParameter }),
   success: Api.IssueReview,
   failure: IssueToolError,
@@ -194,7 +194,7 @@ const LabelIssue = Tool.make("label_issue", {
   .annotate(Tool.OpenWorld, false);
 
 const MergeIssues = Tool.make("merge_issues", {
-  description: `Merge triage issues that are the same problem into one, such as the same crash with different frames, or a unit failure and the crash behind it. Only after asking the user: show them the issues and why you think they're the same, since a wrong merge mixes their events and statuses. The issue seen first is kept, and the others' IDs and links lead to it. It's muted if any of them was, open if any was and resolved otherwise. Split a fingerprint back out with triage unmerge or the issue's page.`,
+  description: `Merge triage issues that are the same problem into one, such as the same crash with different frames, or a unit failure and the crash behind it. Only after asking the user: show them the issues and why you think they're the same, since a wrong merge mixes their events and statuses. The issue seen first is kept, and the others' IDs and links lead to it. It's muted if any of them was, open if any was and resolved otherwise. Some come together by rule already: a unit failure with the crash or OOM kill behind it, and the lines of one log burst. Split a fingerprint back out, merged by hand or by rule, with triage unmerge or the issue's page.`,
   parameters: Schema.Struct({
     issues: Schema.Array(IssueParameter).annotate({
       description: "At least two issues to merge",

@@ -912,8 +912,10 @@ const unmerge = Command.make(
         if (Option.isNone(input.fingerprint)) {
           const review = yield* admin.review(input.issue);
 
-          for (const { fingerprint, count } of review.fingerprints) {
-            yield* Console.log(`${String(count).padStart(6)}  ${fingerprint}`);
+          for (const { fingerprint, count, rule } of review.fingerprints) {
+            yield* Console.log(
+              `${String(count).padStart(6)}  ${fingerprint}${rule === undefined ? "" : `  (by rule: ${rule})`}`,
+            );
           }
 
           return;
@@ -927,7 +929,7 @@ const unmerge = Command.make(
   }),
 ).pipe(
   Command.withDescription(
-    "Move a fingerprint's events out of a merged issue into an issue of their own, or list its fingerprints",
+    "Move a fingerprint's events out of a merged issue into an issue of their own, or back to their own issue when a rule brought them in, or list its fingerprints",
   ),
 );
 
