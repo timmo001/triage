@@ -25,19 +25,10 @@ jobs:
         ./dist/triage --version
 
   packages:
-    name: Build packages
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-
-      - name: Set up mise
-        uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
-
-      - name: Build packages
-        run: mise run build:packages
+    uses: timmo001/workflows/.github/workflows/run-mise-task.yml@36ba6651f1296cce685ede8ac38b9574c9291028 # master
+    with:
+      name: Build packages
+      task: build:packages
 
   image:
     name: Build container images

@@ -39,42 +39,14 @@ jobs:
 
   # The Supervisor shows the app's CHANGELOG.md from the default branch, so copy
   # the release notes there. The ruleset blocks GITHUB_TOKEN from pushing to
-  # main, so this pushes with an admin's token, which can bypass it. A missing
-  # changelog shouldn't fail the release, so failures only warn.
+  # main, so this pushes with an admin's token, which can bypass it.
   app-changelog:
     name: Home Assistant app changelog
-    if: ${{ !github.event.release.prerelease }}
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Check out default branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ github.event.repository.default_branch }}
-          token: ${{ secrets.RELEASE_COMMIT_TOKEN }}
-
-      - name: Write changelog
-        env:
-          RELEASE_NOTES: ${{ github.event.release.body }}
-        run: printf '%s\n' "$RELEASE_NOTES" | tr -d '\r' > home-assistant/app/CHANGELOG.md
-
-      - name: Commit changelog
-        env:
-          RELEASE_VERSION: ${{ github.event.release.tag_name }}
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- home-assistant/app/CHANGELOG.md; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add home-assistant/app/CHANGELOG.md
-          git commit -m "Update Home Assistant app changelog for $RELEASE_VERSION"
-          git push
-
-      - name: Warn about missing changelog
-        if: ${{ failure() }}
-        run: echo "::warning title=Home Assistant app changelog::Couldn't commit the release notes to home-assistant/app/CHANGELOG.md. Check RELEASE_COMMIT_TOKEN, then update the file by hand."
+    uses: timmo001/workflows/.github/workflows/home-assistant-app-changelog.yml@36ba6651f1296cce685ede8ac38b9574c9291028 # master
+    with:
+      changelog-path: home-assistant/app/CHANGELOG.md
+    secrets:
+      token: ${{ secrets.RELEASE_COMMIT_TOKEN }}
 
   effect-triage-npm:
     name: effect-triage npm
@@ -224,150 +196,41 @@ jobs:
       release-tag: ${{ github.event.release.tag_name }}
       package-name: triage-bin
 
-  # Each architecture builds on its own native runner, since Bun's compile step
-  # is unreliable under QEMU, and is pushed by digest. image-manifest then tags
-  # one multi-arch manifest per image: ghcr.io/timmo001/triage for Docker, and
+  # One multi-arch image per target: ghcr.io/timmo001/triage for Docker, and
   # ghcr.io/timmo001/triage-app, which runs as root, for the Home Assistant app.
-  image:
-    name: Container image (${{ matrix.target }}, ${{ matrix.arch }})
-    needs: tools
-    runs-on: ${{ matrix.runner }}
+  image-server:
+    name: Container image (server)
+    if: ${{ !github.event.release.prerelease }}
     permissions:
       contents: read
       packages: write
-    strategy:
-      matrix:
-        target:
-          - server
-          - app
-        arch:
-          - amd64
-          - arm64
-        include:
-          - arch: amd64
-            hass-arch: amd64
-            runner: ubuntu-latest
-          - arch: arm64
-            hass-arch: aarch64
-            runner: ubuntu-24.04-arm
-          - target: server
-            suffix: ""
-          - target: app
-            suffix: -app
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
+    uses: timmo001/workflows/.github/workflows/build-container-image.yml@36ba6651f1296cce685ede8ac38b9574c9291028 # master
+    with:
+      image: ghcr.io/timmo001/triage
+      target: server
+      version: ${{ github.event.release.tag_name }}
+      home-assistant: true
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Log in to GHCR
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Image metadata
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}${{ matrix.suffix }}
-          labels: |
-            io.hass.type=app
-            io.hass.arch=${{ matrix.hass-arch }}
-            io.hass.version=${{ github.event.release.tag_name }}
-
-      - name: Build and push by digest
-        id: build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          target: ${{ matrix.target }}
-          platforms: linux/${{ matrix.arch }}
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=ghcr.io/${{ github.repository }}${{ matrix.suffix }},push-by-digest=true,name-canonical=true,push=true
-
-      - name: Export digest
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-        run: |
-          mkdir -p /tmp/digests
-          touch "/tmp/digests/${DIGEST#sha256:}"
-
-      - name: Upload digest
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: image-digest-${{ matrix.target }}-${{ matrix.arch }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  image-manifest:
-    name: Container image manifest (${{ matrix.target }})
-    needs: image
-    runs-on: ubuntu-latest
+  image-app:
+    name: Container image (app)
+    if: ${{ !github.event.release.prerelease }}
     permissions:
       contents: read
       packages: write
-    strategy:
-      matrix:
-        include:
-          - target: server
-            suffix: ""
-          - target: app
-            suffix: -app
-    steps:
-      - name: Download digests
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          path: /tmp/digests
-          pattern: image-digest-${{ matrix.target }}-*
-          merge-multiple: true
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Log in to GHCR
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Image metadata
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}${{ matrix.suffix }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
-
-      - name: Create and push manifest
-        working-directory: /tmp/digests
-        env:
-          IMAGE: ghcr.io/${{ github.repository }}${{ matrix.suffix }}
-        run: |
-          # shellcheck disable=SC2046
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf "${IMAGE}@sha256:%s " *)
-
-      - name: Inspect manifest
-        env:
-          IMAGE: ghcr.io/${{ github.repository }}${{ matrix.suffix }}
-          VERSION: ${{ steps.meta.outputs.version }}
-        run: docker buildx imagetools inspect "${IMAGE}:${VERSION}"
+    uses: timmo001/workflows/.github/workflows/build-container-image.yml@36ba6651f1296cce685ede8ac38b9574c9291028 # master
+    with:
+      image: ghcr.io/timmo001/triage-app
+      target: app
+      version: ${{ github.event.release.tag_name }}
+      home-assistant: true
 
   # Asks timmo001/home-assistant-apps to copy this release's app folder, now
   # its image is pushed.
   home-assistant-apps:
     name: Home Assistant apps repository
-    needs: image-manifest
+    needs:
+      - image-server
+      - image-app
     uses: timmo001/workflows/.github/workflows/home-assistant-app-dispatch.yml@fa479eabebf26cc5f655b165c20423fb8fcc0cf4 # 20261115.0
     with:
       repository: timmo001/home-assistant-apps
