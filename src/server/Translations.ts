@@ -11,6 +11,16 @@ const decodeMessages = Schema.decodeUnknownEffect(
   Schema.fromJsonString(Api.Translations.fields.messages),
 );
 
+/** A bundled translation file doesn't match the messages the web UI expects. */
+export class TranslationsError extends Schema.TaggedError<TranslationsError>()(
+  "TranslationsError",
+  { language: Schema.String, cause: Schema.Defect() },
+) {
+  override get message() {
+    return `The ${this.language} translation is invalid: ${this.cause instanceof Error ? this.cause.message : String(this.cause)}`;
+  }
+}
+
 /** The web UI's text in the language the server is set to. */
 export class Translations extends Context.Service<
   Translations,
@@ -31,7 +41,11 @@ export class Translations extends Context.Service<
           );
         }
 
-        const messages = yield* decodeMessages(file).pipe(Effect.orDie);
+        const messages = yield* decodeMessages(file).pipe(
+          Effect.mapError(
+            (cause) => new TranslationsError({ language, cause }),
+          ),
+        );
 
         return Translations.of({ language, messages });
       }),
