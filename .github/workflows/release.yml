@@ -42,7 +42,7 @@ jobs:
   # main, so this pushes with an admin's token, which can bypass it.
   app-changelog:
     name: Home Assistant app changelog
-    uses: timmo001/workflows/.github/workflows/home-assistant-app-changelog.yml@36ba6651f1296cce685ede8ac38b9574c9291028 # master
+    uses: timmo001/workflows/.github/workflows/home-assistant-app-changelog.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       changelog-path: home-assistant/app/CHANGELOG.md
     secrets:
@@ -54,7 +54,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: timmo001/workflows/.github/workflows/publish-npm-package.yml@fa479eabebf26cc5f655b165c20423fb8fcc0cf4 # 20261115.0
+    uses: timmo001/workflows/.github/workflows/publish-npm-package.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       bun-version: ${{ needs.tools.outputs.bun }}
       node-version: ${{ needs.tools.outputs.node }}
@@ -67,7 +67,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: timmo001/workflows/.github/workflows/publish-jsr-package.yml@fa479eabebf26cc5f655b165c20423fb8fcc0cf4 # 20261115.0
+    uses: timmo001/workflows/.github/workflows/publish-jsr-package.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       bun-version: ${{ needs.tools.outputs.bun }}
       package-path: packages/effect-triage
@@ -82,7 +82,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: timmo001/workflows/.github/workflows/publish-npm-package.yml@fa479eabebf26cc5f655b165c20423fb8fcc0cf4 # 20261115.0
+    uses: timmo001/workflows/.github/workflows/publish-npm-package.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       bun-version: ${{ needs.tools.outputs.bun }}
       node-version: ${{ needs.tools.outputs.node }}
@@ -97,7 +97,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: timmo001/workflows/.github/workflows/publish-jsr-package.yml@fa479eabebf26cc5f655b165c20423fb8fcc0cf4 # 20261115.0
+    uses: timmo001/workflows/.github/workflows/publish-jsr-package.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       bun-version: ${{ needs.tools.outputs.bun }}
       package-path: packages/client
@@ -111,7 +111,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: timmo001/workflows/.github/workflows/release-bun-cli-linux.yml@fa479eabebf26cc5f655b165c20423fb8fcc0cf4 # 20261115.0
+    uses: timmo001/workflows/.github/workflows/release-bun-cli-linux.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       binary-name: triage
       entrypoint: src/index.ts
@@ -147,7 +147,7 @@ jobs:
           ref: ${{ env.RELEASE_VERSION }}
 
       - name: Render PKGBUILD
-        uses: timmo001/workflows/.github/actions/prepare-arch-bin@fa479eabebf26cc5f655b165c20423fb8fcc0cf4 # 20261115.0
+        uses: timmo001/workflows/.github/actions/prepare-arch-bin@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
         with:
           releaseVersion: ${{ env.RELEASE_VERSION }}
           packageName: triage
@@ -175,7 +175,7 @@ jobs:
   arch-bin:
     name: Arch package (triage-bin)
     needs: prepare-arch-bin
-    uses: timmo001/workflows/.github/workflows/build-arch-package.yml@fa479eabebf26cc5f655b165c20423fb8fcc0cf4 # 20261115.0
+    uses: timmo001/workflows/.github/workflows/build-arch-package.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       package-name: triage-bin
       package-files-artifact-name: arch-triage-bin-${{ github.run_id }}
@@ -190,7 +190,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: timmo001/workflows/.github/workflows/attach-release-arch-package.yml@fa479eabebf26cc5f655b165c20423fb8fcc0cf4 # 20261115.0
+    uses: timmo001/workflows/.github/workflows/attach-release-arch-package.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       artifact-name: ${{ needs.arch-bin.outputs.artifact-name }}
       release-tag: ${{ github.event.release.tag_name }}
@@ -204,7 +204,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: timmo001/workflows/.github/workflows/build-container-image.yml@36ba6651f1296cce685ede8ac38b9574c9291028 # master
+    uses: timmo001/workflows/.github/workflows/build-container-image.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       image: ghcr.io/timmo001/triage
       target: server
@@ -217,7 +217,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: timmo001/workflows/.github/workflows/build-container-image.yml@36ba6651f1296cce685ede8ac38b9574c9291028 # master
+    uses: timmo001/workflows/.github/workflows/build-container-image.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       image: ghcr.io/timmo001/triage-app
       target: app
@@ -231,7 +231,7 @@ jobs:
     needs:
       - image-server
       - image-app
-    uses: timmo001/workflows/.github/workflows/home-assistant-app-dispatch.yml@fa479eabebf26cc5f655b165c20423fb8fcc0cf4 # 20261115.0
+    uses: timmo001/workflows/.github/workflows/home-assistant-app-dispatch.yml@5451f6867a5cb2b9b6318a82e00f7dd9f9fc279a # 20261116.0
     with:
       repository: timmo001/home-assistant-apps
     secrets:
