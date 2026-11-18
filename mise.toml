@@ -3,7 +3,7 @@ min_version = "2025.1.0"
 [tools]
 node = "26.13.1"
 bun = "1.4.4"
-pitchfork = "2.34.0"
+pitchfork = "2.35.0"
 # The hk pre-push hook and the linters it runs, matching CI.
 hk = "2.13.0"
 pkl = "0.33.0"
