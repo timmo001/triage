@@ -18,6 +18,7 @@ import {
 } from "effect/http";
 import { HttpApiMiddleware } from "effect/http-api";
 import { Atom, AtomHttpApi, Reactivity } from "effect/reactivity";
+import { registry } from "./AtomController.js";
 import { mismatched, version } from "./update.js";
 
 const storage = Atom.runtime(BrowserKeyValueStore.layerLocalStorage);
@@ -317,9 +318,47 @@ export const mergeIssues = TriageApi.mutation("issues", "merge");
 
 export const unmergeIssue = TriageApi.mutation("issues", "unmerge");
 
+const backupsKey = ["backups"];
+
+/** The backups kept on the server, newest first. */
+export const backups = TriageApi.query("backups", "list", {
+  reactivityKeys: backupsKey,
+});
+
+/** Make a backup on the server, then list it. */
+export const createBackup = TriageApi.runtime.fn(() =>
+  TriageApi.use((client) => client.backups.create()).pipe(
+    asDefects,
+    Effect.ensuring(Reactivity.invalidate(backupsKey)),
+  ),
+);
+
+/** Remove a kept backup, then list the rest. */
+export const removeBackup = TriageApi.runtime.fn((name: string) =>
+  TriageApi.use((client) => client.backups.remove({ params: { name } })).pipe(
+    asDefects,
+    Effect.ensuring(Reactivity.invalidate(backupsKey)),
+  ),
+);
+
+/** A one-time path that downloads a kept backup without a token. */
+export const backupLink = TriageApi.runtime.fn((name: string) =>
+  TriageApi.use((client) => client.backups.link({ params: { name } })).pipe(
+    asDefects,
+  ),
+);
+
+/** Restore a kept backup; the server restarts once it's checked it. */
+export const restoreBackup = TriageApi.runtime.fn((name: string) =>
+  TriageApi.use((client) => client.backups.restore({ params: { name } })).pipe(
+    asDefects,
+  ),
+);
+
 export type Route = Data.TaggedEnum<{
   Issues: {};
   Issue: { readonly id: string };
+  Backups: {};
 }>;
 
 export const Route = Data.taggedEnum<Route>();
@@ -336,6 +375,10 @@ const parseRoute = (): Route => {
   const path = location.pathname.startsWith(basePath)
     ? `/${location.pathname.slice(basePath.length)}`
     : location.pathname;
+
+  if (path === "/backups") {
+    return Route.Backups();
+  }
 
   const id = issuePattern.exec({ pathname: path })?.pathname.groups["id"];
 
@@ -411,3 +454,82 @@ export const route = Atom.readable((get) => {
 export const homeHref = "./";
 
 export const issueHref = (id: string) => `issues/${encodeURIComponent(id)}`;
+
+export const backupsHref = "backups";
+
+/**
+ * Restore the backup in `file`, from this device, telling `progress` how much
+ * is sent. The server keeps it with its backups, checks it, then restarts.
+ */
+export const uploadBackup = (
+  file: File,
+  progress: (sent: number) => void,
+): Promise<void> =>
+  new Promise((resolve, reject) => {
+    // Not fetch, which can't tell how much of a large file is sent
+    const request = new XMLHttpRequest();
+    const signedIn = registry.get(token);
+
+    request.open("POST", new URL("api/backups/restore", document.baseURI));
+    request.setRequestHeader("content-type", "application/octet-stream");
+    request.setRequestHeader(Version.header, version);
+
+    if (signedIn !== "") {
+      request.setRequestHeader("authorization", `Bearer ${signedIn}`);
+    }
+
+    request.upload.addEventListener("progress", (event) =>
+      progress(event.loaded),
+    );
+    request.addEventListener("load", () => {
+      if (request.status < 300) {
+        resolve();
+
+        return;
+      }
+
+      reject(
+        new Error(
+          Option.match(decodeFailure(request.responseText), {
+            onNone: () => `The server said ${request.status}`,
+            onSome: (failure) => failure.message,
+          }),
+        ),
+      );
+    });
+    request.addEventListener("error", () =>
+      reject(new Error("The upload stopped before the server had it all")),
+    );
+    request.send(file);
+  });
+
+const decodeFailure = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Struct({ message: Schema.String })),
+);
+
+/**
+ * Wait for the server to stop and start again after a restore, by its health,
+ * then load the page again on the restored store.
+ */
+export const reloadWhenBack = async () => {
+  const health = new URL("api/health", document.baseURI);
+
+  // The server answers the restore before it stops, then starts again in a
+  // few seconds
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+
+  for (;;) {
+    const up = await fetch(health, { cache: "no-store" }).then(
+      (response) => response.ok,
+      () => false,
+    );
+
+    if (up) {
+      location.reload();
+
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+};

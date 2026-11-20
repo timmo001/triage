@@ -281,5 +281,37 @@
   "field.package": "Package",
   "field.os": "OS",
   "field.kernel": "Kernel",
-  "field.boot": "Boot"
+  "field.boot": "Boot",
+
+  // The Backups page, also linked from the header as backups.title. A backup
+  // is a copy of the server's database. {name} is a backup's file name, {size}
+  // its size, such as 3.4 MB, and {sent} how much of it is sent so far.
+  "backups.title": "Backups",
+  "backups.intro": "Copies of the server's database: its issues, events, hosts and tokens. The server's settings aren't in them.",
+  "backups.make": "Make a backup",
+  "backups.makeHint": "The server keeps running while it's made.",
+  "backups.makeButton": "Make a backup",
+  "backups.madeNotice": "Made {name} ({size}).",
+  "backups.kept": "Kept on the server",
+  "backups.keptHint": "In the backups folder beside the server's database. Download them somewhere else too, so they outlast the machine.",
+  "backups.none": "No backups are kept on the server yet.",
+  "backups.made": "Made",
+  "backups.name": "Name",
+  "backups.size": "Size",
+  "backups.actions": "Actions",
+  "backups.download": "Download",
+  "backups.downloadNamed": "Download {name}",
+  "backups.restore": "Restore",
+  "backups.restoreNamed": "Restore {name}",
+  "backups.delete": "Delete",
+  "backups.deleteNamed": "Delete {name}",
+  "backups.fromFile": "Restore from a file",
+  "backups.fromFileHint": "A backup downloaded from this or another triage server. It's kept with the others once it's sent.",
+  "backups.fromFileButton": "Choose a file",
+  "backups.restoreHeading": "Restore {name}",
+  "backups.restoreWarning": "Everything on the server becomes what's in the backup, and the server starts again. The database it replaces is kept beside it as server.db.before-restore.",
+  "backups.cancel": "Cancel",
+  "backups.checking": "Checking the backup…",
+  "backups.sending": "Sending the backup: {sent} of {size}",
+  "backups.restarting": "Waiting for the server to start again…"
 }

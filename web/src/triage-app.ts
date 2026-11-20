@@ -1,4 +1,9 @@
-import { mdiDownload, mdiLogout, mdiMenu } from "@mdi/js";
+import {
+  mdiArchiveArrowDownOutline,
+  mdiDownload,
+  mdiLogout,
+  mdiMenu,
+} from "@mdi/js";
 import { Schema } from "effect";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
@@ -12,7 +17,7 @@ import {
   turnDown,
 } from "./install.js";
 import { shared } from "./styles.js";
-import { homeHref, Route, route, token } from "./triage.js";
+import { backupsHref, homeHref, Route, route, token } from "./triage.js";
 import { bindThemePicker } from "./theme/picker.js";
 import { icon } from "./ui.js";
 import { onStale } from "./update.js";
@@ -20,6 +25,7 @@ import "@timmo001/groundwork-ui/define/gw-banner.ts";
 import "@timmo001/groundwork-ui/define/gw-button.ts";
 import "@timmo001/groundwork-ui/define/gw-theme-picker.ts";
 import type { GwThemePicker } from "@timmo001/groundwork-ui/gw-theme-picker.ts";
+import "./triage-backups.js";
 import "./triage-issue.js";
 import "./triage-issues.js";
 import "./triage-sign-in.js";
@@ -79,6 +85,15 @@ export class TriageApp extends LitElement {
       header svg {
         width: 1.75rem;
         height: 1.75rem;
+      }
+
+      header a.nav {
+        gap: var(--triage-space-1-5);
+        padding: var(--triage-space-1-5) var(--triage-space-3);
+        border: var(--triage-border-width) solid var(--triage-border);
+        border-radius: var(--triage-border-radius-sm);
+        background: var(--triage-surface);
+        font-weight: inherit;
       }
 
       header .sidebar {
@@ -176,6 +191,9 @@ export class TriageApp extends LitElement {
           Triage
         </a>
         <gw-theme-picker gallery label=${t("theme")}></gw-theme-picker>
+        <a class="nav" href=${backupsHref}>
+          ${icon(mdiArchiveArrowDownOutline)} ${t("backups.title")}
+        </a>
         ${
           this.installable
             ? html`<button @click=${this.#install}>
@@ -195,6 +213,7 @@ export class TriageApp extends LitElement {
         ${Route.$match(this.#route.value, {
           Issues: () => html`<triage-issues></triage-issues>`,
           Issue: ({ id }) => html`<triage-issue .issueId=${id}></triage-issue>`,
+          Backups: () => html`<triage-backups></triage-backups>`,
         })}
       </main>
     `;
