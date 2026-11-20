@@ -64,7 +64,42 @@ The Supervisor plugins, its own containers for DNS, audio and so on, are read th
 
 **Triage** in Home Assistant's sidebar opens the [issues page](/issues#in-a-browser) for Home Assistant's admins, with no admin token needed: Home Assistant has already signed them in. It's served on a separate port that only answers Home Assistant, so port 7171 still needs a token.
 
-The app stops briefly during backups so its database is copied consistently. Hosts keep their events until the server is back.
+Home Assistant's backups of the app stop it briefly so its database is copied consistently. Hosts keep their events until the server is back. The app's own [backups](#backups) are left out of them, since they're copies of the database already. To move the server off Home Assistant, download a backup and restore it on the new server.
+
+## Backups
+
+The server backs up its database while it runs, into a `backups` folder beside it: `~/.local/state/triage/backups` for the user service, or `/data/backups` in the container and the Home Assistant app. A backup is a copy of the database, with every issue, event, host and token in it. It also holds the values behind the redaction tokens the server captured on its own machine, such as Home Assistant's, so keep it as private as the server itself; the server keeps its backups readable only by itself. The server's settings, such as its environment or the app's options, aren't in it, so set those again on a new server.
+
+Make, download and restore them from **Backups** in the web UI's header, or with [`triage backups`](/commands/backups):
+
+```bash
+triage backups create
+triage backups list
+triage backups download triage-2026-11-20T20-21-56.triage-backup
+```
+
+Copy the backups somewhere else too, so they outlast the machine. The web UI downloads one through a link that works once, for 5 minutes.
+
+A restore checks the backup first: it has to be a sound triage database, and not from a newer triage than the server, which would have to be updated first. The server then starts again on it, in its own process, keeping the database it replaced beside it as `server.db.before-restore`. Restore one the server keeps:
+
+```bash
+triage backups restore triage-2026-11-20T20-21-56.triage-backup
+```
+
+Or upload one from this machine, such as a backup from another server, which the server keeps with the others:
+
+```bash
+triage backups upload triage-2026-11-20T20-21-56.triage-backup
+```
+
+Only one backup or restore runs at a time. Like the token commands, `triage backups` works on this machine's database without `--server`, as long as `TRIAGE_SERVER` isn't set. There, a restore is checked and staged beside the database, and put in place when the server next starts, so restart it.
+
+### Move a server
+
+1. On the old server, make a backup and download it.
+2. Set up the new server with the same [settings](/configuration#server), and start it.
+3. Upload the backup to it with `triage backups upload <file> --server <new server>`, or **Restore from a file** in its web UI. Without an admin token on the new server yet, run `triage backups upload <file>` on it without `--server`, then restart it.
+4. Point the hosts' and workers' `TRIAGE_SERVER` at the new server. Their tokens came with the backup, so they keep working.
 
 ## Manage tokens remotely
 

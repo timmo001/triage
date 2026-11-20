@@ -17,6 +17,9 @@ watchdog: http://[HOST]:[PORT:7171]/api/health
 # admin. It only answers the Supervisor, and the panel is for admins only.
 ingress: true
 ingress_port: 8099
+# Streams request bodies to the app, so a backup uploads through Home Assistant
+# without the Supervisor holding it all in memory.
+ingress_stream: true
 panel_icon: mdi:clipboard-pulse-outline
 # Announces the MCP server on the ingress port, so Assist can read and change issues.
 discovery:
@@ -36,6 +39,10 @@ environment:
 # Stopped during backups so the SQLite database is copied in a consistent
 # state. Agents keep events until the server is back.
 backup: cold
+# Triage's own backups beside the database are copies of it already, so Home
+# Assistant's backups of the app leave them out.
+backup_exclude:
+  - backups/*
 options:
   trust_proxy: false
   decide_daily: 100

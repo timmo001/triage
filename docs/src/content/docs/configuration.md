@@ -31,7 +31,7 @@ Environment variables win over the file. The Home Assistant app uses this for it
 | --- | --- | --- |
 | `TRIAGE_HOSTNAME` | `127.0.0.1` (`::` in the container, IPv4 and IPv6) | Address to listen on |
 | `TRIAGE_PORT` | `7171` | Port to listen on |
-| `TRIAGE_SERVER_DB` | `$XDG_STATE_HOME/triage/server.db` (`/data/server.db` in the container) | Server database |
+| `TRIAGE_SERVER_DB` | `$XDG_STATE_HOME/triage/server.db` (`/data/server.db` in the container) | Server database, with its [backups](/setup/server#backups) in a `backups` folder beside it |
 | `TRIAGE_TRUST_PROXY` | `false` | Trust `X-Forwarded-Host` and `X-Forwarded-For`. Only turn this on when the proxy is the only way to reach the server |
 | `TRIAGE_SERVER_ADMIN_TOKEN` | none | An admin token the server always accepts, at least 32 characters, for managing tokens with `--server`. It isn't stored or listed |
 | `TRIAGE_INGRESS_PORT` | none (`8099` in the Home Assistant app) | A second port for Home Assistant ingress, which treats every request as an admin's and only answers `TRIAGE_INGRESS_FROM`, and `TRIAGE_INGRESS_MCP_FROM` on `/mcp` |

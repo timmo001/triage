@@ -45,4 +45,6 @@ These match the server's [settings](https://triage.timmo.dev/configuration#serve
 - **collect_plugins**: collect the errors and warnings of the Supervisor's plugins, such as DNS and audio, as the same host. Off unless you turn it on, since DNS logs a lot that's rarely worth fixing, such as lookups that time out. Only lines that give a level are read.
 - **collect_apps**: collect your other apps' errors and warnings, as the same host. On unless you turn it off. Apps log in all sorts of formats, so only lines that give a level, such as `ERROR:`, `[W]` or `WRN`, are read, each one on its own, apart from apps that log in Core's format, whose tracebacks are kept. Lines with no level, and triage's own, are left out.
 
-The database is kept in the app's data, and the app stops briefly during backups so it's copied consistently. Machines keep their events until the server is back.
+The database is kept in the app's data, and the app stops briefly during Home Assistant's backups so it's copied consistently. Machines keep their events until the server is back.
+
+Triage can also back up its own database while it runs, from **Backups** in the web UI or `triage backups` on any machine. It keeps them in the app's data, left out of Home Assistant's backups since they're copies already, to download, restore or delete, and restores a backup file uploaded from another triage server. See [Backups](https://triage.timmo.dev/setup/server#backups).
