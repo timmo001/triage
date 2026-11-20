@@ -91,3 +91,22 @@ configuration:
       ihrer Kopfzeile, die bei Bedarf die Seitenleiste von Home Assistant
       zeigt. Auf dem Handy behält Home Assistant seine eigene Kopfzeile und
       sein Menü.
+  server_url:
+    name: Server-URL
+    description: >-
+      Die Fehler von Home Assistant an den Triage-Server unter dieser URL
+      senden, etwa http://192.168.1.20:7171, statt hier einen Server zu
+      betreiben. Die App sammelt dann nur und behält die Fehler, bis der Server
+      sie hat.
+  host_token:
+    name: Host-Token
+    description: >-
+      Das Host-Token, mit dem sie gesendet werden. Lege es auf diesem Server
+      mit triage hosts add home-assistant an, damit sie den Host
+      home-assistant behalten.
+  server_internal:
+    name: Server ist in diesem Netzwerk
+    description: >-
+      Dem Server auch die Werte hinter Schwärzungstokens senden, damit seine
+      Weboberfläche sie zeigen kann. Funktioniert nur für einen Server in
+      diesem Netzwerk, etwa mit einer 192.168-Adresse.

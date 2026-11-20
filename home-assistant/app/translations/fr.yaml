@@ -96,3 +96,22 @@ configuration:
       Donner tout l’écran à l’interface web, avec un bouton de menu dans son
       en-tête pour afficher la barre latérale de Home Assistant au besoin. Sur
       un téléphone, Home Assistant garde son propre en-tête et son menu.
+  server_url:
+    name: URL du serveur
+    description: >-
+      Envoyer les erreurs de Home Assistant au serveur triage à cette URL,
+      comme http://192.168.1.20:7171, au lieu de faire tourner un serveur ici.
+      L’app ne fait alors que collecter, en gardant les erreurs jusqu’à ce que
+      le serveur les ait.
+  host_token:
+    name: Jeton d’hôte
+    description: >-
+      Le jeton d’hôte avec lequel les envoyer. Ajoutez-le sur ce serveur avec
+      triage hosts add home-assistant, pour qu’elles gardent l’hôte
+      home-assistant.
+  server_internal:
+    name: Le serveur est sur ce réseau
+    description: >-
+      Envoyer aussi au serveur les valeurs derrière les jetons de masquage,
+      pour que son interface web puisse les afficher. Ne fonctionne qu’avec un
+      serveur sur ce réseau, comme une adresse 192.168.

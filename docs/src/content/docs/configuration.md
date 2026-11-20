@@ -48,6 +48,9 @@ Environment variables win over the file. The Home Assistant app uses this for it
 | `TRIAGE_COLLECT_HOST` | `false` (`true` in the Home Assistant app) | Collect the Home Assistant host's own crashes, failed units, out-of-memory kills and errors from its journal, as the host `home-assistant`, leaving out containers' output. Only in the [Home Assistant app](/setup/server#home-assistant) |
 | `TRIAGE_COLLECT_PLUGINS` | `false` | Collect the Home Assistant Supervisor plugins' errors and warnings, such as DNS and audio, from the host journal, as the host `home-assistant`. Only lines that give a level are read. Only in the [Home Assistant app](/setup/server#home-assistant) |
 | `TRIAGE_COLLECT_APPS` | `false` (`true` in the Home Assistant app) | Collect Home Assistant apps' errors and warnings from the host journal, as the host `home-assistant`. Only lines that give a level are read. Only in the [Home Assistant app](/setup/server#home-assistant) |
+| `TRIAGE_SERVER_URL` | none | Run no server: only collect Home Assistant's errors, as the `TRIAGE_COLLECT_` settings say, and send them to the triage server at this URL, keeping them in `TRIAGE_DB` (`/data/triage.db` in the app) until it has them. See [Collect only](/setup/server#collect-only) |
+| `TRIAGE_HOST_TOKEN` | none | The host token to send them with, from `triage hosts add home-assistant` on that server. Needs `TRIAGE_SERVER_URL` |
+| `TRIAGE_SERVER_INTERNAL` | `false` | With `TRIAGE_SERVER_URL`, also send the values behind redaction tokens, only to a server on this machine's own network, as it does for [hosts](#hosts) |
 
 ## Workers and admins
 

@@ -79,3 +79,18 @@ configuration:
       Web UI に画面全体を使わせ、必要なときはヘッダーのメニューボタンで Home
       Assistant のサイドバーを表示します。スマートフォンでは Home Assistant
       のヘッダーとメニューがそのまま残ります。
+  server_url:
+    name: サーバー URL
+    description: >-
+      ここでサーバーを動かす代わりに、Home Assistant のエラーをこの URL
+      (例: http://192.168.1.20:7171) の triage サーバーに送ります。アプリは収集だけを行い、サーバーが受け取るまでエラーを保持します。
+  host_token:
+    name: ホストトークン
+    description: >-
+      送信に使うホストトークンです。ホスト名 home-assistant を保つため、そのサーバーで
+      triage hosts add home-assistant を実行して追加してください。
+  server_internal:
+    name: サーバーはこのネットワーク上にある
+    description: >-
+      サーバーの Web UI で表示できるよう、伏せ字トークンの元の値もサーバーに送ります。192.168
+      のアドレスなど、このネットワーク上のサーバーでのみ有効です。

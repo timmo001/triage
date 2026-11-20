@@ -91,3 +91,20 @@ configuration:
       Dar a tela inteira à interface web, com um botão de menu no cabeçalho
       para mostrar a barra lateral do Home Assistant quando precisar. No
       celular, o Home Assistant mantém o próprio cabeçalho e menu.
+  server_url:
+    name: URL do servidor
+    description: >-
+      Enviar os erros do Home Assistant para o servidor triage nesta URL,
+      como http://192.168.1.20:7171, em vez de rodar um servidor aqui. O app
+      então só coleta, guardando os erros até o servidor recebê-los.
+  host_token:
+    name: Token de host
+    description: >-
+      O token de host para enviá-los. Adicione-o nesse servidor com triage
+      hosts add home-assistant, para que mantenham o host home-assistant.
+  server_internal:
+    name: O servidor está nesta rede
+    description: >-
+      Enviar também ao servidor os valores por trás dos tokens de ocultação,
+      para que a interface web dele possa mostrá-los. Só funciona para um
+      servidor nesta rede, como um endereço 192.168.

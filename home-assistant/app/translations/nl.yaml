@@ -92,3 +92,22 @@ configuration:
       De webinterface het hele scherm geven, met een menuknop in de kop om de
       zijbalk van Home Assistant te tonen wanneer je die nodig hebt. Op een
       telefoon houdt Home Assistant zijn eigen kop en menu.
+  server_url:
+    name: Server-URL
+    description: >-
+      De fouten van Home Assistant naar de triage-server op deze URL sturen,
+      zoals http://192.168.1.20:7171, in plaats van hier een server te
+      draaien. De app verzamelt dan alleen en bewaart de fouten tot de server
+      ze heeft.
+  host_token:
+    name: Hosttoken
+    description: >-
+      Het hosttoken om ze mee te sturen. Voeg het op die server toe met
+      triage hosts add home-assistant, zodat ze de host home-assistant
+      houden.
+  server_internal:
+    name: Server staat op dit netwerk
+    description: >-
+      De server ook de waarden achter afschermingstokens sturen, zodat zijn
+      webinterface ze kan tonen. Werkt alleen voor een server op dit netwerk,
+      zoals een 192.168-adres.

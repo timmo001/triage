@@ -93,3 +93,20 @@ configuration:
       nell’intestazione per mostrare la barra laterale di Home Assistant
       quando serve. Sul telefono, Home Assistant mantiene la propria
       intestazione e il proprio menu.
+  server_url:
+    name: URL del server
+    description: >-
+      Invia gli errori di Home Assistant al server triage a questo URL, come
+      http://192.168.1.20:7171, invece di eseguire un server qui. L’app allora
+      raccoglie soltanto, conservando gli errori finché il server non li ha.
+  host_token:
+    name: Token host
+    description: >-
+      Il token host con cui inviarli. Aggiungilo su quel server con triage
+      hosts add home-assistant, così mantengono l’host home-assistant.
+  server_internal:
+    name: Il server è su questa rete
+    description: >-
+      Invia al server anche i valori dietro i token di oscuramento, così la
+      sua interfaccia web può mostrarli. Funziona solo con un server su questa
+      rete, come un indirizzo 192.168.

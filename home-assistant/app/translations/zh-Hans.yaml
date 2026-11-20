@@ -76,3 +76,18 @@ configuration:
     description: >-
       让网页界面占满整个屏幕，需要时可用其标题栏中的菜单按钮显示 Home
       Assistant 的侧边栏。在手机上，Home Assistant 保留自己的标题栏和菜单。
+  server_url:
+    name: 服务器 URL
+    description: >-
+      将 Home Assistant 的错误发送到此 URL 的 triage 服务器（例如
+      http://192.168.1.20:7171），而不是在这里运行服务器。应用此时只负责收集，并保留错误直到服务器收到。
+  host_token:
+    name: 主机令牌
+    description: >-
+      用于发送错误的主机令牌。请在该服务器上用 triage hosts add home-assistant
+      添加，以便它们保留主机名 home-assistant。
+  server_internal:
+    name: 服务器在此网络上
+    description: >-
+      同时把脱敏令牌背后的值发送给服务器，以便其网页界面显示。仅适用于此网络上的服务器，例如
+      192.168 地址。

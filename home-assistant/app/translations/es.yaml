@@ -93,3 +93,22 @@ configuration:
       cabecera para mostrar la barra lateral de Home Assistant cuando la
       necesites. En el móvil, Home Assistant mantiene su propia cabecera y
       menú.
+  server_url:
+    name: URL del servidor
+    description: >-
+      Enviar los errores de Home Assistant al servidor de triage en esta URL,
+      como http://192.168.1.20:7171, en lugar de ejecutar un servidor aquí. La
+      app entonces solo recoge, guardando los errores hasta que el servidor
+      los tenga.
+  host_token:
+    name: Token de host
+    description: >-
+      El token de host con el que enviarlos. Añádelo en ese servidor con
+      triage hosts add home-assistant, para que conserven el host
+      home-assistant.
+  server_internal:
+    name: El servidor está en esta red
+    description: >-
+      Enviar también al servidor los valores tras los tokens de redacción,
+      para que su interfaz web pueda mostrarlos. Solo funciona con un servidor
+      en esta red, como una dirección 192.168.

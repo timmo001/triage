@@ -64,7 +64,19 @@ The Supervisor plugins, its own containers for DNS, audio and so on, are read th
 
 **Triage** in Home Assistant's sidebar opens the [issues page](/issues#in-a-browser) for Home Assistant's admins, with no admin token needed: Home Assistant has already signed them in. It's served on a separate port that only answers Home Assistant, so port 7171 still needs a token.
 
-Home Assistant's backups of the app stop it briefly so its database is copied consistently. Hosts keep their events until the server is back. The app's own [backups](#backups) are left out of them, since they're copies of the database already. To move the server off Home Assistant, download a backup and restore it on the new server.
+Home Assistant's backups of the app stop it briefly so its database is copied consistently. Hosts keep their events until the server is back. The app's own [backups](#backups) are left out of them, since they're copies of the database already. To move the server off Home Assistant, download a backup and restore it on the new server, then keep the app for [collecting only](#collect-only).
+
+### Collect only
+
+The app can leave the server to another machine and only collect Home Assistant's errors, sending them there the way the [agent](/setup/hosts) does on a Linux host. On the server, add a host token named `home-assistant`, so the errors keep the host they had in the app:
+
+```bash
+triage hosts add home-assistant --server http://192.168.1.20:7171
+```
+
+Then set the app's **server_url** to that server's URL and **host_token** to the printed token, and restart it. The **collect_** options still choose what's collected. The app runs no server: port 7171 only answers the Supervisor's health check, **Triage** in the sidebar says where the errors go, and there's no MCP server to announce, so add the other server's to Home Assistant by hand. Its server options, such as **decide_daily**, do nothing.
+
+Errors wait in `/data/triage.db` until the server has them, and go every 30 seconds. On its first start in this mode the app reads the whole host journal again, and the server skips the errors it already has, so a server restored from a backup gets any it missed since. Issues carry on as before, since redaction tokens don't change how events are grouped. Turn on **server_internal** to send the values behind them too, as the agent's `TRIAGE_SERVER_INTERNAL` does, so the server's web UI can show them. That only works for a server on this network, such as at a `192.168` address or a single-label name.
 
 ## Backups
 

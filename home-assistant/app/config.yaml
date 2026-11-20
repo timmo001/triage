@@ -36,6 +36,9 @@ map:
 environment:
   TRIAGE_OPTIONS: /data/options.json
   TRIAGE_INGRESS_PORT: "8099"
+  # With server_url set, the app keeps Home Assistant's errors here until
+  # that server has them.
+  TRIAGE_DB: /data/triage.db
 # Stopped during backups so the SQLite database is copied in a consistent
 # state. Agents keep events until the server is back.
 backup: cold
@@ -70,3 +73,8 @@ schema:
   collect_plugins: bool
   collect_apps: bool
   hide_sidebar: bool
+  # A triage server elsewhere to send Home Assistant's errors to, with a host
+  # token from it, instead of running a server here.
+  server_url: url?
+  host_token: password?
+  server_internal: bool?

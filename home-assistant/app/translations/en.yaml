@@ -85,3 +85,22 @@ configuration:
       Give the web UI the whole screen, with a menu button in its header to
       show Home Assistant's sidebar when you need it. On a phone, Home
       Assistant keeps its own header and menu.
+  # A triage server on another machine. "Host token" is what triage hosts add
+  # prints; keep "home-assistant" as it is, since it's the host's name.
+  server_url:
+    name: Server URL
+    description: >-
+      Send Home Assistant's errors to the triage server at this URL, such as
+      http://192.168.1.20:7171, instead of running a server here. The app then
+      only collects, keeping errors until the server has them.
+  host_token:
+    name: Host token
+    description: >-
+      The host token to send them with. Add it on that server with triage
+      hosts add home-assistant, so they keep the host home-assistant.
+  server_internal:
+    name: Server is on this network
+    description: >-
+      Also send the server the values behind redaction tokens, so its web UI
+      can show them. Only works for a server on this network, such as a
+      192.168 address.

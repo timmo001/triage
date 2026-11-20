@@ -87,3 +87,20 @@ configuration:
       Daj interfejsowi webowemu cały ekran, z przyciskiem menu w nagłówku,
       który w razie potrzeby pokazuje pasek boczny Home Assistant. Na
       telefonie Home Assistant zachowuje swój własny nagłówek i menu.
+  server_url:
+    name: Adres URL serwera
+    description: >-
+      Wysyłaj błędy Home Assistant do serwera triage pod tym adresem URL,
+      np. http://192.168.1.20:7171, zamiast uruchamiać serwer tutaj. Aplikacja
+      wtedy tylko zbiera, przechowując błędy, dopóki serwer ich nie dostanie.
+  host_token:
+    name: Token hosta
+    description: >-
+      Token hosta, z którym je wysyłać. Dodaj go na tamtym serwerze poleceniem
+      triage hosts add home-assistant, aby zachowały host home-assistant.
+  server_internal:
+    name: Serwer jest w tej sieci
+    description: >-
+      Wysyłaj serwerowi także wartości kryjące się za tokenami redakcji, aby
+      jego interfejs webowy mógł je pokazać. Działa tylko dla serwera w tej
+      sieci, np. z adresem 192.168.

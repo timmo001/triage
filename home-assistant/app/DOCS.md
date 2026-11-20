@@ -23,6 +23,22 @@ The page takes the whole screen: Home Assistant hides its sidebar while it's ope
 
 The server speaks plain HTTP on port 7171, so tokens are only as private as your network. To reach it from outside, put it behind a reverse proxy or a Cloudflare tunnel for HTTPS, and turn on **trust_proxy** only if that's the only way in.
 
+## With a server elsewhere
+
+When the triage server runs on another machine, the app can just collect Home Assistant's errors and send them there, the way the agent does on a Linux host:
+
+1. On that server, add a host token named `home-assistant`, so the errors keep the host they had before:
+
+   ```sh
+   triage hosts add home-assistant --server http://192.168.1.20:7171
+   ```
+
+2. Set **server_url** to the server's URL and **host_token** to the printed token, and restart the app.
+
+The app then runs no server of its own: port 7171 only answers the watchdog's health check, and **Triage** in the sidebar says where the errors go, with a link. Open the issues on that server instead, and add its MCP server to Home Assistant by hand if you want Assist to use it. The **collect_** options still choose what's collected, and the server's options, such as **decide_daily**, do nothing here.
+
+Errors wait in the app's data until the server has them, so nothing is lost while it's down. The first start reads the whole host journal again, and the server skips the errors it already has. Turn on **server_internal** to send the values behind redaction tokens too, so the server's web UI can show them, as it does here. That only works for a server on this network, such as at a `192.168` address.
+
 ## Assist
 
 The app announces its [MCP server](https://triage.timmo.dev/agents) to Home Assistant, which offers to add it under **Settings > Devices & services**. Add it, then turn on its tools for your conversation agent, and Assist can read issues and their events, and resolve, mute or label them.
@@ -44,6 +60,9 @@ These match the server's [settings](https://triage.timmo.dev/configuration#serve
 - **collect_host**: collect the host's own crashes, failed services, out-of-memory kills and errors from its journal, the way the agent does on a Linux host, as the same host. On unless you turn it off. Containers' output is left out, since Core's, the Supervisor's, its plugins' and apps' logs are collected on their own, so nothing is collected twice.
 - **collect_plugins**: collect the errors and warnings of the Supervisor's plugins, such as DNS and audio, as the same host. Off unless you turn it on, since DNS logs a lot that's rarely worth fixing, such as lookups that time out. Only lines that give a level are read.
 - **collect_apps**: collect your other apps' errors and warnings, as the same host. On unless you turn it off. Apps log in all sorts of formats, so only lines that give a level, such as `ERROR:`, `[W]` or `WRN`, are read, each one on its own, apart from apps that log in Core's format, whose tracebacks are kept. Lines with no level, and triage's own, are left out.
+- **server_url**: send Home Assistant's errors to the triage server at this URL instead of running a server here. See [With a server elsewhere](#with-a-server-elsewhere).
+- **host_token**: the host token to send them with, from `triage hosts add home-assistant` on that server. Needs **server_url**.
+- **server_internal**: with **server_url**, also send the values behind redaction tokens, to a server on this network only. Off unless you turn it on.
 
 The database is kept in the app's data, and the app stops briefly during Home Assistant's backups so it's copied consistently. Machines keep their events until the server is back.
 
