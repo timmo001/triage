@@ -34,6 +34,9 @@ FLAGS
   --collect-host               Collect the Home Assistant host's own crashes, failed units, out-of-memory kills and errors from its journal, as the host home-assistant, in a Home Assistant app with journald. Containers' output is left out. Off unless set
   --collect-plugins            Collect the Home Assistant Supervisor plugins' errors and warnings, such as DNS and audio, from the host journal, as the host home-assistant, in a Home Assistant app with journald. Only lines with a level are read. Off unless set
   --collect-apps               Collect Home Assistant apps' errors and warnings from the host journal, as the host home-assistant, in a Home Assistant app with journald. Only lines with a level are read, and this app's own are left out. Off unless set
+  --server-url string          Don't run a server here: only collect Home Assistant's errors, as the --collect flags say, and send them to the triage server at this URL with --host-token, keeping them while it can't be reached. For a Home Assistant app whose server runs elsewhere
+  --host-token string          The host token to send Home Assistant's errors with, from triage hosts add home-assistant on that server. Needs --server-url
+  --server-internal            Also send the values behind redaction tokens to --server-url, only if it's on this machine's own network, so its web UI can show them. Off unless set
   --decide                     Ask a decision model about new issues every few minutes, keeping the answers without acting on them. Off unless set
   --provider choice            Decide through any TypeSafe System One API, such as Ollaya or Ollama locally, or with Clef on Cloudflare using $CLOUDFLARE_ACCOUNT_ID and $CLOUDFLARE_API_TOKEN (choices: typesafe, cloudflare)
   --url string                 The System One API: Ollaya by default, Ollama at http://127.0.0.1:11434/v1, or a hosted one with $TRIAGE_DECISION_API_KEY

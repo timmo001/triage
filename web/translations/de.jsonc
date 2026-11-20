@@ -283,5 +283,8 @@
   "backups.cancel": "Abbrechen",
   "backups.checking": "Sicherung wird geprüft…",
   "backups.sending": "Sicherung wird gesendet: {sent} von {size}",
-  "backups.restarting": "Warten, bis der Server neu gestartet ist…"
+  "backups.restarting": "Warten, bis der Server neu gestartet ist…",
+
+  "collectOnly.title": "Fehler gehen an einen anderen Server",
+  "collectOnly.message": "Diese App sammelt die Fehler von Home Assistant und sendet sie an den Triage-Server unter {server}. Öffne ihn dort, um die Probleme zu sehen."
 }

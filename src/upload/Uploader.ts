@@ -1,5 +1,5 @@
 import { Api, TriageClient } from "@timmo001/effect-triage-client";
-import { Config, Context, Effect, Layer } from "effect";
+import { Config, Context, Effect, Layer, type Redacted } from "effect";
 import { FetchHttpClient } from "effect/http";
 import { Store } from "../store/Store.js";
 import { isInternalUrl } from "../triage/internal.js";
@@ -32,44 +32,60 @@ export class Uploader extends Context.Service<
     >;
   }
 >()("triage/upload/Uploader") {
+  /**
+   * Upload to the server at `url` with the host token `token`, and the values
+   * behind redaction tokens too when `internal` marks it as on this network.
+   */
+  static readonly layerTo = (options: {
+    readonly url: string;
+    readonly token: Redacted.Redacted;
+    readonly internal: boolean;
+  }) =>
+    Layer.unwrap(
+      Effect.gen(function* () {
+        // Only ever to a server on this machine's own network, whatever the
+        // setting says, and saying when it's ignored.
+        const sendValues = options.internal && isInternalUrl(options.url);
+
+        if (sendValues) {
+          yield* Effect.logInfo(
+            "Sending the server the values behind redaction tokens, as it's on this network",
+          );
+        } else if (options.internal) {
+          yield* Effect.logWarning(
+            "Not sending the server the values behind redaction tokens: it isn't on this machine or its own network",
+          );
+        }
+
+        return Layer.effect(
+          Uploader,
+          Effect.gen(function* () {
+            const store = yield* Store;
+            const client = yield* TriageClient;
+
+            return Uploader.of({
+              upload: upload(options.url, store, client, sendValues),
+            });
+          }),
+        ).pipe(
+          Layer.provide(
+            TriageClient.layer({ url: options.url, token: options.token }),
+          ),
+          Layer.provide(FetchHttpClient.layer),
+        );
+      }),
+    );
+
   /** Upload to `$TRIAGE_SERVER` with the host token in `$TRIAGE_TOKEN`. */
   static readonly layer = Layer.unwrap(
     Effect.gen(function* () {
-      const url = yield* Config.String("TRIAGE_SERVER");
-      const token = yield* Config.Redacted("TRIAGE_TOKEN");
-
-      const internal = yield* Config.Boolean("TRIAGE_SERVER_INTERNAL").pipe(
-        Config.withDefault(false),
-      );
-
-      // Only ever to a server on this machine's own network, whatever the
-      // setting says, and saying when it's ignored.
-      const sendValues = internal && isInternalUrl(url);
-
-      if (sendValues) {
-        yield* Effect.logInfo(
-          "Sending the server the values behind redaction tokens, as it's on this network",
-        );
-      } else if (internal) {
-        yield* Effect.logWarning(
-          "Not sending the server the values behind redaction tokens: it isn't on this machine or its own network",
-        );
-      }
-
-      return Layer.effect(
-        Uploader,
-        Effect.gen(function* () {
-          const store = yield* Store;
-          const client = yield* TriageClient;
-
-          return Uploader.of({
-            upload: upload(url, store, client, sendValues),
-          });
-        }),
-      ).pipe(
-        Layer.provide(TriageClient.layer({ url, token })),
-        Layer.provide(FetchHttpClient.layer),
-      );
+      return Uploader.layerTo({
+        url: yield* Config.String("TRIAGE_SERVER"),
+        token: yield* Config.Redacted("TRIAGE_TOKEN"),
+        internal: yield* Config.Boolean("TRIAGE_SERVER_INTERNAL").pipe(
+          Config.withDefault(false),
+        ),
+      });
     }),
   );
 }

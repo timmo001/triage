@@ -211,4 +211,6 @@ export type Key =
   | "backups.cancel"
   | "backups.checking"
   | "backups.sending"
-  | "backups.restarting";
+  | "backups.restarting"
+  | "collectOnly.title"
+  | "collectOnly.message";

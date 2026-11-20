@@ -19,6 +19,7 @@ import { Argument, CliError, Command, Flag } from "effect/cli";
 import packageJson from "../package.json" with { type: "json" };
 import { Attribution } from "./collect/Attribution.js";
 import { Collector } from "./collect/Collector.js";
+import * as CollectOnly from "./homeassistant/CollectOnly.js";
 import * as HomeAssistantCollector from "./homeassistant/Collector.js";
 import { HomeAssistantConfig } from "./homeassistant/Config.js";
 import { CollectionStatus } from "./homeassistant/Status.js";
@@ -38,7 +39,7 @@ import { IssueAdmin } from "./server/IssueAdmin.js";
 import * as Server from "./server/Server.js";
 import { TokenAdmin } from "./server/TokenAdmin.js";
 import { TokenName, Tokens } from "./server/Tokens.js";
-import { languages } from "./server/Translations.js";
+import { languages, Translations } from "./server/Translations.js";
 import { Store, type TokenScope } from "./store/Store.js";
 import { isInternalUrl } from "./triage/internal.js";
 import { layerAutomatic, LlmProvider, Suggester } from "./triage/Suggester.js";
@@ -1253,6 +1254,27 @@ const serve = Command.make(
       Flag.withFallbackConfig(Config.Boolean("TRIAGE_COLLECT_APPS")),
       Flag.withDefault(false),
     ),
+    serverUrl: Flag.String("server-url").pipe(
+      Flag.withDescription(
+        "Don't run a server here: only collect Home Assistant's errors, as the --collect flags say, and send them to the triage server at this URL with --host-token, keeping them while it can't be reached. For a Home Assistant app whose server runs elsewhere",
+      ),
+      Flag.withFallbackConfig(Config.String("TRIAGE_SERVER_URL")),
+      Flag.optional,
+    ),
+    hostToken: Flag.Redacted("host-token").pipe(
+      Flag.withDescription(
+        "The host token to send Home Assistant's errors with, from triage hosts add home-assistant on that server. Needs --server-url",
+      ),
+      Flag.withFallbackConfig(Config.Redacted("TRIAGE_HOST_TOKEN")),
+      Flag.optional,
+    ),
+    serverInternal: Flag.Boolean("server-internal").pipe(
+      Flag.withDescription(
+        "Also send the values behind redaction tokens to --server-url, only if it's on this machine's own network, so its web UI can show them. Off unless set",
+      ),
+      Flag.withFallbackConfig(Config.Boolean("TRIAGE_SERVER_INTERNAL")),
+      Flag.withDefault(false),
+    ),
     ...processFlags,
   },
   Effect.fnUntraced(function* (input) {
@@ -1280,25 +1302,9 @@ const serve = Command.make(
           )
         : Layer.empty;
 
-    const app = Layer.mergeAll(
-      Server.layer(input),
-      yield* processLoops(input),
-      homeAssistantCollection,
-    ).pipe(
-      Layer.provide(
-        Work.layerStore({
-          by: "server",
-          decideDaily: input.decideDaily,
-          suggestDaily: input.suggestDaily,
-        }),
-      ),
-      Layer.provide(CollectionStatus.layer),
-      Layer.provide(tokensLayer),
-    );
-
     // Layers release in the reverse of the order they're built in, so the
-    // server's own finalizers run between "Stopping" and "Stopped".
-    return yield* Server.run(
+    // app's own finalizers run between "Stopping" and "Stopped".
+    const logged = <E, R>(app: Layer.Layer<never, E, R>) =>
       Layer.effectDiscard(
         Effect.acquireRelease(Effect.logInfo("Started"), () =>
           Effect.logInfo("Stopping"),
@@ -1312,6 +1318,71 @@ const serve = Command.make(
               () => Effect.logInfo("Stopped"),
             ),
           ),
+        ),
+      );
+
+    if (Option.isSome(input.serverUrl)) {
+      const token = yield* Effect.fromOption(input.hostToken).pipe(
+        Effect.mapError(
+          () => new CliError.MissingOption({ option: "host-token" }),
+        ),
+      );
+
+      yield* Effect.logInfo(
+        `Only collecting Home Assistant's errors, for the server at ${input.serverUrl.value}`,
+      );
+
+      if (input.decide || input.suggest) {
+        yield* Effect.logWarning(
+          "Not deciding or suggesting here: the server at --server-url does that, or its workers",
+        );
+      }
+
+      return yield* Layer.launch(
+        logged(
+          Layer.merge(
+            CollectOnly.layer({
+              hostname: input.hostname,
+              port: input.port,
+              ingressPort: input.ingressPort,
+              ingressFrom: input.ingressFrom,
+              server: input.serverUrl.value,
+            }),
+            homeAssistantCollection,
+          ).pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                Uploader.layerTo({
+                  url: input.serverUrl.value,
+                  token,
+                  internal: input.serverInternal,
+                }),
+                Translations.layer(input.language),
+                CollectionStatus.layer,
+              ),
+            ),
+            Layer.provide(Store.layer),
+          ),
+        ),
+      );
+    }
+
+    return yield* Server.run(
+      logged(
+        Layer.mergeAll(
+          Server.layer(input),
+          yield* processLoops(input),
+          homeAssistantCollection,
+        ).pipe(
+          Layer.provide(
+            Work.layerStore({
+              by: "server",
+              decideDaily: input.decideDaily,
+              suggestDaily: input.suggestDaily,
+            }),
+          ),
+          Layer.provide(CollectionStatus.layer),
+          Layer.provide(tokensLayer),
         ),
       ),
     );

@@ -274,5 +274,8 @@
   "backups.cancel": "取消",
   "backups.checking": "正在检查备份…",
   "backups.sending": "正在发送备份：{sent} / {size}",
-  "backups.restarting": "正在等待服务器重新启动…"
+  "backups.restarting": "正在等待服务器重新启动…",
+
+  "collectOnly.title": "正在将错误发送到另一台服务器",
+  "collectOnly.message": "此应用会收集 Home Assistant 的错误，并将其发送到 {server} 的 triage 服务器。请在那里打开它查看问题。"
 }

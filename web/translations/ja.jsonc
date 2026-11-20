@@ -274,5 +274,8 @@
   "backups.cancel": "キャンセル",
   "backups.checking": "バックアップを確認しています…",
   "backups.sending": "バックアップを送信中: {sent} / {size}",
-  "backups.restarting": "サーバーの再起動を待っています…"
+  "backups.restarting": "サーバーの再起動を待っています…",
+
+  "collectOnly.title": "エラーを別のサーバーに送信中",
+  "collectOnly.message": "このアプリは Home Assistant のエラーを収集し、{server} の triage サーバーに送信します。問題はそちらで確認してください。"
 }

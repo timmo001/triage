@@ -294,5 +294,8 @@
   "backups.cancel": "Annuler",
   "backups.checking": "Vérification de la sauvegarde…",
   "backups.sending": "Envoi de la sauvegarde : {sent} sur {size}",
-  "backups.restarting": "En attente du redémarrage du serveur…"
+  "backups.restarting": "En attente du redémarrage du serveur…",
+
+  "collectOnly.title": "Envoi des erreurs à un autre serveur",
+  "collectOnly.message": "Cette app collecte les erreurs de Home Assistant et les envoie au serveur triage à l'adresse {server}. Ouvrez-le là-bas pour voir les problèmes."
 }

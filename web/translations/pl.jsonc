@@ -299,5 +299,8 @@
   "backups.cancel": "Anuluj",
   "backups.checking": "Sprawdzanie kopii…",
   "backups.sending": "Wysyłanie kopii: {sent} z {size}",
-  "backups.restarting": "Oczekiwanie na ponowne uruchomienie serwera…"
+  "backups.restarting": "Oczekiwanie na ponowne uruchomienie serwera…",
+
+  "collectOnly.title": "Wysyłanie błędów do innego serwera",
+  "collectOnly.message": "Ta aplikacja zbiera błędy Home Assistant i wysyła je do serwera triage pod adresem {server}. Otwórz go tam, aby zobaczyć problemy."
 }

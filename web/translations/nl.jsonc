@@ -286,5 +286,8 @@
   "backups.cancel": "Annuleren",
   "backups.checking": "Back-up controleren…",
   "backups.sending": "Back-up versturen: {sent} van {size}",
-  "backups.restarting": "Wachten tot de server opnieuw is gestart…"
+  "backups.restarting": "Wachten tot de server opnieuw is gestart…",
+
+  "collectOnly.title": "Fouten gaan naar een andere server",
+  "collectOnly.message": "Deze app verzamelt de fouten van Home Assistant en stuurt ze naar de triage-server op {server}. Open hem daar om de problemen te zien."
 }

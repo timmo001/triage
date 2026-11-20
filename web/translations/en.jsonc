@@ -313,5 +313,11 @@
   "backups.cancel": "Cancel",
   "backups.checking": "Checking the backup…",
   "backups.sending": "Sending the backup: {sent} of {size}",
-  "backups.restarting": "Waiting for the server to start again…"
+  "backups.restarting": "Waiting for the server to start again…",
+
+  // The Home Assistant app's page when it only collects Home Assistant's errors
+  // for a triage server elsewhere, instead of running one. {server} is that
+  // server's address, as a link.
+  "collectOnly.title": "Sending errors to another server",
+  "collectOnly.message": "This app collects Home Assistant's errors and sends them to the triage server at {server}. Open it there to see the issues."
 }
