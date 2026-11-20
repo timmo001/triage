@@ -33,6 +33,7 @@ import {
 } from "./mcp/IssueTools.js";
 import { layerOptions } from "./options.js";
 import { Redactor } from "./redact.js";
+import { BackupAdmin } from "./server/BackupAdmin.js";
 import { IssueAdmin } from "./server/IssueAdmin.js";
 import * as Server from "./server/Server.js";
 import { TokenAdmin } from "./server/TokenAdmin.js";
@@ -1292,11 +1293,12 @@ const serve = Command.make(
         }),
       ),
       Layer.provide(CollectionStatus.layer),
+      Layer.provide(tokensLayer),
     );
 
     // Layers release in the reverse of the order they're built in, so the
     // server's own finalizers run between "Stopping" and "Stopped".
-    return yield* Layer.launch(
+    return yield* Server.run(
       Layer.effectDiscard(
         Effect.acquireRelease(Effect.logInfo("Started"), () =>
           Effect.logInfo("Stopping"),
@@ -1318,7 +1320,6 @@ const serve = Command.make(
   Command.withDescription(
     "Run the triage server over HTTP, which collects events from enrolled hosts. Use a reverse proxy or Cloudflare for HTTPS",
   ),
-  Command.provide(tokensLayer),
 );
 
 const work = Command.make(
@@ -1484,6 +1485,187 @@ const workers = tokenCommands({
   variable: "TRIAGE_WORKER_TOKEN on the worker",
 });
 
+const backupsServer = serverFlag(
+  "Manage the backups of the server at this URL, or $TRIAGE_SERVER, as the admin in $TRIAGE_ADMIN_TOKEN, instead of those beside the server database on this machine",
+);
+
+/** Run `effect` on the server at `url`'s backups, or this machine's without one. */
+const withBackupAdmin = <A, E, R>(
+  url: Option.Option<string>,
+  effect: Effect.Effect<A, E, R>,
+) =>
+  Option.match(url, {
+    onNone: () => effect.pipe(Effect.provide(BackupAdmin.layerLocal)),
+    onSome: (url) => effect.pipe(Effect.provide(BackupAdmin.layerRemote(url))),
+  });
+
+const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+const backupName = Argument.String("name").pipe(
+  Argument.withDescription(
+    "The backup's name on the server, from triage backups list",
+  ),
+);
+
+const backupsList = Command.make(
+  "list",
+  { json, server: backupsServer },
+  Effect.fn(function* (input) {
+    const all = yield* withBackupAdmin(
+      input.server,
+      BackupAdmin.use((admin) => admin.list),
+    );
+
+    if (input.json) {
+      yield* Console.log(JSON.stringify(all));
+
+      return;
+    }
+
+    if (all.length === 0) {
+      yield* Console.log(
+        "No backups are kept on the server. Make one with triage backups create.",
+      );
+
+      return;
+    }
+
+    for (const backup of all) {
+      yield* Console.log(
+        `${backup.name}  ${megabytes(backup.bytes)}  ${new Date(backup.at).toISOString()}`,
+      );
+    }
+  }),
+).pipe(
+  Command.withDescription("List the backups kept on the server, newest first"),
+);
+
+const backupsCreate = Command.make(
+  "create",
+  { json, server: backupsServer },
+  Effect.fn(function* (input) {
+    const made = yield* withBackupAdmin(
+      input.server,
+      BackupAdmin.use((admin) => admin.create),
+    );
+
+    if (input.json) {
+      yield* Console.log(JSON.stringify(made));
+
+      return;
+    }
+
+    yield* Console.log(
+      `Made ${made.name} (${megabytes(made.bytes)}). Download it with triage backups download ${made.name}.`,
+    );
+  }),
+).pipe(
+  Command.withDescription(
+    "Back up the server's database while it runs, keeping the backup on the server. Its settings aren't in it",
+  ),
+);
+
+const backupsDownload = Command.make(
+  "download",
+  {
+    name: backupName,
+    output: Flag.String("output").pipe(
+      Flag.withAlias("o"),
+      Flag.withDescription("Where to save it; its own name here by default"),
+      Flag.optional,
+    ),
+    server: backupsServer,
+  },
+  Effect.fn(function* (input) {
+    const file = Option.getOrElse(input.output, () => input.name);
+
+    yield* withBackupAdmin(
+      input.server,
+      BackupAdmin.use((admin) => admin.save(input.name, file)),
+    );
+
+    yield* Console.log(`Saved ${file}`);
+  }),
+).pipe(Command.withDescription("Download a backup kept on the server"));
+
+const backupsRemove = Command.make(
+  "remove",
+  { name: backupName, server: backupsServer },
+  Effect.fn(function* (input) {
+    yield* withBackupAdmin(
+      input.server,
+      BackupAdmin.use((admin) => admin.remove(input.name)),
+    );
+
+    yield* Console.log(`Removed ${input.name}`);
+  }),
+).pipe(Command.withDescription("Remove a backup kept on the server"));
+
+/** What happens after a restore, which depends on where it ran. */
+const restoreDone = (backup: string, restarts: boolean) =>
+  Console.log(
+    restarts
+      ? `Restoring ${backup}: the server checked it and is starting again on it. The database it replaced is kept beside it as server.db.before-restore.`
+      : `Checked ${backup} and staged it beside this machine's server database. The server puts it in place when it next starts, keeping the database it replaces as server.db.before-restore, so start or restart it now.`,
+  );
+
+const backupsRestore = Command.make(
+  "restore",
+  { name: backupName, server: backupsServer },
+  Effect.fn(function* (input) {
+    const restarts = yield* withBackupAdmin(
+      input.server,
+      BackupAdmin.use((admin) =>
+        admin.restore(input.name).pipe(Effect.as(admin.restarts)),
+      ),
+    );
+
+    yield* restoreDone(input.name, restarts);
+  }),
+).pipe(
+  Command.withDescription(
+    "Restore a backup kept on the server, which checks it, then starts again on it",
+  ),
+);
+
+const backupsUpload = Command.make(
+  "upload",
+  {
+    file: Argument.String("file").pipe(
+      Argument.withDescription("The backup file on this machine"),
+    ),
+    server: backupsServer,
+  },
+  Effect.fn(function* (input) {
+    const restarts = yield* withBackupAdmin(
+      input.server,
+      BackupAdmin.use((admin) =>
+        admin.upload(input.file).pipe(Effect.as(admin.restarts)),
+      ),
+    );
+
+    yield* restoreDone(input.file, restarts);
+  }),
+).pipe(
+  Command.withDescription(
+    "Restore a backup file from this machine, keeping it with the server's backups. The server checks it, then starts again on it",
+  ),
+);
+
+const backups = Command.make("backups").pipe(
+  Command.withDescription(
+    "Back up the server's database while it runs, and download, remove or restore its backups",
+  ),
+  Command.withSubcommands([
+    backupsList,
+    backupsCreate,
+    backupsDownload,
+    backupsRemove,
+    backupsRestore,
+    backupsUpload,
+  ]),
+);
+
 const triage = Command.make("triage").pipe(
   Command.withDescription(
     "Capture crashes and errors from your machines, decide which are worth fixing, and suggest fixes",
@@ -1500,6 +1682,7 @@ const triage = Command.make("triage").pipe(
     hosts,
     admins,
     workers,
+    backups,
     decide,
     suggest,
     label,

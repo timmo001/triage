@@ -1,13 +1,21 @@
 import { BunHttpServer } from "@effect/platform-bun";
 import { Api, Version } from "@timmo001/effect-triage";
-import { Effect, Layer, Option, Redacted } from "effect";
+import {
+  Deferred,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Redacted,
+  Stream,
+} from "effect";
 import {
   HttpMiddleware,
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
 } from "effect/http";
-import { HttpApiBuilder } from "effect/http-api";
+import { HttpApiBuilder, HttpApiSchema } from "effect/http-api";
 import { McpServer } from "effect/ai";
 import packageJson from "../../package.json" with { type: "json" };
 import { CollectionStatus } from "../homeassistant/Status.js";
@@ -16,8 +24,10 @@ import { IssueTools, IssueToolsLayer, mcpOptions } from "../mcp/IssueTools.js";
 import { Store } from "../store/Store.js";
 import { agreement } from "../triage/Triager.js";
 import { Work } from "../triage/Work.js";
+import * as Backups from "./Backups.js";
 import * as HomeAssistant from "./HomeAssistant.js";
 import { IssueAdmin } from "./IssueAdmin.js";
+import { Restart } from "./Restart.js";
 import { Tokens } from "./Tokens.js";
 import { Translations } from "./Translations.js";
 import { bundleWeb } from "./webBundle.js" with { type: "macro" };
@@ -392,6 +402,58 @@ const TokensHandlers = HttpApiBuilder.group(
   }),
 );
 
+/** A backup as a file to save, under its own name. */
+const asFile = (download: Backups.Download) =>
+  HttpApiSchema.withHeaders({
+    // Headers are already sent by the time anything fails, so a failure ends
+    // the download early and is only logged
+    body: download.data.pipe(
+      Stream.tapError((error) =>
+        Effect.logWarning(
+          `The download of ${download.name} stopped: ${error.message}`,
+        ),
+      ),
+    ),
+    headers: {
+      "content-disposition": `attachment; filename="${download.name}"`,
+    },
+  });
+
+const BackupsHandlers = HttpApiBuilder.group(
+  Api.Api,
+  "backups",
+  Effect.fn(function* (handlers) {
+    const backups = yield* Backups.Backups;
+
+    return handlers.handleAll({
+      list: () => backups.list,
+      create: () => backups.create,
+      file: ({ params }) => backups.file(params.name).pipe(Effect.map(asFile)),
+      link: ({ params }) =>
+        backups
+          .link(params.name)
+          .pipe(
+            Effect.map((code) => ({ path: `api/backups/download/${code}` })),
+          ),
+      remove: ({ params }) => backups.remove(params.name),
+      restore: ({ params }) => backups.restore(params.name),
+      upload: ({ payload }) => backups.upload(payload),
+    });
+  }),
+);
+
+const BackupDownloadsHandlers = HttpApiBuilder.group(
+  Api.Api,
+  "backupDownloads",
+  Effect.fn(function* (handlers) {
+    const backups = yield* Backups.Backups;
+
+    return handlers.handle("download", ({ params }) =>
+      backups.download(params.code).pipe(Effect.map(asFile)),
+    );
+  }),
+);
+
 const SystemHandlers = HttpApiBuilder.group(Api.Api, "system", (handlers) =>
   Effect.gen(function* () {
     const translations = yield* Translations;
@@ -474,6 +536,8 @@ const apiRoutes = (
       DecisionsHandlers,
       TokensHandlers,
       RedactionsHandlers(options.resolveTokens),
+      BackupsHandlers,
+      BackupDownloadsHandlers,
       SystemHandlers,
     ]),
     Layer.provide([
@@ -486,7 +550,7 @@ const apiRoutes = (
 
 /**
  * The triage API's routes, needing a `Store`, `Tokens`, `Translations`,
- * `CollectionStatus` and the local `Work`.
+ * `CollectionStatus`, `Backups` and the local `Work`.
  */
 export const routes = apiRoutes(AdminAuthorizationLayer, {
   resolveTokens: false,
@@ -734,8 +798,21 @@ export interface ServeOptions {
 }
 
 /**
+ * How long a stop waits for open requests, such as the web UI's event streams,
+ * before closing them, so a restart after a restore doesn't hang on them.
+ */
+const gracefulShutdownTimeout = Duration.seconds(3);
+
+/**
+ * The largest request the server takes: a backup's upload can be as big as the
+ * store, more than Bun's default of 128 MB.
+ */
+const maxRequestBodySize = 2 ** 40;
+
+/**
  * Serve the triage API over plain HTTP. For HTTPS, put it behind a reverse
- * proxy or Cloudflare, which handle TLS.
+ * proxy or Cloudflare, which handle TLS. A restore needs a `Restart`, which
+ * `run` gives it.
  */
 export const layer = (options: ServeOptions) =>
   Layer.mergeAll(
@@ -755,7 +832,12 @@ export const layer = (options: ServeOptions) =>
         : {},
     ).pipe(
       Layer.provide(
-        BunHttpServer.layer({ hostname: options.hostname, port: options.port }),
+        BunHttpServer.layer({
+          hostname: options.hostname,
+          port: options.port,
+          gracefulShutdownTimeout,
+          maxRequestBodySize,
+        }),
       ),
     ),
     Option.match(options.ingressPort, {
@@ -778,10 +860,57 @@ export const layer = (options: ServeOptions) =>
             },
           ).pipe(
             Layer.provide(
-              BunHttpServer.layer({ hostname: options.hostname, port }),
+              BunHttpServer.layer({
+                hostname: options.hostname,
+                port,
+                gracefulShutdownTimeout,
+                maxRequestBodySize,
+              }),
             ),
           ),
           HomeAssistant.layerDiscovery({ port, path: mcpPath }),
         ),
     }),
-  ).pipe(Layer.provide(Translations.layer(options.language)));
+  ).pipe(
+    Layer.provide([
+      Translations.layer(options.language),
+      Backups.Backups.layer,
+    ]),
+  );
+
+/**
+ * Run `app`, the server and everything beside it, until it's stopped, putting
+ * a staged restore in place before each start. Asked to restart, such as by a
+ * restore, it stops everything, closing the store, and starts it again in this
+ * process. `app` must open the store itself, so each start opens it anew.
+ */
+export const run = <E, R>(app: Layer.Layer<never, E, R>) =>
+  Effect.gen(function* () {
+    while (true) {
+      yield* Backups.applyPending;
+
+      const restarting = yield* Deferred.make<void>();
+
+      const restart = Layer.succeed(
+        Restart,
+        Restart.of({
+          request: Deferred.succeed(restarting, undefined).pipe(Effect.asVoid),
+        }),
+      );
+
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          // A memo map of its own, so nothing built before is reused
+          yield* Layer.buildWithMemoMap(
+            app.pipe(Layer.provide(restart)),
+            yield* Layer.makeMemoMap,
+            yield* Effect.scope,
+          );
+          yield* Deferred.await(restarting);
+          // So the request that asked gets its answer first
+          yield* Effect.sleep(Duration.seconds(1));
+          yield* Effect.logInfo("Restarting the server");
+        }),
+      );
+    }
+  });

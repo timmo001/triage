@@ -11,6 +11,7 @@
   "/commands/hosts",
   "/commands/admins",
   "/commands/workers",
+  "/commands/backups",
   "/commands/decide",
   "/commands/suggest",
   "/commands/label",

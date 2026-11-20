@@ -20,6 +20,7 @@ Each command has its own page with its help, as `triage <command> --help` prints
 | [`hosts`](/commands/hosts) | None |
 | [`admins`](/commands/admins) | None |
 | [`workers`](/commands/workers) | None |
+| [`backups`](/commands/backups) | None |
 | [`decide`](/commands/decide) | None |
 | [`suggest`](/commands/suggest) | None |
 | [`label`](/commands/label) | None |
@@ -61,6 +62,7 @@ SUBCOMMANDS
   hosts        Manage the hosts that can send events
   admins       Manage the admins that can read issues and manage tokens
   workers      Manage the workers that can decide on issues and suggest fixes for this server
+  backups      Back up the server's database while it runs, and download, remove or restore its backups
   decide       Ask a decision model whether the server's new issues are worth fixing, storing the answers without acting on them
   suggest      Ask a language model how to fix some of the server's issues, from their redacted events only, and store its suggestions
   label        Label one of the server's issues by hand, to measure decision models against

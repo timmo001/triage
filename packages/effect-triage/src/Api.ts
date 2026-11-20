@@ -121,6 +121,31 @@ export class TokenNotFound extends Schema.TaggedError<TokenNotFound>()(
   }
 }
 
+/** A backup of the server's store, kept in the backups folder beside it. */
+export const BackupFile = Schema.Struct({
+  /** Such as `triage-2026-11-20T20-15-00.triage-backup`. */
+  name: Schema.String,
+  bytes: Schema.Finite,
+  /** When it was made, in milliseconds. */
+  at: Schema.Finite,
+});
+
+export interface BackupFile extends Schema.Schema.Type<typeof BackupFile> {}
+
+/** A backup that can't be made or restored, such as one that isn't a store. */
+export class BackupError extends Schema.TaggedError<BackupError>()(
+  "BackupError",
+  { message: Schema.String },
+  { httpApiStatus: 400 },
+) {}
+
+/** No backup has that name, or a download link that's used or past its time. */
+export class UnknownBackup extends Schema.TaggedError<UnknownBackup>()(
+  "UnknownBackup",
+  { message: Schema.String },
+  { httpApiStatus: 404 },
+) {}
+
 /**
  * Authenticates a host by the bearer token it was given on enrolment. Host
  * tokens can only upload events.
@@ -870,6 +895,89 @@ export class RedactionsGroup extends HttpApiGroup.make("redactions")
     }),
   ) {}
 
+const backupName = { name: Schema.String };
+
+const backupStream = HttpApiSchema.WithHeaders(
+  HttpApiSchema.StreamUint8Array({ contentType: "application/octet-stream" }),
+  { "content-disposition": Schema.String },
+);
+
+/**
+ * Backups of the server's store, kept in the backups folder beside it, and
+ * restored from there or from an upload. A restore restarts the server in its
+ * own process, which swaps the backup in before it opens the store.
+ */
+export class BackupsGroup extends HttpApiGroup.make("backups")
+  .add(
+    /** The kept backups, newest first. */
+    HttpApiEndpoint.get("list", "/", { success: Schema.Array(BackupFile) }),
+    /** Make a backup of the store while the server runs. */
+    HttpApiEndpoint.post("create", "/", {
+      success: BackupFile,
+      error: BackupError,
+    }),
+    /** A kept backup, as a file to save. */
+    HttpApiEndpoint.get("file", "/files/:name", {
+      params: backupName,
+      success: backupStream,
+      error: UnknownBackup,
+    }),
+    /**
+     * A one-time path, under the server's address, that downloads a kept
+     * backup without a token, for 5 minutes, so a browser can save it.
+     */
+    HttpApiEndpoint.post("link", "/files/:name/link", {
+      params: backupName,
+      success: Schema.Struct({ path: Schema.String }),
+      error: UnknownBackup,
+    }),
+    HttpApiEndpoint.delete("remove", "/files/:name", {
+      params: backupName,
+      success: HttpApiSchema.NoContent,
+      error: UnknownBackup,
+    }),
+    /** Restore a kept backup; the server restarts once it's checked. */
+    HttpApiEndpoint.post("restore", "/files/:name/restore", {
+      params: backupName,
+      success: HttpApiSchema.NoContent,
+      error: [UnknownBackup, BackupError],
+    }),
+    /**
+     * Restore the backup this request carries, keeping it with the others;
+     * the server restarts once it's checked.
+     */
+    HttpApiEndpoint.post("upload", "/restore", {
+      payload: HttpApiSchema.StreamUint8Array(),
+      success: HttpApiSchema.NoContent,
+      error: BackupError,
+    }),
+  )
+  .middleware(AdminAuthorization)
+  .prefix("/api/backups")
+  .annotateMerge(
+    OpenApi.annotations({
+      title: "Backups",
+      description: "Back up the server's store, and restore it",
+    }),
+  ) {}
+
+/** The one-time downloads `backups.link` gives, which need no token. */
+export class BackupDownloadsGroup extends HttpApiGroup.make("backupDownloads")
+  .add(
+    HttpApiEndpoint.get("download", "/:code", {
+      params: { code: Schema.String },
+      success: backupStream,
+      error: UnknownBackup,
+    }),
+  )
+  .prefix("/api/backups/download")
+  .annotateMerge(
+    OpenApi.annotations({
+      title: "Backup downloads",
+      description: "Download a backup by the one-time link it was given",
+    }),
+  ) {}
+
 /** The forms a plural message can take, as `Intl.PluralRules` names them. */
 export const PluralForm = Schema.Literals([
   "zero",
@@ -930,5 +1038,7 @@ export class Api extends HttpApi.make("triage")
   .add(DecisionsGroup)
   .add(TokensGroup)
   .add(RedactionsGroup)
+  .add(BackupsGroup)
+  .add(BackupDownloadsGroup)
   .add(SystemGroup)
   .annotateMerge(OpenApi.annotations({ title: "triage" })) {}

@@ -865,7 +865,7 @@ export const mergeBursts = Effect.fnUntraced(function* () {
   return merged;
 });
 
-const migrations = SqliteMigrator.fromRecord({
+const migrationSteps = {
   "0001_events_and_issues": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
 
@@ -1521,7 +1521,14 @@ const migrations = SqliteMigrator.fromRecord({
 
     yield* mergeBursts();
   }),
-});
+};
+
+const migrations = SqliteMigrator.fromRecord(migrationSteps);
+
+/** The newest migration this version knows, which a backup can't be past. */
+export const latestMigration = Math.max(
+  ...Object.keys(migrationSteps).map((key) => Number.parseInt(key, 10)),
+);
 
 /** How long a host keeps warning counts, sent or not. */
 const warningRetention = 7 * 24 * 60 * 60 * 1000;
@@ -1636,6 +1643,21 @@ const programsOf = (fingerprints: ReadonlyArray<string>) => [
     }),
   ),
 ];
+
+/** A store's file in `$XDG_STATE_HOME/triage`, unless `variable` names another. */
+const stateFile = (file: string, variable: string) =>
+  Effect.gen(function* () {
+    const path = yield* Path.Path;
+    const home = yield* Config.String("HOME").pipe(Config.withDefault(""));
+
+    const stateHome = yield* Config.String("XDG_STATE_HOME").pipe(
+      Config.withDefault(path.join(home, ".local", "state")),
+    );
+
+    return yield* Config.String(variable).pipe(
+      Config.withDefault(path.join(stateHome, "triage", file)),
+    );
+  });
 
 /**
  * Where triage keeps events and the issues they group into. Events are stored
@@ -1873,6 +1895,11 @@ export class Store extends Context.Service<
       suggestion: StoredSuggestion,
       by: string,
     ): Effect.Effect<void, StoreError>;
+    /**
+     * Write a consistent copy of the whole store to `path`, which mustn't
+     * exist yet, while it stays in use.
+     */
+    copyTo(path: string): Effect.Effect<void, StoreError>;
   }
 >()("triage/store/Store") {
   static readonly make = Effect.gen(function* () {
@@ -3691,6 +3718,13 @@ export class Store extends Context.Service<
       Effect.mapError((cause) => new StoreError({ cause })),
     );
 
+    const copyTo = Effect.fn("Store.copyTo")(
+      function* (path: string) {
+        yield* sql`VACUUM INTO ${path}`;
+      },
+      Effect.mapError((cause) => new StoreError({ cause })),
+    );
+
     return Store.of({
       cursor,
       redactionKey,
@@ -3729,6 +3763,7 @@ export class Store extends Context.Service<
       unsuggested,
       suggestedSince,
       saveSuggestion,
+      copyTo,
     });
   });
 
@@ -3762,15 +3797,7 @@ export class Store extends Context.Service<
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const home = yield* Config.String("HOME").pipe(Config.withDefault(""));
-
-        const stateHome = yield* Config.String("XDG_STATE_HOME").pipe(
-          Config.withDefault(path.join(home, ".local", "state")),
-        );
-
-        const filename = yield* Config.String(variable).pipe(
-          Config.withDefault(path.join(stateHome, "triage", file)),
-        );
+        const filename = yield* stateFile(file, variable);
 
         yield* fs.makeDirectory(path.dirname(filename), { recursive: true });
 
@@ -3787,3 +3814,6 @@ export class Store extends Context.Service<
     "TRIAGE_SERVER_DB",
   );
 }
+
+/** Where the server's store is: `$TRIAGE_SERVER_DB`, or `server.db`. */
+export const serverStoreFile = stateFile("server.db", "TRIAGE_SERVER_DB");
