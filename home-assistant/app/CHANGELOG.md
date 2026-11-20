@@ -1,29 +1,28 @@
-Issues that always happen together now merge by themselves: a unit failure joins the crash or OOM kill behind it, and a multi-line log dump becomes one issue instead of one per line.
+The server can now back up its own database while it runs, and restore one, from the web UI or the CLI. That makes moving a server to another machine a download and an upload.
 
-## Merging by rule
+## Backups
 
-- **Unit failure it caused**: a `core-dump` unit failure joins the crash behind it, and an `oom-kill` one the OOM kill, when they're for the same unit on the same host within 10 seconds, whichever arrives first. This works event by event, so a unit that fails after two different crashes doesn't chain them together.
-- **systemd error about the unit**: systemd's own errors about that unit within 10 seconds follow the unit failure.
-- **Same log burst**: log errors from the same program on the same host, each within 2 seconds of the one before, such as a firmware error dump with one line per register, join the issue of the burst's first line. Kernel errors are also grouped by the message's first word, so different drivers don't merge. Only new fingerprints join a burst; one that already has an issue stays where it is.
-- **Unmerge**: unmerging a fingerprint a rule joined sends its events back to their own issue, and the rule doesn't join them to it again.
+- **Make a backup** while the server runs, into a `backups` folder beside its database. It's a copy of the database, with every issue, event, host and token in it. The server's settings aren't in it.
+- **Download, restore or delete** a kept backup, or **restore from a file**, such as a backup from another server. A restore checks the backup first, then the server starts again on it in its own process, keeping the database it replaced as `server.db.before-restore`.
+- Only one backup or restore runs at a time.
 
-See [Merging by rule](https://triage.timmo.dev/issues#merging-by-rule).
-
-## Server
-
-- When the database is updated to this version, migration `0023_rules` applies the unit failure and systemd rules to stored events, and merges stored issues whose every event falls in the bursts another issue's first line opens. Each issue kept gets a "Merged ... by rule" note. On one machine's 12,440 events this took 436 issues down to 263.
+See [Backups](https://triage.timmo.dev/setup/server#backups) and [Move a server](https://triage.timmo.dev/setup/server#move-a-server).
 
 ## Web UI
 
-- A merged issue's fingerprints show which rule joined each one, if one did.
+- **Backups** in the header opens a page to make, download, restore and delete backups, and to restore from a file. Downloads go through a link that works once, for 5 minutes. After a restore the page reloads once the server is back.
 
-## CLI and MCP
+## CLI
 
-- `triage unmerge <issue>` lists the rule beside each fingerprint, and the `merge_issues` description says which issues already come together by rule.
+- `triage backups list`, `create`, `download`, `remove`, `restore` and `upload`, with `--server` or `TRIAGE_SERVER`. Without one, they work on this machine's server database, and a restore goes in when the server next starts.
+
+## Home Assistant app
+
+- The app's own backups, in `/data/backups`, are left out of Home Assistant's backups of it, since they're copies already.
+- Uploads stream through Home Assistant's ingress, so a large backup isn't held in memory on the way.
 
 ## Libraries
 
-- `@timmo001/effect-triage` adds `Api.JoinRule` and a `rule` field on `Api.IssueFingerprint`.
+- `@timmo001/effect-triage` adds the `backups` and `backupDownloads` groups to `Api.Api`, with `Api.BackupFile`, `Api.BackupError` and `Api.UnknownBackup`.
 
-**Full Changelog**: https://github.com/timmo001/triage/compare/0.24.1...0.25.0
-
+**Full Changelog**: https://github.com/timmo001/triage/compare/0.25.0...0.26.0
