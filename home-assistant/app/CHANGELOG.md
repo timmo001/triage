@@ -1,28 +1,17 @@
-The server can now back up its own database while it runs, and restore one, from the web UI or the CLI. That makes moving a server to another machine a download and an upload.
-
-## Backups
-
-- **Make a backup** while the server runs, into a `backups` folder beside its database. It's a copy of the database, with every issue, event, host and token in it. The server's settings aren't in it.
-- **Download, restore or delete** a kept backup, or **restore from a file**, such as a backup from another server. A restore checks the backup first, then the server starts again on it in its own process, keeping the database it replaced as `server.db.before-restore`.
-- Only one backup or restore runs at a time.
-
-See [Backups](https://triage.timmo.dev/setup/server#backups) and [Move a server](https://triage.timmo.dev/setup/server#move-a-server).
-
-## Web UI
-
-- **Backups** in the header opens a page to make, download, restore and delete backups, and to restore from a file. Downloads go through a link that works once, for 5 minutes. After a restore the page reloads once the server is back.
-
-## CLI
-
-- `triage backups list`, `create`, `download`, `remove`, `restore` and `upload`, with `--server` or `TRIAGE_SERVER`. Without one, they work on this machine's server database, and a restore goes in when the server next starts.
+The Home Assistant app can now leave the server to another machine and only collect Home Assistant's errors, sending them there the way the agent does on a Linux host.
 
 ## Home Assistant app
 
-- The app's own backups, in `/data/backups`, are left out of Home Assistant's backups of it, since they're copies already.
-- Uploads stream through Home Assistant's ingress, so a large backup isn't held in memory on the way.
+- **server_url** and **host_token**: with a server's URL and a host token from it, the app runs no server of its own. It collects Home Assistant's errors as the **collect_** options say, keeps them in `/data/triage.db` and sends them every 30 seconds, holding on to them while the server can't be reached.
+- Add the token on the server with `triage hosts add home-assistant`, so the errors keep the host `home-assistant` and land on the same issues as before.
+- **server_internal**: also send the values behind redaction tokens, so the server's web UI can show them, only to a server on this network.
+- In this mode port 7171 only answers the Supervisor's health check, **Triage** in the sidebar says where the errors go, with a link, and there's no MCP server to announce.
+- Without **server_url** the app works as it did.
 
-## Libraries
+See [Collect only](https://triage.timmo.dev/setup/server#collect-only).
 
-- `@timmo001/effect-triage` adds the `backups` and `backupDownloads` groups to `Api.Api`, with `Api.BackupFile`, `Api.BackupError` and `Api.UnknownBackup`.
+## CLI
 
-**Full Changelog**: https://github.com/timmo001/triage/compare/0.25.0...0.26.0
+- `triage serve --server-url <url> --host-token <token>`, or `TRIAGE_SERVER_URL` and `TRIAGE_HOST_TOKEN`, runs this mode, with `--server-internal` or `TRIAGE_SERVER_INTERNAL` for the values.
+
+**Full Changelog**: https://github.com/timmo001/triage/compare/0.26.0...0.27.0
