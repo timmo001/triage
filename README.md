@@ -20,7 +20,3 @@ The `triage-resolve` skill has coding agents find and resolve the issues a fix s
 | --- | --- |
 | [`@timmo001/effect-triage-client`](packages/client) | Effect client for a triage server's HTTP API |
 | [`@timmo001/effect-triage`](packages/effect-triage) | The event, issue and API schemas every part of triage shares |
-
-## Licence
-
-Apache 2.0. See [LICENSE](LICENSE).

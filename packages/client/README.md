@@ -13,7 +13,3 @@ npx jsr add @timmo001/effect-triage-client
 ```
 
 `effect` is a peer dependency, so install the same Effect v4 version your app uses.
-
-## Licence
-
-Apache 2.0. See [LICENSE](https://github.com/timmo001/triage/blob/main/LICENSE).
