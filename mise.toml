@@ -5,7 +5,7 @@ node = "26.13.1"
 bun = "1.4.5"
 pitchfork = "2.36.0"
 # The hk pre-push hook and the linters it runs, matching CI.
-hk = "2.13.0"
+hk = "2.14.0"
 pkl = "0.33.1"
 uv = "0.13.9"
 # yamllint's PyYAML has no wheels for newer Pythons, and mise won't build it from source.
