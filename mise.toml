@@ -7,7 +7,7 @@ pitchfork = "2.36.0"
 # The hk pre-push hook and the linters it runs, matching CI.
 hk = "2.14.0"
 pkl = "0.33.1"
-uv = "0.13.9"
+uv = "0.13.10"
 # yamllint's PyYAML has no wheels for newer Pythons, and mise won't build it from source.
 python = "3.14.10"
 "pipx:yamllint" = "1.38.0"
