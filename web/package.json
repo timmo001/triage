@@ -9,7 +9,7 @@
     "lint:lit": "lit-analyzer \"src/**/*.ts\" --strict --maxNodeModuleImportDepth 3"
   },
   "dependencies": {
-    "@effect/platform-browser": "4.1.6",
+    "@effect/platform-browser": "4.1.7",
     "@mdi/js": "7.4.47",
     "@tanstack/lit-table": "9.3.1",
     "@tanstack/lit-virtual": "3.15.5",
@@ -18,7 +18,7 @@
     "@timmo001/groundwork-tokens": "0.51.1",
     "@timmo001/groundwork-ui": "0.51.1",
     "dompurify": "3.5.0",
-    "effect": "4.1.6",
+    "effect": "4.1.7",
     "lit": "3.3.3",
     "marked": "18.3.0"
   },
